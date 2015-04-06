@@ -1,0 +1,5 @@
+add_library(epuck_diffusion MODULE epuck_diffusion.h epuck_diffusion.cpp)
+target_link_libraries(epuck_diffusion
+  argos3core_simulator
+  argos3plugin_simulator_epuck
+  argos3plugin_simulator_genericrobot)
