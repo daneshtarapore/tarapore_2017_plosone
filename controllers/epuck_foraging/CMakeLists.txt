@@ -1,4 +1,4 @@
-add_library(epuck_foraging SHARED epuck_foraging.h epuck_foraging.cpp)
+add_library(epuck_foraging SHARED epuck_foraging.h epuck_foraging.cpp behavior.h behavior.cpp dispersebehavior.h dispersebehavior.cpp randomwalkbehavior.h randomwalkbehavior.cpp)
 target_link_libraries(epuck_foraging
   argos3core_simulator
   argos3plugin_simulator_epuck

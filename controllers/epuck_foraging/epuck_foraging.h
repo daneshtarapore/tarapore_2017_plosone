@@ -13,6 +13,9 @@
 /*
  * Include some necessary headers.
  */
+
+#include <vector>
+
 /* Definition of the CCI_Controller class. */
 #include <argos3/core/control_interface/ci_controller.h>
 
@@ -42,6 +45,12 @@
 /* Definitions for random number generation */
 #include <argos3/core/utility/math/rng.h>
 
+
+/* Definitions for behaviors used to control robot */
+#include "behavior.h"
+#include "dispersebehavior.h"
+#include "randomwalkbehavior.h"
+
 /*
  * All the ARGoS stuff in the 'argos' namespace.
  * With this statement, you save typing argos:: every time.
@@ -51,10 +60,10 @@ using namespace argos;
 /*
  * A controller is simply an implementation of the CCI_Controller class.
  */
-class CEPuckForaging : public CCI_Controller {
+class CEPuckForaging : public CCI_Controller
+{
 
 public:
-
    /*
     * This structure holds data about food collecting by the robots
     */
@@ -294,6 +303,8 @@ private:
    void ReturnToNest();
 
 private:
+
+   TBehaviorVector             m_vecBehaviors;
 
    /* Pointer to the differential steering actuator */
    CCI_DifferentialSteeringActuator* m_pcWheels;

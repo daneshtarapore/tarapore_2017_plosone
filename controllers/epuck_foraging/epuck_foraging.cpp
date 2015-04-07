@@ -10,12 +10,21 @@
 /****************************************/
 /****************************************/
 
+CBehavior::SensoryData CBehavior::m_sSensoryData;
+CBehavior::RobotData CBehavior::m_sRobotData;
+
+/****************************************/
+/****************************************/
+
 CEPuckForaging::SFoodData::SFoodData() :
     HasFoodItem(false),
     FoodItemIdx(0),
-    TotalFoodItems(0) {}
+    TotalFoodItems(0)
+{
+}
 
-void CEPuckForaging::SFoodData::Reset() {
+void CEPuckForaging::SFoodData::Reset()
+{
     HasFoodItem = false;
     FoodItemIdx = 0;
     TotalFoodItems = 0;
@@ -43,8 +52,10 @@ void CEPuckForaging::SDiffusionParams::Init(TConfigurationNode& t_node) {
 /****************************************/
 /****************************************/
 
-void CEPuckForaging::SWheelTurningParams::Init(TConfigurationNode& t_node) {
-    try {
+void CEPuckForaging::SWheelTurningParams::Init(TConfigurationNode& t_node)
+{
+    try
+    {
         CDegrees cAngle;
         GetNodeAttribute(t_node, "hard_turn_angle_threshold", cAngle);
         HardTurnOnAngleThreshold = ToRadians(cAngle);
@@ -57,6 +68,11 @@ void CEPuckForaging::SWheelTurningParams::Init(TConfigurationNode& t_node) {
     catch(CARGoSException& ex) {
         THROW_ARGOSEXCEPTION_NESTED("Error initializing controller wheel turning parameters.", ex);
     }
+
+    CBehavior::m_sRobotData.MaxSpeed = MaxSpeed;
+    CBehavior::m_sRobotData.ticks_per_second = 10.0;
+    CBehavior::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f;
+    CBehavior::m_sRobotData.WHEEL_RADIUS = 0.0205f;
 }
 
 /****************************************/
@@ -110,7 +126,19 @@ CEPuckForaging::CEPuckForaging() :
     m_pcProximity(NULL),
     m_pcLight(NULL),
     m_pcGround(NULL),
-    m_pcRNG(NULL) {}
+    m_pcRNG(NULL)
+{
+    m_vecBehaviors.clear();
+
+    CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(3.0);
+    m_vecBehaviors.push_back(pcDisperseBehavior);
+
+    CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.01);
+    m_vecBehaviors.push_back(pcRandomWalkBehavior);
+
+    /*for (TBehaviorVectorIterator i = m_vecBehaviors.begin(); i != m_vecBehaviors.end(); i++)
+        (*i)->SetAgent(this);*/
+}
 
 /****************************************/
 /****************************************/
@@ -154,31 +182,54 @@ void CEPuckForaging::Init(TConfigurationNode& t_node) {
 
 void CEPuckForaging::ControlStep()
 {
-    switch(m_sStateData.State)
+    CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcLight->GetReadings(), m_pcGround->GetReadings());
+
+    Real leftSpeed = 0.0, rightSpeed = 0.0;
+
+    bool bControlTaken = false;
+    for (TBehaviorVectorIterator i = m_vecBehaviors.begin(); i != m_vecBehaviors.end(); i++)
     {
-        case SStateData::STATE_RESTING:
+        //(*i)->m_sSensoryData.m_ProximitySensorData =  m_pcProximity->GetReadings();
+        (*i)->SimulationStep();
+        if (!bControlTaken)
         {
-            std::cout << "SStateData::STATE_RESTING " << std::endl;
-            Rest();
-            break;
-        }
-        case SStateData::STATE_EXPLORING:
-        {
-            std::cout << "SStateData::STATE_EXPLORING " << std::endl;
-            Explore();
-            break;
-        }
-        case SStateData::STATE_RETURN_TO_NEST:
-        {
-            std::cout << "SStateData::STATE_RETURN_TO_NEST " << std::endl;
-            ReturnToNest();
-            break;
-        }
-        default:
-        {
-            LOGERR << "We can't be here, there's a bug!" << std::endl;
-        }
+            bControlTaken = (*i)->TakeControl();
+            if (bControlTaken)
+            {
+                (*i)->Action(leftSpeed, rightSpeed);
+            }
+        } else
+            (*i)->Suppress();
     }
+
+    m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+
+
+//    switch(m_sStateData.State)
+//    {
+//        case SStateData::STATE_RESTING:
+//        {
+//            std::cout << "SStateData::STATE_RESTING " << std::endl;
+//            Rest();
+//            break;
+//        }
+//        case SStateData::STATE_EXPLORING:
+//        {
+//            std::cout << "SStateData::STATE_EXPLORING " << std::endl;
+//            Explore();
+//            break;
+//        }
+//        case SStateData::STATE_RETURN_TO_NEST:
+//        {
+//            std::cout << "SStateData::STATE_RETURN_TO_NEST " << std::endl;
+//            ReturnToNest();
+//            break;
+//        }
+//        default:
+//        {
+//            LOGERR << "We can't be here, there's a bug!" << std::endl;
+//        }
+//    }
 }
 
 /****************************************/
@@ -359,7 +410,7 @@ void CEPuckForaging::SetWheelSpeedsFromVector(const CVector2& c_heading)
         fRightWheelSpeed = fSpeed1;
     }
     /* Finally, set the wheel speeds */
-    m_pcWheels->SetLinearVelocity(fLeftWheelSpeed, fRightWheelSpeed);
+    m_pcWheels->SetLinearVelocity(fLeftWheelSpeed, fRightWheelSpeed); // in cm/s
 }
 
 /****************************************/
