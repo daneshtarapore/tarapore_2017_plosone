@@ -50,6 +50,7 @@
 #include "behavior.h"
 #include "dispersebehavior.h"
 #include "randomwalkbehavior.h"
+#include "phototaxisbehavior.h"
 
 /*
  * All the ARGoS stuff in the 'argos' namespace.
@@ -76,31 +77,6 @@ public:
       void Reset();
    };
 
-   /*
-    * The following variables are used as parameters for the
-    * diffusion algorithm. You can set their value in the <parameters>
-    * section of the XML configuration file, under the
-    * <controllers><footbot_foraging_controller><parameters><diffusion>
-    * section.
-    */
-   struct SDiffusionParams {
-      /*
-       * Maximum tolerance for the proximity reading between
-       * the robot and the closest obstacle.
-       * The proximity reading is 0 when nothing is detected
-       * and grows exponentially to 1 when the obstacle is
-       * touching the robot.
-       */
-      Real Delta;
-      /* Angle tolerance range to go straight. */
-      CRange<CRadians> GoStraightAngleRange;
-
-      /* Constructor */
-      SDiffusionParams();
-
-      /* Parses the XML section for diffusion */
-      void Init(TConfigurationNode& t_tree);
-   };
 
    /*
     * The following variables are used as parameters for
@@ -110,23 +86,24 @@ public:
     * <controllers><footbot_foraging_controller><parameters><wheel_turning>
     * section.
     */
-   struct SWheelTurningParams {
-      /*
-       * The turning mechanism.
-       * The robot can be in three different turning states.
-       */
-      enum ETurningMechanism
-      {
-         NO_TURN = 0, // go straight
-         SOFT_TURN,   // both wheels are turning forwards, but at different speeds
-         HARD_TURN    // wheels are turning with opposite speeds
-      } TurningMechanism;
-      /*
-       * Angular thresholds to change turning state.
-       */
-      CRadians HardTurnOnAngleThreshold;
-      CRadians SoftTurnOnAngleThreshold;
-      CRadians NoTurnAngleThreshold;
+   struct SWheelTurningParams
+   {
+//      /*
+//       * The turning mechanism.
+//       * The robot can be in three different turning states.
+//       */
+//      enum ETurningMechanism
+//      {
+//         NO_TURN = 0, // go straight
+//         SOFT_TURN,   // both wheels are turning forwards, but at different speeds
+//         HARD_TURN    // wheels are turning with opposite speeds
+//      } TurningMechanism;
+//      /*
+//       * Angular thresholds to change turning state.
+//       */
+//      CRadians HardTurnOnAngleThreshold;
+//      CRadians SoftTurnOnAngleThreshold;
+//      CRadians NoTurnAngleThreshold;
       /* Maximum wheel speed */
       Real MaxSpeed;
 
@@ -136,9 +113,11 @@ public:
    /*
     * Contains all the state information about the controller.
     */
-   struct SStateData {
+   struct SStateData
+   {
       /* The three possible states in which the controller can be */
-      enum EState {
+      enum EState
+      {
          STATE_RESTING = 0,
          STATE_EXPLORING,
          STATE_RETURN_TO_NEST
@@ -150,23 +129,23 @@ public:
       /* Initial probability to switch from resting to exploring */
       Real InitialRestToExploreProb;
       /* Current probability to switch from resting to exploring */
-      Real RestToExploreProb;
+      //Real RestToExploreProb;
       /* Initial probability to switch from exploring to resting */
-      Real InitialExploreToRestProb;
+      //Real InitialExploreToRestProb;
       /* Current probability to switch from exploring to resting */
-      Real ExploreToRestProb;
+      //Real ExploreToRestProb;
       /* Used as a range for uniform number generation */
       CRange<Real> ProbRange;
       /* The increase of ExploreToRestProb due to the food rule */
-      Real FoodRuleExploreToRestDeltaProb;
+      //Real FoodRuleExploreToRestDeltaProb;
       /* The increase of RestToExploreProb due to the food rule */
-      Real FoodRuleRestToExploreDeltaProb;
+      //Real FoodRuleRestToExploreDeltaProb;
       /* The increase of ExploreToRestProb due to the collision rule */
-      Real CollisionRuleExploreToRestDeltaProb;
+      //Real CollisionRuleExploreToRestDeltaProb;
       /* The increase of RestToExploreProb due to the social rule */
-      Real SocialRuleRestToExploreDeltaProb;
+      //Real SocialRuleRestToExploreDeltaProb;
       /* The increase of ExploreToRestProb due to the social rule */
-      Real SocialRuleExploreToRestDeltaProb;
+      //Real SocialRuleExploreToRestDeltaProb;
       /* The minimum number of steps in resting state before the robots
          starts thinking that it's time to move */
       size_t MinimumRestingTime;
@@ -270,7 +249,7 @@ private:
     * Calculates the vector to the light. Used to perform
     * phototaxis and antiphototaxis.
     */
-   CVector2 CalculateVectorToLight();
+   //CVector2 CalculateVectorToLight();
 
    /*
     * Calculates the diffusion vector. If there is a close obstacle,
@@ -279,13 +258,13 @@ private:
     * a collision avoidance just happened or not. It is necessary for the
     * collision rule.
     */
-   CVector2 DiffusionVector(bool& b_collision);
+   //CVector2 DiffusionVector(bool& b_collision);
 
    /*
     * Gets a direction vector as input and transforms it into wheel
     * actuation.
     */
-   void SetWheelSpeedsFromVector(const CVector2& c_heading);
+   //void SetWheelSpeedsFromVector(const CVector2& c_heading);
 
    /*
     * Executes the resting state.
@@ -336,8 +315,6 @@ private:
    SStateData m_sStateData;
    /* The turning parameters */
    SWheelTurningParams m_sWheelTurningParams;
-   /* The diffusion parameters */
-   SDiffusionParams m_sDiffusionParams;
    /* The food data */
    SFoodData m_sFoodData;
 

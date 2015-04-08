@@ -44,14 +44,14 @@ public:
     virtual bool TakeControl() = 0;
     virtual void Suppress();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
-    virtual void SimulationStep();
 
     struct RobotData
     {
         Real MaxSpeed;
         Real ticks_per_second;
-        Real HALF_INTERWHEEL_DISTANCE;
+        Real INTERWHEEL_DISTANCE, HALF_INTERWHEEL_DISTANCE;
         Real WHEEL_RADIUS;
+        Real seconds_per_tick;
     };
 
     struct SensoryData

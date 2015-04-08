@@ -28,19 +28,23 @@ void CRandomWalkBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
         Real fSpeed;
 
         CRadians angle = m_sSensoryData.m_pcRNG->Uniform(CRange<CRadians>(CRadians::ZERO, CRadians::TWO_PI));
+        angle = angle.SignedNormalize();
 
-        fSpeed = CRadians::GetAbsoluteValue(angle.SignedNormalize()) * m_sRobotData.HALF_INTERWHEEL_DISTANCE / m_sRobotData.ticks_per_second;
+
+        fSpeed = angle.GetAbsoluteValue() * m_sRobotData.HALF_INTERWHEEL_DISTANCE / m_sRobotData.seconds_per_tick;
         fSpeed = fSpeed * 100.0; // converting to cm/s - as used in SetLinearVelocity
         fSpeed = Min<Real>(fSpeed, m_sRobotData.MaxSpeed);
 
 
-        if(angle > 0.0) //turn right
+        if(angle.GetValue() > 0.0f) //turn right
         {
+            std::cout << " turn right " << angle.GetValue() << std::endl;
             fLeftWheelSpeed  = fSpeed;
             fRightWheelSpeed = -fSpeed;
         }
         else
         {
+            std::cout << " turn left " << angle.GetValue() << std::endl;
             fLeftWheelSpeed  = -fSpeed;
             fRightWheelSpeed =  fSpeed;
         }
@@ -48,6 +52,7 @@ void CRandomWalkBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
     }
     else
     {
+        std::cout << " move straight " << std::endl;
         fLeftWheelSpeed = m_sRobotData.MaxSpeed;
         fRightWheelSpeed = m_sRobotData.MaxSpeed;
     }
