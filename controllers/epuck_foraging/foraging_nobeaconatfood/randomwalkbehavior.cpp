@@ -38,13 +38,13 @@ void CRandomWalkBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 
         if(angle.GetValue() > 0.0f) //turn right
         {
-            //std::cout << " turn right " << angle.GetValue() << std::endl;
+            std::cout << " turn right " << angle.GetValue() << std::endl;
             fLeftWheelSpeed  = fSpeed;
             fRightWheelSpeed = -fSpeed;
         }
         else
         {
-            //std::cout << " turn left " << angle.GetValue() << std::endl;
+            std::cout << " turn left " << angle.GetValue() << std::endl;
             fLeftWheelSpeed  = -fSpeed;
             fRightWheelSpeed =  fSpeed;
         }
@@ -52,7 +52,7 @@ void CRandomWalkBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
     }
     else
     {
-        //std::cout << " move straight " << std::endl;
+        std::cout << " move straight " << std::endl;
         fLeftWheelSpeed = m_sRobotData.MaxSpeed;
         fRightWheelSpeed = m_sRobotData.MaxSpeed;
     }

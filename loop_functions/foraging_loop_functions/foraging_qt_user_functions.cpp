@@ -24,7 +24,7 @@ void CForagingQTUserFunctions::Draw(CEPuckEntity& c_entity)
       DrawCylinder(
          CVector3(0.0f, 0.0f, 0.3f), 
          CQuaternion(),
-         0.1f,
+         0.01f,
          0.05f,
          CColor::BLACK);
    }

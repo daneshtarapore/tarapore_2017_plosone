@@ -163,12 +163,6 @@ void CEPuckForaging::ControlStep()
             Explore(); // have we transitioned from explore?
             break;
         }
-        case SStateData::STATE_BEACON:
-        {
-            std::cout << "SStateData::STATE_BEACON " << std::endl;
-            BecomeABeacon();
-            break;
-        }
         case SStateData::STATE_RESTING_AT_FOOD:
         {
             std::cout << "SStateData::STATE_RESTING_AT_FOOD " << std::endl;
@@ -195,8 +189,6 @@ void CEPuckForaging::ControlStep()
     else if(m_sStateData.State == SStateData::STATE_RESTING_AT_FOOD)
         m_vecBehaviors.clear(); // nothing to execute
 
-    else if(m_sStateData.State == SStateData::STATE_BEACON)
-        m_vecBehaviors.clear(); // nothing to execute
 
     else if(m_sStateData.State == SStateData::STATE_EXPLORING)
     {
@@ -204,9 +196,6 @@ void CEPuckForaging::ControlStep()
 
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
         m_vecBehaviors.push_back(pcDisperseBehavior);
-
-        CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
-        m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
 
         CAntiPhototaxisBehavior* pcAntiPhototaxisBehavior = new CAntiPhototaxisBehavior();
         m_vecBehaviors.push_back(pcAntiPhototaxisBehavior);
@@ -231,7 +220,8 @@ void CEPuckForaging::ControlStep()
 
 
 
-    CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcLight->GetReadings(), m_pcGround->GetReadings(), m_pcRABS->GetReadings());
+
+    CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcLight->GetReadings(), m_pcGround->GetReadings());
     Real leftSpeed = 0.0, rightSpeed = 0.0;
     bool bControlTaken = false;
     for (TBehaviorVectorIterator i = m_vecBehaviors.begin(); i != m_vecBehaviors.end(); i++)
@@ -507,48 +497,17 @@ void CEPuckForaging::RestAtFood()
 /****************************************/
 /****************************************/
 
-void CEPuckForaging::BecomeABeacon()
-{
-    m_pcRABA->SetData(0, BEACON_ESTABLISHED);
-}
-
-/****************************************/
-/****************************************/
-
 void CEPuckForaging::Explore()
 {
-    /* We switch to 'become a beacon' in one situation:
-    * 1. if we are on a food item and there is no beacon nearby
-    */
-
-
     /* We switch to 'return to nest' in two situations:
     * 1. if we have a food item
     * 2. if we have not found a food item for some time;
     *    in this case, the switch is probabilistic
     */
 
-    bool bBecomeBeacon(false);
     UpdateState();
     if(m_sStateData.OnFood)
-    {
-        bBecomeBeacon = true;
-
-        // Check if you are to be a beacon
-        const CCI_RangeAndBearingSensor::TReadings& tPackets = m_pcRABS->GetReadings();
-        for(size_t i = 0; i < tPackets.size(); ++i)
-        {
-           // std::cout << " packet range " << tPackets[i].Range << std::endl;
-            /* tPackets[i].Range is in cm and bearing is normalized [-pi pi] */
-            if(tPackets[i].Data[0] == BEACON_ESTABLISHED && tPackets[i].Range < 25.0f) // Each food spot has radius of 0.2m // a slightly higher threshold is chosen to be safe
-            {
-                bBecomeBeacon = false;
-                break;
-            }
-        }
-        if(bBecomeBeacon == false)
-            m_sFoodData.HasFoodItem = true;
-    }
+        m_sFoodData.HasFoodItem = true;
 
 
     bool bReturnToNest(false);
@@ -566,8 +525,6 @@ void CEPuckForaging::Explore()
         /* Switch to 'return to nest' */
         bRestAtFood = true;
     }
-    else if(bBecomeBeacon)
-        m_eLastExplorationResult = BEACON_ESTABLISHED;
 
     /* Test the second condition: we switch to 'return to
     * nest' if we have been wandering for a lot of time and found nothing */
@@ -579,22 +536,14 @@ void CEPuckForaging::Explore()
         bReturnToNest = true;
     }
 
-
-    if(bReturnToNest) /* So, do we return to the nest - ie, the last exploration has been unsuccessful */
+    /* So, do we return to the nest */
+    if(bReturnToNest)
     {
         /* Yes, we do! */
         m_sStateData.TimeExploringUnsuccessfully = 0;
         m_sStateData.TimeSearchingForPlaceInNest = 0;
         m_pcLEDs->SetAllColors(CColor::BLUE);
         m_sStateData.State = SStateData::STATE_RETURN_TO_NEST;
-    }
-    else if(bBecomeBeacon) /*Do we become a beacon */
-    {
-        /* Yes, we do! */
-        m_sStateData.TimeExploringUnsuccessfully = 0;
-        m_sStateData.TimeSearchingForPlaceInNest = 0;
-        m_pcLEDs->SetAllColors(CColor::YELLOW);
-        m_sStateData.State = SStateData::STATE_BEACON;
     }
     else if(bRestAtFood) /* So, do we rest at the food source  */
     {

@@ -52,7 +52,6 @@
 #include "randomwalkbehavior.h"
 #include "phototaxisbehavior.h"
 #include "antiphototaxisbehavior.h"
-#include "homingtofoodbeaconbehavior.h"
 
 /*
  * All the ARGoS stuff in the 'argos' namespace.
@@ -124,8 +123,7 @@ public:
          STATE_RESTING = 0,
          STATE_EXPLORING,
          STATE_RETURN_TO_NEST,
-         STATE_RESTING_AT_FOOD,
-         STATE_BEACON
+         STATE_RESTING_AT_FOOD
       } State;
 
       /* True when the robot is in the nest */
@@ -284,11 +282,6 @@ private:
    void RestAtFood();
 
    /*
-    * Executes the become a beacon state at the food source.
-    */
-   void BecomeABeacon();
-
-   /*
     * Executes the exploring state.
     */
    void Explore();
@@ -326,8 +319,7 @@ private:
    {
       LAST_EXPLORATION_NONE = 0,    // nothing to report
       LAST_EXPLORATION_SUCCESSFUL,  // the last exploration resulted in a food item found
-      LAST_EXPLORATION_UNSUCCESSFUL, // no food found in the last exploration
-      BEACON_ESTABLISHED // a beacon has been established at a food source
+      LAST_EXPLORATION_UNSUCCESSFUL // no food found in the last exploration
    } m_eLastExplorationResult;
 
    /* The controller state information */

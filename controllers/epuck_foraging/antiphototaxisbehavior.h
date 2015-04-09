@@ -1,5 +1,5 @@
-#ifndef DISPERSEBEHAVIOR_H_
-#define DISPERSEBEHAVIOR_H_
+#ifndef ANTIPHOTOTAXISBEHAVIOR_H_
+#define ANTIPHOTOTAXISBEHAVIOR_H_
 
 /******************************************************************************/
 /******************************************************************************/
@@ -12,18 +12,18 @@
 
 using namespace argos;
 
-class CDisperseBehavior : public CBehavior 
+class CAntiPhototaxisBehavior : public CBehavior
 {
 public:
-    CDisperseBehavior(Real m_fProximitySensorThreshold, CRadians m_cGoStraightAngleThreshold);
+    CAntiPhototaxisBehavior();
 
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
 protected:
-    Real           m_fProximitySensorThreshold;
-    CRadians       m_cGoStraightAngleThreshold;
-    CVector2       m_cDiffusionVector;
+
+    CVector2         m_cLightVector;
+
 
 };
 

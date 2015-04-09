@@ -1,0 +1,5 @@
+add_library(epuck_foraging SHARED epuck_foraging.h epuck_foraging.cpp behavior.h behavior.cpp dispersebehavior.h dispersebehavior.cpp randomwalkbehavior.h randomwalkbehavior.cpp phototaxisbehavior.h phototaxisbehavior.cpp antiphototaxisbehavior.h antiphototaxisbehavior.cpp)
+target_link_libraries(epuck_foraging
+  argos3core_simulator
+  argos3plugin_simulator_epuck
+  argos3plugin_simulator_genericrobot)

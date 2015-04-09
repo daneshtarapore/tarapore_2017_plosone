@@ -28,7 +28,7 @@ bool CPhototaxisBehavior::TakeControl()
         return false;
     else
     {
-        //std::cout << " Phototaxis behavior taking control " << std::endl;
+        std::cout << " Phototaxis behavior taking control " << std::endl;
         return true;
     }
 

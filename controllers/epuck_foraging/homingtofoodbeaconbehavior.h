@@ -1,5 +1,5 @@
-#ifndef DISPERSEBEHAVIOR_H_
-#define DISPERSEBEHAVIOR_H_
+#ifndef HOMINGTOFOODBEACONBEHAVIOR_H_
+#define HOMINGTOFOODBEACONBEHAVIOR_H_
 
 /******************************************************************************/
 /******************************************************************************/
@@ -12,18 +12,16 @@
 
 using namespace argos;
 
-class CDisperseBehavior : public CBehavior 
+class CHomingToFoodBeaconBehavior : public CBehavior
 {
 public:
-    CDisperseBehavior(Real m_fProximitySensorThreshold, CRadians m_cGoStraightAngleThreshold);
+    CHomingToFoodBeaconBehavior();
 
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
 protected:
-    Real           m_fProximitySensorThreshold;
-    CRadians       m_cGoStraightAngleThreshold;
-    CVector2       m_cDiffusionVector;
+    CVector2       m_cHomingVector;
 
 };
 

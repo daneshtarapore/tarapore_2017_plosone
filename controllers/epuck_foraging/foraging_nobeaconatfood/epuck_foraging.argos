@@ -13,7 +13,7 @@
   <!-- ************************* -->
   <framework>
     <system threads="0" />
-    <experiment length="50000"
+    <experiment length="500"
                 ticks_per_second="10"
                 random_seed="123" />
   </framework>
@@ -34,7 +34,7 @@
         <epuck_proximity implementation="default" show_rays="false" />
         <light_updated implementation="default" show_rays="false" />
         <ground implementation="rot_z_only" />
-        <range_and_bearing implementation="medium" medium="rab" show_rays="true" />
+        <range_and_bearing implementation="medium" medium="rab" />
       </sensors>
       <params>
         <wheel_turning max_speed="10" />

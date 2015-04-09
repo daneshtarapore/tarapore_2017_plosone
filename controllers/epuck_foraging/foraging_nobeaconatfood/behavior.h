@@ -18,7 +18,6 @@
 #include <argos3/plugins/robots/e-puck/control_interface/ci_epuck_proximity_sensor.h>
 #include <argos3/plugins/robots/generic/control_interface/ci_light_updated_sensor.h>
 #include <argos3/plugins/robots/generic/control_interface/ci_ground_sensor.h>
-#include <argos3/plugins/robots/generic/control_interface/ci_range_and_bearing_sensor.h>
 
 /******************************************************************************/
 /******************************************************************************/
@@ -74,16 +73,13 @@ public:
        CCI_EPuckProximitySensor::TReadings m_ProximitySensorData;
        CCI_LightUpdatedSensor::TReadings m_LightSensorData;
        CCI_GroundSensor::TReadings m_GroundSensorData;
-       CCI_RangeAndBearingSensor::TReadings  m_RABSensorData;
 
-       void SetSensoryData(CRandom::CRNG* rng, CCI_EPuckProximitySensor::TReadings proximity, CCI_LightUpdatedSensor::TReadings light, CCI_GroundSensor::TReadings ground,
-                           CCI_RangeAndBearingSensor::TReadings  rab)
+       void SetSensoryData(CRandom::CRNG* rng, CCI_EPuckProximitySensor::TReadings proximity, CCI_LightUpdatedSensor::TReadings light, CCI_GroundSensor::TReadings ground)
        {
            m_pcRNG = rng;
            m_ProximitySensorData = proximity;
            m_LightSensorData = light;
            m_GroundSensorData = ground;
-           m_RABSensorData = rab;
        }
     };
 

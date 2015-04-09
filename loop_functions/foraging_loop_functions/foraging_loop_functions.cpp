@@ -21,7 +21,8 @@ CForagingLoopFunctions::CForagingLoopFunctions() :
 /****************************************/
 /****************************************/
 
-void CForagingLoopFunctions::Init(TConfigurationNode& t_node) {
+void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
+{
    try {
       TConfigurationNode& tForaging = GetNode(t_node, "foraging");
       /* Get a pointer to the floor entity */
@@ -58,7 +59,8 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node) {
 /****************************************/
 /****************************************/
 
-void CForagingLoopFunctions::Reset() {
+void CForagingLoopFunctions::Reset()
+{
    /* Zero the counters */
    m_unCollectedFood = 0;
    m_nEnergy = 0;
@@ -68,7 +70,8 @@ void CForagingLoopFunctions::Reset() {
    m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
    m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
    /* Distribute uniformly the items in the environment */
-   for(UInt32 i = 0; i < m_cFoodPos.size(); ++i) {
+   for(UInt32 i = 0; i < m_cFoodPos.size(); ++i)
+   {
       m_cFoodPos[i].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
                         m_pcRNG->Uniform(m_cForagingArenaSideY));
    }
@@ -77,7 +80,8 @@ void CForagingLoopFunctions::Reset() {
 /****************************************/
 /****************************************/
 
-void CForagingLoopFunctions::Destroy() {
+void CForagingLoopFunctions::Destroy()
+{
    /* Close the file */
    m_cOutput.close();
 }
@@ -128,46 +132,53 @@ void CForagingLoopFunctions::PreStep()
                  cEPuck.GetEmbodiedEntity().GetOriginAnchor().Position.GetY());
         /* Get food data */
         CEPuckForaging::SFoodData& sFoodData = cController.GetFoodData();
+
         /* The e-puck has a food item */
-        if(sFoodData.HasFoodItem) {
-            /* Check whether the e-puck is in the nest */
-            if(cPos.GetX() < -1.5f) {
-                /* Place a new food item on the ground */
-                m_cFoodPos[sFoodData.FoodItemIdx].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
-                                                      m_pcRNG->Uniform(m_cForagingArenaSideY));
-                /* Drop the food item */
-                sFoodData.HasFoodItem = false;
-                sFoodData.FoodItemIdx = 0;
-                ++sFoodData.TotalFoodItems;
-                /* Increase the energy and food count */
-                m_nEnergy += m_unEnergyPerFoodItem;
-                ++m_unCollectedFood;
-                /* The floor texture must be updated */
-                m_pcFloor->SetChanged();
-            }
-        }
-        else {
-            /* The foot-bot has no food item */
-            /* Check whether the foot-bot is out of the nest */
-            if(cPos.GetX() > -1.5f)
-            {
-                /* Check whether the foot-bot is on a food item */
-                bool bDone = false;
-                for(size_t i = 0; i < m_cFoodPos.size() && !bDone; ++i) {
-                    if((cPos - m_cFoodPos[i]).SquareLength() < m_fFoodSquareRadius) {
-                        /* If so, we move that item out of sight */
-                        m_cFoodPos[i].Set(100.0f, 100.f);
-                        /* The foot-bot is now carrying an item */
-                        sFoodData.HasFoodItem = true;
-                        sFoodData.FoodItemIdx = i;
-                        /* The floor texture must be updated */
-                        m_pcFloor->SetChanged();
-                        /* We are done */
-                        bDone = true;
-                    }
-                }
-            }
-        }
+//        if(sFoodData.HasFoodItem)
+//        {
+//            /* Check whether the e-puck is in the nest */
+//            if(cPos.GetX() < -1.5f)
+//            {
+//                /* Place a new food item on the ground */
+//                /*m_cFoodPos[sFoodData.FoodItemIdx].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
+//                                                      m_pcRNG->Uniform(m_cForagingArenaSideY));*/
+//                /* Drop the food item */
+//                sFoodData.HasFoodItem = false;
+//                sFoodData.FoodItemIdx = 0;
+//                ++sFoodData.TotalFoodItems;
+//                /* Increase the energy and food count */
+//                m_nEnergy += m_unEnergyPerFoodItem;
+//                ++m_unCollectedFood;
+//                /* The floor texture must be updated */
+//                m_pcFloor->SetChanged();
+//            }
+//        }
+
+//        if(!sFoodData.HasFoodItem)
+//        {
+//            /* The foot-bot has no food item */
+//            /* Check whether the foot-bot is out of the nest */
+//            if(cPos.GetX() > -1.5f)
+//            {
+//                /* Check whether the foot-bot is on a food item */
+//                bool bDone = false;
+//                for(size_t i = 0; i < m_cFoodPos.size() && !bDone; ++i)
+//                {
+//                    if((cPos - m_cFoodPos[i]).SquareLength() < m_fFoodSquareRadius)
+//                    {
+//                        /* If so, we move that item out of sight */
+//                        //m_cFoodPos[i].Set(100.0f, 100.f);
+//                        /* The foot-bot is now carrying an item */
+//                        sFoodData.HasFoodItem = true;
+//                        //sFoodData.FoodItemIdx = i;
+//                        /* The floor texture must be updated */
+//                        m_pcFloor->SetChanged();
+//                        /* We are done */
+//                        bDone = true;
+//                    }
+//                }
+//            }
+//        }
     }
     /* Update energy expediture due to walking robots */
     m_nEnergy -= unWalkingFBs * m_unEnergyPerWalkingRobot;

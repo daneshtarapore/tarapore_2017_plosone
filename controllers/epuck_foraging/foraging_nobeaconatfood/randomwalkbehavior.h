@@ -1,32 +1,25 @@
-#ifndef DISPERSEBEHAVIOR_H_
-#define DISPERSEBEHAVIOR_H_
+#ifndef RANDOMWALKBEHAVIOR_H_
+#define RANDOMWALKBEHAVIOR_H_
 
 /******************************************************************************/
 /******************************************************************************/
 
 #include "behavior.h"
-#include <argos3/core/utility/math/vector2.h>
 
 /******************************************************************************/
 /******************************************************************************/
 
-using namespace argos;
-
-class CDisperseBehavior : public CBehavior 
+class CRandomWalkBehavior : public CBehavior 
 {
 public:
-    CDisperseBehavior(Real m_fProximitySensorThreshold, CRadians m_cGoStraightAngleThreshold);
-
+    CRandomWalkBehavior(double f_change_direction_probability);
+    
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
 protected:
-    Real           m_fProximitySensorThreshold;
-    CRadians       m_cGoStraightAngleThreshold;
-    CVector2       m_cDiffusionVector;
-
+    double m_fChangeDirectionProbability;
 };
-
 
 /******************************************************************************/
 /******************************************************************************/
