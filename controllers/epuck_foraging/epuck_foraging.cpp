@@ -49,7 +49,7 @@ void CEPuckForaging::SWheelTurningParams::Init(TConfigurationNode& t_node)
     CBehavior::m_sRobotData.INTERWHEEL_DISTANCE  = 0.053f;
     CBehavior::m_sRobotData.WHEEL_RADIUS = 0.0205f;
 
-    CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = ToRadians(CDegrees(10.0f));
+    CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = ToRadians(CDegrees(10.0f)); //10.0 - straight to food spot; 35.0 spiral to food spot
     CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = ToRadians(CDegrees(70.0f));
 }
 
@@ -221,6 +221,8 @@ void CEPuckForaging::ControlStep()
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
         m_vecBehaviors.push_back(pcDisperseBehavior);
 
+        //! Oscillation of take control between CPhototaxisBehavior and Disperse can cause robots to remain stuck at food source in RETURN_TO_NEST STATE.
+        //! But this happends very rarely
         CPhototaxisBehavior* pCPhototaxisBehavior = new CPhototaxisBehavior();
         m_vecBehaviors.push_back(pCPhototaxisBehavior);
 
