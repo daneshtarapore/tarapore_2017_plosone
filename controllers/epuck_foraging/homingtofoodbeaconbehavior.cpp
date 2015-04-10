@@ -37,7 +37,7 @@ bool CHomingToFoodBeaconBehavior::TakeControl()
     if(controltaken)
     {
         m_cHomingVector = CVector2(closestBeaconRange, closestBeaconBearing); // range is in cm, but since we are going to normalise the vector it does not matter
-        std::cout << " HomingToFoodBeacon Behavior taking control " << std::endl;
+        //std::cout << " HomingToFoodBeacon Behavior taking control " << std::endl;
     }
 
     return controltaken;

@@ -78,7 +78,6 @@ public:
    struct SFoodData
    {
       bool HasFoodItem;      // true when the robot is carrying a food item
-      size_t FoodItemIdx;    // the index of the current food item in the array of available food items
       size_t TotalFoodItems; // the total number of food items carried by this robot during the experiment
 
       SFoodData();

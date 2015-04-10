@@ -33,9 +33,9 @@ private:
    std::ofstream m_cOutput;
 
    UInt32 m_unCollectedFood;
-   SInt64 m_nEnergy;
-   UInt32 m_unEnergyPerFoodItem;
-   UInt32 m_unEnergyPerWalkingRobot;
+//   SInt64 m_nEnergy;
+//   UInt32 m_unEnergyPerFoodItem;
+//   UInt32 m_unEnergyPerWalkingRobot;
 };
 
 #endif

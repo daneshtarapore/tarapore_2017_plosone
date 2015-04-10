@@ -33,7 +33,7 @@ bool CDisperseBehavior::TakeControl()
         return false;
     else
     {
-        std::cout << " Disperse behavior taking control " << std::endl;
+        //std::cout << " Disperse behavior taking control " << std::endl;
         return true;
     }
 }

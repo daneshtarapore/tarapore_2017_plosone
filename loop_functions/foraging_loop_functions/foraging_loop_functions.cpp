@@ -12,10 +12,8 @@ CForagingLoopFunctions::CForagingLoopFunctions() :
    m_cForagingArenaSideY(-2.2f, 2.2f),
    m_pcFloor(NULL),
    m_pcRNG(NULL),
-   m_unCollectedFood(0),
-   m_nEnergy(0),
-   m_unEnergyPerFoodItem(1),
-   m_unEnergyPerWalkingRobot(1) {
+   m_unCollectedFood(0)
+{
 }
 
 /****************************************/
@@ -23,7 +21,8 @@ CForagingLoopFunctions::CForagingLoopFunctions() :
 
 void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
 {
-   try {
+   try
+    {
       TConfigurationNode& tForaging = GetNode(t_node, "foraging");
       /* Get a pointer to the floor entity */
       m_pcFloor = &GetSpace().GetFloorEntity();
@@ -36,7 +35,8 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
       /* Create a new RNG */
       m_pcRNG = CRandom::CreateRNG("argos");
       /* Distribute uniformly the items in the environment */
-      for(UInt32 i = 0; i < unFoodItems; ++i) {
+      for(UInt32 i = 0; i < unFoodItems; ++i)
+      {
          m_cFoodPos.push_back(
             CVector2(m_pcRNG->Uniform(m_cForagingArenaSideX),
                      m_pcRNG->Uniform(m_cForagingArenaSideY)));
@@ -46,10 +46,6 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
       /* Open the file, erasing its contents */
       m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
       m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
-      /* Get energy gain per item collected */
-      GetNodeAttribute(tForaging, "energy_per_item", m_unEnergyPerFoodItem);
-      /* Get energy loss per walking robot */
-      GetNodeAttribute(tForaging, "energy_per_walking_robot", m_unEnergyPerWalkingRobot);
    }
    catch(CARGoSException& ex) {
       THROW_ARGOSEXCEPTION_NESTED("Error parsing loop functions!", ex);
@@ -63,18 +59,15 @@ void CForagingLoopFunctions::Reset()
 {
    /* Zero the counters */
    m_unCollectedFood = 0;
-   m_nEnergy = 0;
    /* Close the file */
    m_cOutput.close();
    /* Open the file, erasing its contents */
    m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
-   m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
+   m_cOutput << "# clock\tcollected_food" << std::endl;
    /* Distribute uniformly the items in the environment */
    for(UInt32 i = 0; i < m_cFoodPos.size(); ++i)
-   {
       m_cFoodPos[i].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
                         m_pcRNG->Uniform(m_cForagingArenaSideY));
-   }
 }
 
 /****************************************/
@@ -112,9 +105,11 @@ void CForagingLoopFunctions::PreStep()
     * If a robot is in the nest, drop the food item // 'CHEATING' WITH LOOP FUNCTION
     * If a robot is on a food item, pick it         // 'CHEATING' WITH LOOP FUNCTION
     * Each robot can carry only one food item per time
+    * Update: The collection and deposit of food is now handled in the robot's control loop
     */
-    UInt32 unWalkingFBs = 0;
-    UInt32 unRestingFBs = 0;
+
+    m_unCollectedFood = 0;
+
     /* Check whether a robot is on a food item */
     CSpace::TMapPerType& m_cEPucks = GetSpace().GetEntitiesByType("e-puck");
 
@@ -123,71 +118,16 @@ void CForagingLoopFunctions::PreStep()
         /* Get handle to e-puck entity and controller */
         CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
         CEPuckForaging& cController = dynamic_cast<CEPuckForaging&>(cEPuck.GetControllableEntity().GetController());
-        /* Count how many foot-bots are in which state */
-        if(! cController.IsResting()) ++unWalkingFBs;
-        else ++unRestingFBs;
-        /* Get the position of the e-puck on the ground as a CVector2 */
-        CVector2 cPos;
-        cPos.Set(cEPuck.GetEmbodiedEntity().GetOriginAnchor().Position.GetX(),
-                 cEPuck.GetEmbodiedEntity().GetOriginAnchor().Position.GetY());
+
         /* Get food data */
         CEPuckForaging::SFoodData& sFoodData = cController.GetFoodData();
+        m_unCollectedFood += sFoodData.TotalFoodItems;
 
-        /* The e-puck has a food item */
-//        if(sFoodData.HasFoodItem)
-//        {
-//            /* Check whether the e-puck is in the nest */
-//            if(cPos.GetX() < -1.5f)
-//            {
-//                /* Place a new food item on the ground */
-//                /*m_cFoodPos[sFoodData.FoodItemIdx].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
-//                                                      m_pcRNG->Uniform(m_cForagingArenaSideY));*/
-//                /* Drop the food item */
-//                sFoodData.HasFoodItem = false;
-//                sFoodData.FoodItemIdx = 0;
-//                ++sFoodData.TotalFoodItems;
-//                /* Increase the energy and food count */
-//                m_nEnergy += m_unEnergyPerFoodItem;
-//                ++m_unCollectedFood;
-//                /* The floor texture must be updated */
-//                m_pcFloor->SetChanged();
-//            }
-//        }
-
-//        if(!sFoodData.HasFoodItem)
-//        {
-//            /* The foot-bot has no food item */
-//            /* Check whether the foot-bot is out of the nest */
-//            if(cPos.GetX() > -1.5f)
-//            {
-//                /* Check whether the foot-bot is on a food item */
-//                bool bDone = false;
-//                for(size_t i = 0; i < m_cFoodPos.size() && !bDone; ++i)
-//                {
-//                    if((cPos - m_cFoodPos[i]).SquareLength() < m_fFoodSquareRadius)
-//                    {
-//                        /* If so, we move that item out of sight */
-//                        //m_cFoodPos[i].Set(100.0f, 100.f);
-//                        /* The foot-bot is now carrying an item */
-//                        sFoodData.HasFoodItem = true;
-//                        //sFoodData.FoodItemIdx = i;
-//                        /* The floor texture must be updated */
-//                        m_pcFloor->SetChanged();
-//                        /* We are done */
-//                        bDone = true;
-//                    }
-//                }
-//            }
-//        }
     }
-    /* Update energy expediture due to walking robots */
-    m_nEnergy -= unWalkingFBs * m_unEnergyPerWalkingRobot;
+
     /* Output stuff to file */
     m_cOutput << GetSpace().GetSimulationClock() << "\t"
-              << unWalkingFBs << "\t"
-              << unRestingFBs << "\t"
-              << m_unCollectedFood << "\t"
-              << m_nEnergy << std::endl;
+              << m_unCollectedFood << std::endl;
 }
 
 /****************************************/
