@@ -8,7 +8,7 @@
 /****************************************/
 
 CForagingLoopFunctions::CForagingLoopFunctions() :
-   m_cForagingArenaSideX(-0.9f, 2.2f),
+   m_cForagingArenaSideX(1.2f, 2.2f),
    m_cForagingArenaSideY(-2.2f, 2.2f),
    m_pcFloor(NULL),
    m_pcRNG(NULL),

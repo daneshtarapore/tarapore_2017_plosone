@@ -7,6 +7,11 @@
  *    experiments/foraging.argos
  */
 
+//! TODO
+//! 1. Convert the generic plugins to those used by the e-puck if implementation is different (see the detailed e-puck model of Lorenzo et al.).
+//! 2. Introduce noise in the sensors and actuators of the e-puck (see parameters from Lorenzo)
+
+
 #ifndef EPUCK_FORAGING_H
 #define EPUCK_FORAGING_H
 
