@@ -15,7 +15,7 @@
     <system threads="0" />
     <experiment length="1500"
                 ticks_per_second="10"
-                random_seed="130003" />
+                random_seed="0" />
   </framework>
 
   <!-- *************** -->
@@ -31,12 +31,15 @@
         <range_and_bearing implementation="default" />
       </actuators>
       <sensors>
-        <epuck_proximity implementation="default" show_rays="false" />
+        <epuck_proximity implementation="default" show_rays="true" />
         <light_updated implementation="default" show_rays="false" />
         <ground implementation="rot_z_only" />
-        <range_and_bearing implementation="medium" medium="rab" show_rays="false" />
+        <range_and_bearing implementation="medium" medium="rab" show_rays="true" />
       </sensors>
       <params>
+        <experiment_run swarm_behavior="SWARM_HOMING"
+			fault_behavior="FAULT_NONE" 
+	                id_faulty_robot="-1" />
         <wheel_turning max_speed="10" />
         <state initial_rest_to_explore_prob="0.1"
 	       minimum_resting_time="50"
@@ -55,8 +58,6 @@
                   label="foraging_loop_functions">
     <foraging items="2"
               radius="0.1"
-              energy_per_item="1000"
-              energy_per_walking_robot="1"
               output="epuckforaging.txt" />
   </loop_functions>
 
@@ -90,7 +91,7 @@
            medium="leds" />
 
     <distribute>
-      <position method="uniform" min="-2.5,-2,0" max="-1.5,2,0" />
+      <position method="uniform" min="-2.5,-2,0" max="2.5,2,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
       <entity quantity="20" max_trials="100">
         <e-puck id="ep">

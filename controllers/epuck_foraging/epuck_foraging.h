@@ -19,6 +19,7 @@
  * Include some necessary headers.
  */
 
+#include <iostream>
 #include <vector>
 
 /* Definition of the CCI_Controller class. */
@@ -53,6 +54,7 @@
 
 /* Definitions for behaviors used to control robot */
 #include "behavior.h"
+#include "aggregatebehavior.h"
 #include "dispersebehavior.h"
 #include "randomwalkbehavior.h"
 #include "phototaxisbehavior.h"
@@ -72,6 +74,38 @@ class CEPuckForaging : public CCI_Controller
 {
 
 public:
+
+    struct ExperimentToRun
+    {
+       /* The type of experiment to run */
+       enum SwarmBehavior
+       {
+          SWARM_AGGREGATION = 0,
+          SWARM_DISPERSION,
+          SWARM_FLOCKING,
+          SWARM_HOMING,
+          SWARM_FORAGING
+       } SBehavior;
+
+
+       /* The possible faults on robot */
+       enum FaultBehavior
+       {
+          FAULT_NONE = 0,
+          FAULT_STRAIGHTLINE,
+          FAULT_RANDOMWALK,
+          FAULT_CIRCLE,
+          FAULT_STOP
+       } FBehavior;
+
+
+       int id_FaultyRobot;
+
+       ExperimentToRun();
+       void Init(TConfigurationNode& t_node);
+    };
+
+
    /*
     * This structure holds data about food collecting by the robots
     */
@@ -202,6 +236,8 @@ public:
     */
    virtual void ControlStep();
 
+   virtual void RunForagingExperiment();
+
    /*
     * This function resets the controller to its state right after the
     * Init().
@@ -244,6 +280,14 @@ public:
    inline SFoodData& GetFoodData()
    {
       return m_sFoodData;
+   }
+
+   /*
+    * Returns the experiment type
+    */
+   inline ExperimentToRun& GetExperimentType()
+   {
+      return m_sExpRun;
    }
 
 private:
@@ -334,12 +378,15 @@ private:
       BEACON_ESTABLISHED // a beacon has been established at a food source
    } m_eLastExplorationResult;
 
+   ExperimentToRun m_sExpRun;
+
    /* The controller state information */
    SStateData m_sStateData;
    /* The turning parameters */
    SWheelTurningParams m_sWheelTurningParams;
    /* The food data */
    SFoodData m_sFoodData;
+
 
 };
 

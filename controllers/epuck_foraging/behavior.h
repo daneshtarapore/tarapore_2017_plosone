@@ -59,10 +59,10 @@ public:
     struct RobotData
     {
         Real     MaxSpeed;
-        Real     ticks_per_second;
+        Real     iterations_per_second;
         Real     INTERWHEEL_DISTANCE, HALF_INTERWHEEL_DISTANCE;
         Real     WHEEL_RADIUS;
-        Real     seconds_per_tick;
+        Real     seconds_per_iterations;
         CRadians m_cNoTurnOnAngleThreshold;
         CRadians m_cSoftTurnOnAngleThreshold;
     };

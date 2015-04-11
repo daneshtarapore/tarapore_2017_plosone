@@ -16,6 +16,51 @@ CBehavior::RobotData CBehavior::m_sRobotData;
 /****************************************/
 /****************************************/
 
+CEPuckForaging::ExperimentToRun::ExperimentToRun() :
+    SBehavior(SWARM_FORAGING),
+    FBehavior(FAULT_NONE),
+    id_FaultyRobot(-1) {}
+
+
+void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
+{
+    std::string swarmbehav, errorbehav;
+
+    try
+    {
+        GetNodeAttribute(t_node, "swarm_behavior", swarmbehav);
+        GetNodeAttribute(t_node, "fault_behavior", errorbehav);
+        GetNodeAttribute(t_node, "id_faulty_robot", id_FaultyRobot);
+    }
+    catch(CARGoSException& ex)
+    {
+        THROW_ARGOSEXCEPTION_NESTED("Error initializing type of experiment to run, and fault to simulate.", ex);
+    }
+
+    if (swarmbehav.compare("SWARM_AGGREGATION") == 0)
+        SBehavior = SWARM_AGGREGATION;
+    else if (swarmbehav.compare("SWARM_DISPERSION") == 0)
+        SBehavior = SWARM_DISPERSION;
+    else if (swarmbehav.compare("SWARM_FLOCKING") == 0)
+        SBehavior = SWARM_FLOCKING;
+    else if (swarmbehav.compare("SWARM_HOMING") == 0)
+        SBehavior = SWARM_HOMING;
+    else if (swarmbehav.compare("SWARM_FORAGING") == 0)
+        SBehavior = SWARM_FORAGING;
+    else
+    {
+        std::cerr << "invalid swarm behavior"; exit(-1);
+    }
+
+
+    if (errorbehav.compare("FAULT_NONE") == 0)
+        FBehavior = FAULT_NONE;
+
+}
+
+/****************************************/
+/****************************************/
+
 CEPuckForaging::SFoodData::SFoodData() :
     HasFoodItem(false),
     TotalFoodItems(0)
@@ -42,15 +87,6 @@ void CEPuckForaging::SWheelTurningParams::Init(TConfigurationNode& t_node)
         THROW_ARGOSEXCEPTION_NESTED("Error initializing controller wheel turning parameters.", ex);
     }
 
-    CBehavior::m_sRobotData.MaxSpeed = MaxSpeed;
-    CBehavior::m_sRobotData.ticks_per_second = 10.0;
-    CBehavior::m_sRobotData.seconds_per_tick * 1.0f / CBehavior::m_sRobotData.ticks_per_second;
-    CBehavior::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f;
-    CBehavior::m_sRobotData.INTERWHEEL_DISTANCE  = 0.053f;
-    CBehavior::m_sRobotData.WHEEL_RADIUS = 0.0205f;
-
-    CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = ToRadians(CDegrees(10.0f)); //10.0 - straight to food spot; 35.0 spiral to food spot
-    CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = ToRadians(CDegrees(70.0f));
 }
 
 /****************************************/
@@ -101,9 +137,7 @@ CEPuckForaging::CEPuckForaging() :
     m_pcProximity(NULL),
     m_pcLight(NULL),
     m_pcGround(NULL),
-    m_pcRNG(NULL)
-{
-}
+    m_pcRNG(NULL) {}
 
 /****************************************/
 /****************************************/
@@ -124,7 +158,9 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
         m_pcGround    = GetSensor  <CCI_GroundSensor                >("ground" );
         /*
        * Parse XML parameters
-       */
+       */        
+        /* Wheel turning */
+        m_sExpRun.Init(GetNode(t_node, "experiment_run"));
         /* Wheel turning */
         m_sWheelTurningParams.Init(GetNode(t_node, "wheel_turning"));
         /* Controller state */
@@ -141,12 +177,151 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
       that creation, reset, seeding and cleanup are managed by ARGoS. */
     m_pcRNG = CRandom::CreateRNG("argos");
     Reset();
+
+    CBehavior::m_sRobotData.MaxSpeed = m_sWheelTurningParams.MaxSpeed;
+    CBehavior::m_sRobotData.iterations_per_second = 10.0f * 10.0f; /*10 ticks per second, and 10 interations per tick so dt=0.01s*/
+    CBehavior::m_sRobotData.seconds_per_iterations * 1.0f / CBehavior::m_sRobotData.iterations_per_second;
+    CBehavior::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f;
+    CBehavior::m_sRobotData.INTERWHEEL_DISTANCE  = 0.053f;
+    CBehavior::m_sRobotData.WHEEL_RADIUS = 0.0205f;
+
+    CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = ToRadians(CDegrees(10.0f)); //10.0 - straight to food spot; 35.0 spiral to food spot
+    CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = ToRadians(CDegrees(70.0f));
 }
 
 /****************************************/
 /****************************************/
 
 void CEPuckForaging::ControlStep()
+{
+    if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_FORAGING)
+        RunForagingExperiment();
+
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION)
+    {
+        m_vecBehaviors.clear();
+
+        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
+        m_vecBehaviors.push_back(pcDisperseBehavior);
+
+        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(25.0f); //range threshold in cm
+        m_vecBehaviors.push_back(pcAggregateBehavior);
+
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION)
+    {
+        m_vecBehaviors.clear();
+
+        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
+        m_vecBehaviors.push_back(pcDisperseBehavior);
+
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_FLOCKING)
+    {
+        m_vecBehaviors.clear();
+
+        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
+        m_vecBehaviors.push_back(pcDisperseBehavior);
+
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
+    {
+        m_vecBehaviors.clear();
+
+        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
+        m_vecBehaviors.push_back(pcDisperseBehavior);
+
+        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(100.0f); //range threshold in cm
+        m_vecBehaviors.push_back(pcAggregateBehavior);
+
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+
+
+    CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcLight->GetReadings(), m_pcGround->GetReadings(), m_pcRABS->GetReadings());
+    Real leftSpeed = 0.0, rightSpeed = 0.0;
+    bool bControlTaken = false;
+    for (TBehaviorVectorIterator i = m_vecBehaviors.begin(); i != m_vecBehaviors.end(); i++)
+    {
+        if (!bControlTaken)
+        {
+            bControlTaken = (*i)->TakeControl();
+            if (bControlTaken)
+            {
+                (*i)->Action(leftSpeed, rightSpeed);
+            }
+        } else
+            (*i)->Suppress();
+    }
+
+    m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+}
+
+/****************************************/
+/****************************************/
+
+void CEPuckForaging::Reset()
+{
+    /* Reset robot state */
+    m_sStateData.Reset();
+    /* Reset food data */
+    m_sFoodData.Reset();
+    /* Set LED color */
+    m_pcLEDs->SetAllColors(CColor::RED);
+    /* Clear up the last exploration result */
+    m_eLastExplorationResult = LAST_EXPLORATION_NONE;
+    m_pcRABA->ClearData();
+    m_pcRABA->SetData(0, LAST_EXPLORATION_NONE);
+}
+
+/****************************************/
+/****************************************/
+
+void CEPuckForaging::UpdateState()
+{
+    /* Reset state flags */
+    m_sStateData.InNest = false;
+    /* Read stuff from the ground sensor */
+    const std::vector<Real> tGroundReads = m_pcGround->GetReadings();
+    /*
+    * You can say whether you are in the nest by checking the ground sensor
+    * placed close to the wheel motors. It returns a value between 0 and 1.
+    * It is 1 when the robot is on a white area, it is 0 when the robot
+    * is on a black area and it is around 0.5 when the robot is on a gray
+    * area.
+    * The e-puck has 3 sensors in a straight line in the front of the robot.
+    */
+    if(tGroundReads[0] > 0.25f &&
+            tGroundReads[0] < 0.75f &&
+            tGroundReads[1] > 0.25f &&
+            tGroundReads[1] < 0.75f &&
+            tGroundReads[2] > 0.25f &&
+            tGroundReads[2] < 0.75f)
+        m_sStateData.InNest = true;
+
+
+    m_sStateData.OnFood = false;
+    if(tGroundReads[0] <= 0.1f &&
+       tGroundReads[1] <= 0.1f &&
+       tGroundReads[2] <= 0.1f)
+        m_sStateData.OnFood = true;
+
+    //std::cout << " tGroundReads[0] " << tGroundReads[0] << " tGroundReads[1] " << tGroundReads[1] << " tGroundReads[2] " << tGroundReads[2] << std::endl << std::endl;
+}
+
+/****************************************/
+/****************************************/
+
+void CEPuckForaging::RunForagingExperiment()
 {
     switch(m_sStateData.State) /* Deciding state transitions */
     {
@@ -229,215 +404,8 @@ void CEPuckForaging::ControlStep()
         CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
-
-
-
-    CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcLight->GetReadings(), m_pcGround->GetReadings(), m_pcRABS->GetReadings());
-    Real leftSpeed = 0.0, rightSpeed = 0.0;
-    bool bControlTaken = false;
-    for (TBehaviorVectorIterator i = m_vecBehaviors.begin(); i != m_vecBehaviors.end(); i++)
-    {
-        if (!bControlTaken)
-        {
-            bControlTaken = (*i)->TakeControl();
-            if (bControlTaken)
-            {
-                (*i)->Action(leftSpeed, rightSpeed);
-            }
-        } else
-            (*i)->Suppress();
-    }
-
-    m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
 }
 
-/****************************************/
-/****************************************/
-
-void CEPuckForaging::Reset()
-{
-    /* Reset robot state */
-    m_sStateData.Reset();
-    /* Reset food data */
-    m_sFoodData.Reset();
-    /* Set LED color */
-    m_pcLEDs->SetAllColors(CColor::RED);
-    /* Clear up the last exploration result */
-    m_eLastExplorationResult = LAST_EXPLORATION_NONE;
-    m_pcRABA->ClearData();
-    m_pcRABA->SetData(0, LAST_EXPLORATION_NONE);
-}
-
-/****************************************/
-/****************************************/
-
-void CEPuckForaging::UpdateState()
-{
-    /* Reset state flags */
-    m_sStateData.InNest = false;
-    /* Read stuff from the ground sensor */
-    const std::vector<Real> tGroundReads = m_pcGround->GetReadings();
-    /*
-    * You can say whether you are in the nest by checking the ground sensor
-    * placed close to the wheel motors. It returns a value between 0 and 1.
-    * It is 1 when the robot is on a white area, it is 0 when the robot
-    * is on a black area and it is around 0.5 when the robot is on a gray
-    * area.
-    * The e-puck has 3 sensors in a straight line in the front of the robot.
-    */
-    if(tGroundReads[0] > 0.25f &&
-            tGroundReads[0] < 0.75f &&
-            tGroundReads[1] > 0.25f &&
-            tGroundReads[1] < 0.75f &&
-            tGroundReads[2] > 0.25f &&
-            tGroundReads[2] < 0.75f)
-        m_sStateData.InNest = true;
-
-
-    m_sStateData.OnFood = false;
-    if(tGroundReads[0] <= 0.1f &&
-       tGroundReads[1] <= 0.1f &&
-       tGroundReads[2] <= 0.1f)
-        m_sStateData.OnFood = true;
-
-    //std::cout << " tGroundReads[0] " << tGroundReads[0] << " tGroundReads[1] " << tGroundReads[1] << " tGroundReads[2] " << tGroundReads[2] << std::endl << std::endl;
-}
-
-/****************************************/
-/****************************************/
-
-//CVector2 CEPuckForaging::CalculateVectorToLight()
-//{
-//    /* Get readings from light sensor */
-//    const CCI_LightUpdatedSensor::TReadings& tLightReads = m_pcLight->GetReadings();
-//    /* Sum them together */
-//    CVector2 cAccumulator;
-//    for(size_t i = 0; i < tLightReads.size(); ++i)
-//    {
-//        cAccumulator += CVector2(tLightReads[i].Value, tLightReads[i].Angle);
-//    }
-//    cAccumulator /= tLightReads.size();
-
-//    /* If the light was perceived, return the vector */
-//    if(cAccumulator.Length() > 0.0f)
-//    {
-//        return CVector2(1.0f, cAccumulator.Angle());
-//    }
-//    /* Otherwise, return zero */
-//    else {
-//        return CVector2();
-//    }
-//}
-
-/****************************************/
-/****************************************/
-
-//CVector2 CEPuckForaging::DiffusionVector(bool& b_collision)
-//{
-//    /* Get readings from proximity sensor */
-//    const CCI_EPuckProximitySensor::TReadings& tProxReads = m_pcProximity->GetReadings();
-//    /* Sum them together */
-//    CVector2 cDiffusionVector;
-//    for(size_t i = 0; i < tProxReads.size(); ++i)
-//    {
-//        cDiffusionVector += CVector2(tProxReads[i].Value, tProxReads[i].Angle);
-//    }
-//    cDiffusionVector /= tProxReads.size();
-
-//    /* If the angle of the vector is small enough and the closest obstacle
-//      is far enough, ignore the vector and go straight, otherwise return
-//      it */
-//    if(m_sDiffusionParams.GoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cDiffusionVector.Angle()) && cDiffusionVector.Length() < m_sDiffusionParams.Delta )
-//    {
-//        b_collision = false;
-//        return CVector2::X;
-//    }
-//    else
-//    {
-//        b_collision = true;
-//        cDiffusionVector.Normalize();
-
-//        //std::cout << " true   " << " cDiffusionVector X " << cDiffusionVector.GetX() << " cDiffusionVector Y " << cDiffusionVector.GetY() << std::endl << std::endl;
-
-
-//        return -cDiffusionVector;
-//    }
-//}
-
-/****************************************/
-/****************************************/
-
-//void CEPuckForaging::SetWheelSpeedsFromVector(const CVector2& c_heading)
-//{
-//    /* Get the heading angle */
-//    CRadians cHeadingAngle = c_heading.Angle().SignedNormalize();
-//    /* Get the length of the heading vector */
-//    Real fHeadingLength = c_heading.Length();
-//    /* Clamp the speed so that it's not greater than MaxSpeed */
-//    Real fBaseAngularWheelSpeed = Min<Real>(fHeadingLength, m_sWheelTurningParams.MaxSpeed);
-
-//    /* Turning state switching conditions */
-//    if(Abs(cHeadingAngle) <= m_sWheelTurningParams.NoTurnAngleThreshold)
-//    {
-//        /* No Turn, heading angle very small */
-//        m_sWheelTurningParams.TurningMechanism = SWheelTurningParams::NO_TURN;
-//        std::cout << " cHeadingAngle " << cHeadingAngle << " fBaseAngularWheelSpeed " << fBaseAngularWheelSpeed << " NO_TURN " << std::endl;
-//    }
-//    else if(Abs(cHeadingAngle) > m_sWheelTurningParams.NoTurnAngleThreshold && Abs(cHeadingAngle) <= m_sWheelTurningParams.SoftTurnOnAngleThreshold)
-//    {
-//        /* Soft Turn, heading angle in between the two cases */
-//        m_sWheelTurningParams.TurningMechanism = SWheelTurningParams::SOFT_TURN;
-//        std::cout << " cHeadingAngle " << cHeadingAngle << " fBaseAngularWheelSpeed " << fBaseAngularWheelSpeed << " SOFT_TURN " << std::endl;
-//    }
-//    else if(Abs(cHeadingAngle) > m_sWheelTurningParams.SoftTurnOnAngleThreshold) // HardTurnOnAngleThreshold not used anymore. remove from config file
-//    {
-//        /* Hard Turn, heading angle very large */
-//        m_sWheelTurningParams.TurningMechanism = SWheelTurningParams::HARD_TURN;
-//        std::cout << " cHeadingAngle " << cHeadingAngle << " fBaseAngularWheelSpeed " << fBaseAngularWheelSpeed << " HARD_TURN " << std::endl;
-//    }
-
-
-//    /* Wheel speeds based on current turning state */
-//    Real fSpeed1, fSpeed2;
-//    switch(m_sWheelTurningParams.TurningMechanism) {
-//    case SWheelTurningParams::NO_TURN: {
-//        /* Just go straight */
-//        fSpeed1 = fBaseAngularWheelSpeed;
-//        fSpeed2 = fBaseAngularWheelSpeed;
-//        break;
-//    }
-
-//    case SWheelTurningParams::SOFT_TURN: {
-//        /* Both wheels go straight, but one is faster than the other */ //HardTurnOnAngleThreshold
-//        Real fSpeedFactor = (m_sWheelTurningParams.SoftTurnOnAngleThreshold - Abs(cHeadingAngle)) / m_sWheelTurningParams.SoftTurnOnAngleThreshold;
-//        fSpeed1 = fBaseAngularWheelSpeed - fBaseAngularWheelSpeed * (1.0 - fSpeedFactor);
-//        fSpeed2 = fBaseAngularWheelSpeed + fBaseAngularWheelSpeed * (1.0 - fSpeedFactor);
-//        break;
-//    }
-
-//    case SWheelTurningParams::HARD_TURN: {
-//        /* Opposite wheel speeds */
-//        fSpeed1 = -m_sWheelTurningParams.MaxSpeed;
-//        fSpeed2 =  m_sWheelTurningParams.MaxSpeed;
-//        break;
-//    }
-//    }
-
-//    /* Apply the calculated speeds to the appropriate wheels */
-//    Real fLeftWheelSpeed, fRightWheelSpeed;
-//    if(cHeadingAngle > CRadians::ZERO) {
-//        /* Turn Left */
-//        fLeftWheelSpeed  = fSpeed1;
-//        fRightWheelSpeed = fSpeed2;
-//    }
-//    else {
-//        /* Turn Right */
-//        fLeftWheelSpeed  = fSpeed2;
-//        fRightWheelSpeed = fSpeed1;
-//    }
-//    /* Finally, set the wheel speeds */
-//    m_pcWheels->SetLinearVelocity(fLeftWheelSpeed, fRightWheelSpeed); // in cm/s
-//}
 
 /****************************************/
 /****************************************/
