@@ -49,7 +49,7 @@ bool CHomingToFoodBeaconBehavior::TakeControl()
 // Move in the opposite direction of CoM
 void CHomingToFoodBeaconBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 {
-     CVector2 m_cHeadingVector = m_sRobotData.MaxSpeed * m_cHomingVector.Normalize() +  m_sRobotData.MaxSpeed * CVector2(1.0f, 0.0f);
+     CVector2 m_cHeadingVector = m_sRobotData.MaxSpeed * m_cHomingVector.Normalize() + m_sRobotData.MaxSpeed * CVector2(1.0f, 0.0f);
 
      WheelSpeedsFromHeadingVector(m_cHeadingVector, fLeftWheelSpeed, fRightWheelSpeed);
 }

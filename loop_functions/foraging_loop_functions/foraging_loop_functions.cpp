@@ -36,20 +36,29 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
       m_pcRNG = CRandom::CreateRNG("argos");
       /* Distribute uniformly the items in the environment */
       for(UInt32 i = 0; i < unFoodItems; ++i)
-      {
          m_cFoodPos.push_back(
             CVector2(m_pcRNG->Uniform(m_cForagingArenaSideX),
                      m_pcRNG->Uniform(m_cForagingArenaSideY)));
-      }
+
       /* Get the output file name from XML */
       GetNodeAttribute(tForaging, "output", m_strOutput);
       /* Open the file, erasing its contents */
       m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
       m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
    }
-   catch(CARGoSException& ex) {
-      THROW_ARGOSEXCEPTION_NESTED("Error parsing loop functions!", ex);
-   }
+   catch(CARGoSException& ex)
+      THROW_ARGOSEXCEPTION_NESTED("Error parsing foraging loop function.", ex);
+
+
+
+    try
+     {
+       TConfigurationNode& tForaging = GetNode(t_node, "experiment_run");
+
+    }
+    catch(CARGoSException& ex)
+       THROW_ARGOSEXCEPTION_NESTED("Error parsing experiment_run parameters.", ex);
+
 }
 
 /****************************************/
@@ -84,14 +93,13 @@ void CForagingLoopFunctions::Destroy()
 
 CColor CForagingLoopFunctions::GetFloorColor(const CVector2& c_position_on_plane) // used to paint the floor by the floor entity
 {
-   if(c_position_on_plane.GetX() < -1.5f) {
+   if(c_position_on_plane.GetX() < -1.5f)
       return CColor::GRAY50;
-   }
-   for(UInt32 i = 0; i < m_cFoodPos.size(); ++i) {
-      if((c_position_on_plane - m_cFoodPos[i]).SquareLength() < m_fFoodSquareRadius) {
+
+   for(UInt32 i = 0; i < m_cFoodPos.size(); ++i)
+      if((c_position_on_plane - m_cFoodPos[i]).SquareLength() < m_fFoodSquareRadius)
          return CColor::BLACK;
-      }
-   }
+
    return CColor::WHITE;
 }
 

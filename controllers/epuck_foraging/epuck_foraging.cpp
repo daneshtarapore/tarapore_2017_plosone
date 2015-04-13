@@ -19,7 +19,7 @@ CBehavior::RobotData CBehavior::m_sRobotData;
 CEPuckForaging::ExperimentToRun::ExperimentToRun() :
     SBehavior(SWARM_FORAGING),
     FBehavior(FAULT_NONE),
-    id_FaultyRobot(-1) {}
+    id_FaultyRobotInSwarm("-1") {}
 
 
 void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
@@ -30,32 +30,27 @@ void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
     {
         GetNodeAttribute(t_node, "swarm_behavior", swarmbehav);
         GetNodeAttribute(t_node, "fault_behavior", errorbehav);
-        GetNodeAttribute(t_node, "id_faulty_robot", id_FaultyRobot);
+        GetNodeAttribute(t_node, "id_faulty_robot", id_FaultyRobotInSwarm);
     }
     catch(CARGoSException& ex)
-    {
-        THROW_ARGOSEXCEPTION_NESTED("Error initializing type of experiment to run, and fault to simulate.", ex);
-    }
+            THROW_ARGOSEXCEPTION_NESTED("Error initializing type of experiment to run, and fault to simulate.", ex);
 
     if (swarmbehav.compare("SWARM_AGGREGATION") == 0)
         SBehavior = SWARM_AGGREGATION;
     else if (swarmbehav.compare("SWARM_DISPERSION") == 0)
         SBehavior = SWARM_DISPERSION;
-    else if (swarmbehav.compare("SWARM_FLOCKING") == 0)
-        SBehavior = SWARM_FLOCKING;
     else if (swarmbehav.compare("SWARM_HOMING") == 0)
         SBehavior = SWARM_HOMING;
     else if (swarmbehav.compare("SWARM_FORAGING") == 0)
         SBehavior = SWARM_FORAGING;
     else
     {
-        std::cerr << "invalid swarm behavior"; exit(-1);
+        std::cerr << "invalid swarm behavior";
+        exit(-1);
     }
-
 
     if (errorbehav.compare("FAULT_NONE") == 0)
         FBehavior = FAULT_NONE;
-
 }
 
 /****************************************/
@@ -83,10 +78,7 @@ void CEPuckForaging::SWheelTurningParams::Init(TConfigurationNode& t_node)
         GetNodeAttribute(t_node, "max_speed", MaxSpeed);
     }
     catch(CARGoSException& ex)
-    {
-        THROW_ARGOSEXCEPTION_NESTED("Error initializing controller wheel turning parameters.", ex);
-    }
-
+            THROW_ARGOSEXCEPTION_NESTED("Error initializing controller wheel turning parameters.", ex);
 }
 
 /****************************************/
@@ -106,9 +98,7 @@ void CEPuckForaging::SStateData::Init(TConfigurationNode& t_node)
         GetNodeAttribute(t_node, "minimum_search_for_place_in_nest_time", MinimumSearchForPlaceInNestTime);
     }
     catch(CARGoSException& ex)
-    {
-        THROW_ARGOSEXCEPTION_NESTED("Error initializing controller state parameters.", ex);
-    }
+            THROW_ARGOSEXCEPTION_NESTED("Error initializing controller state parameters.", ex);
 }
 
 void CEPuckForaging::SStateData::Reset()
@@ -137,7 +127,8 @@ CEPuckForaging::CEPuckForaging() :
     m_pcProximity(NULL),
     m_pcLight(NULL),
     m_pcGround(NULL),
-    m_pcRNG(NULL) {}
+    m_pcRNG(NULL),
+    b_damagedrobot(false) {}
 
 /****************************************/
 /****************************************/
@@ -158,8 +149,8 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
         m_pcGround    = GetSensor  <CCI_GroundSensor                >("ground" );
         /*
        * Parse XML parameters
-       */        
-        /* Wheel turning */
+       */
+        /* Experiment to run */
         m_sExpRun.Init(GetNode(t_node, "experiment_run"));
         /* Wheel turning */
         m_sWheelTurningParams.Init(GetNode(t_node, "wheel_turning"));
@@ -167,9 +158,8 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
         m_sStateData.Init(GetNode(t_node, "state"));
     }
     catch(CARGoSException& ex)
-    {
-        THROW_ARGOSEXCEPTION_NESTED("Error initializing the e-puck foraging controller for robot \"" << GetId() << "\"", ex);
-    }
+            THROW_ARGOSEXCEPTION_NESTED("Error initializing the e-puck foraging controller for robot \"" << GetId() << "\"", ex);
+
     /*
     * Initialize other stuff
     */
@@ -177,6 +167,7 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
       that creation, reset, seeding and cleanup are managed by ARGoS. */
     m_pcRNG = CRandom::CreateRNG("argos");
     Reset();
+
 
     CBehavior::m_sRobotData.MaxSpeed = m_sWheelTurningParams.MaxSpeed;
     CBehavior::m_sRobotData.iterations_per_second = 10.0f * 10.0f; /*10 ticks per second, and 10 interations per tick so dt=0.01s*/
@@ -187,6 +178,10 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
 
     CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = ToRadians(CDegrees(10.0f)); //10.0 - straight to food spot; 35.0 spiral to food spot
     CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = ToRadians(CDegrees(70.0f));
+
+
+    if(this->GetId().compare("ep"+m_sExpRun.id_FaultyRobotInSwarm) == 0)
+        b_damagedrobot = true;
 }
 
 /****************************************/
@@ -204,7 +199,7 @@ void CEPuckForaging::ControlStep()
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
         m_vecBehaviors.push_back(pcDisperseBehavior);
 
-        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(25.0f); //range threshold in cm
+        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(30.0f); //range threshold in cm
         m_vecBehaviors.push_back(pcAggregateBehavior);
 
         CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
@@ -222,28 +217,23 @@ void CEPuckForaging::ControlStep()
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
 
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_FLOCKING)
-    {
-        m_vecBehaviors.clear();
-
-        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
-        m_vecBehaviors.push_back(pcDisperseBehavior);
-
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-        m_vecBehaviors.push_back(pcRandomWalkBehavior);
-    }
     else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
     {
         m_vecBehaviors.clear();
 
-        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
-        m_vecBehaviors.push_back(pcDisperseBehavior);
+        if(this->GetId().compare("ep0") == 0) // ep0 is the beacon robot
+            BecomeABeacon(); m_pcLEDs->SetAllColors(CColor::YELLOW);
+        else
+        {
+            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
+            m_vecBehaviors.push_back(pcDisperseBehavior);
 
-        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(100.0f); //range threshold in cm
-        m_vecBehaviors.push_back(pcAggregateBehavior);
+            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
+            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
 
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+            m_vecBehaviors.push_back(pcRandomWalkBehavior);
+        }
     }
 
 
@@ -311,8 +301,8 @@ void CEPuckForaging::UpdateState()
 
     m_sStateData.OnFood = false;
     if(tGroundReads[0] <= 0.1f &&
-       tGroundReads[1] <= 0.1f &&
-       tGroundReads[2] <= 0.1f)
+            tGroundReads[1] <= 0.1f &&
+            tGroundReads[2] <= 0.1f)
         m_sStateData.OnFood = true;
 
     //std::cout << " tGroundReads[0] " << tGroundReads[0] << " tGroundReads[1] " << tGroundReads[1] << " tGroundReads[2] " << tGroundReads[2] << std::endl << std::endl;
@@ -325,40 +315,40 @@ void CEPuckForaging::RunForagingExperiment()
 {
     switch(m_sStateData.State) /* Deciding state transitions */
     {
-        case SStateData::STATE_RESTING:
-        {
-            //std::cout << "SStateData::STATE_RESTING " << std::endl;
-            RestAtNest();
-            break;
-        }
-        case SStateData::STATE_EXPLORING:
-        {
-            //std::cout << "SStateData::STATE_EXPLORING " << std::endl;
-            Explore(); // have we transitioned from explore?
-            break;
-        }
-        case SStateData::STATE_BEACON:
-        {
-            //std::cout << "SStateData::STATE_BEACON " << std::endl;
-            BecomeABeacon();
-            break;
-        }
-        case SStateData::STATE_RESTING_AT_FOOD:
-        {
-            //std::cout << "SStateData::STATE_RESTING_AT_FOOD " << std::endl;
-            RestAtFood();
-            break;
-        }
-        case SStateData::STATE_RETURN_TO_NEST:
-        {
-            //std::cout << "SStateData::STATE_RETURN_TO_NEST " << std::endl;
-            ReturnToNest();
-            break;
-        }
-        default:
-        {
-            LOGERR << "We can't be here, there's a bug!" << std::endl;
-        }
+    case SStateData::STATE_RESTING:
+    {
+        //std::cout << "SStateData::STATE_RESTING " << std::endl;
+        RestAtNest();
+        break;
+    }
+    case SStateData::STATE_EXPLORING:
+    {
+        //std::cout << "SStateData::STATE_EXPLORING " << std::endl;
+        Explore(); // have we transitioned from explore?
+        break;
+    }
+    case SStateData::STATE_BEACON:
+    {
+        //std::cout << "SStateData::STATE_BEACON " << std::endl;
+        BecomeABeacon();
+        break;
+    }
+    case SStateData::STATE_RESTING_AT_FOOD:
+    {
+        //std::cout << "SStateData::STATE_RESTING_AT_FOOD " << std::endl;
+        RestAtFood();
+        break;
+    }
+    case SStateData::STATE_RETURN_TO_NEST:
+    {
+        //std::cout << "SStateData::STATE_RETURN_TO_NEST " << std::endl;
+        ReturnToNest();
+        break;
+    }
+    default:
+    {
+        LOGERR << "We can't be here, there's a bug!" << std::endl;
+    }
     }
 
     //m_sStateData.State = SStateData::STATE_RETURN_TO_NEST;
@@ -415,7 +405,7 @@ void CEPuckForaging::RestAtNest()
     /* If we have stayed here enough, probabilistically switch to
     * 'exploring' */
     if(m_sStateData.TimeRested > m_sStateData.MinimumRestingTime &&
-       m_pcRNG->Uniform(m_sStateData.ProbRange) < m_sStateData.InitialRestToExploreProb)
+            m_pcRNG->Uniform(m_sStateData.ProbRange) < m_sStateData.InitialRestToExploreProb)
     {
         m_pcLEDs->SetAllColors(CColor::GREEN);
         m_sStateData.State = SStateData::STATE_EXPLORING;
@@ -438,16 +428,16 @@ void CEPuckForaging::RestAtNest()
         for(size_t i = 0; i < tPackets.size(); ++i)
             switch(tPackets[i].Data[0])
             {
-                case LAST_EXPLORATION_SUCCESSFUL:
-                {
-                    /* ... */
-                    break;
-                }
-                case LAST_EXPLORATION_UNSUCCESSFUL:
-                {
-                    /* ... */
-                    break;
-                }
+            case LAST_EXPLORATION_SUCCESSFUL:
+            {
+                /* ... */
+                break;
+            }
+            case LAST_EXPLORATION_UNSUCCESSFUL:
+            {
+                /* ... */
+                break;
+            }
             }
 
     }
@@ -461,7 +451,7 @@ void CEPuckForaging::RestAtFood()
     /* If we have stayed here enough, probabilistically switch to
     * 'ReturnToNest' */
     if(m_sStateData.TimeRested > m_sStateData.MinimumRestingTime &&
-       m_pcRNG->Uniform(m_sStateData.ProbRange) < m_sStateData.InitialRestToExploreProb) //InitialRestToExploreProb used here as well.
+            m_pcRNG->Uniform(m_sStateData.ProbRange) < m_sStateData.InitialRestToExploreProb) //InitialRestToExploreProb used here as well.
     {
         m_pcLEDs->SetAllColors(CColor::BLUE);
         m_sStateData.State = SStateData::STATE_RETURN_TO_NEST;
@@ -624,11 +614,11 @@ void CEPuckForaging::ReturnToNest()
         /* Still outside the nest */
         m_sStateData.TimeSearchingForPlaceInNest = 0;
     }
-//    /* Keep going */
-//    bool bCollision;
-//    SetWheelSpeedsFromVector(
-//                m_sWheelTurningParams.MaxSpeed * DiffusionVector(bCollision) +
-//                m_sWheelTurningParams.MaxSpeed * CalculateVectorToLight());
+    //    /* Keep going */
+    //    bool bCollision;
+    //    SetWheelSpeedsFromVector(
+    //                m_sWheelTurningParams.MaxSpeed * DiffusionVector(bCollision) +
+    //                m_sWheelTurningParams.MaxSpeed * CalculateVectorToLight());
 }
 
 /****************************************/
