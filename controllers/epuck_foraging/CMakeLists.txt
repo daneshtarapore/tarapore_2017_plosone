@@ -1,4 +1,4 @@
-add_library(epuck_foraging SHARED epuck_foraging.h epuck_foraging.cpp behavior.h behavior.cpp dispersebehavior.h dispersebehavior.cpp randomwalkbehavior.h randomwalkbehavior.cpp phototaxisbehavior.h phototaxisbehavior.cpp antiphototaxisbehavior.h antiphototaxisbehavior.cpp homingtofoodbeaconbehavior.h homingtofoodbeaconbehavior.cpp aggregatebehavior.h aggregatebehavior.cpp)
+add_library(epuck_foraging SHARED epuck_foraging.h epuck_foraging.cpp behavior.h behavior.cpp dispersebehavior.h dispersebehavior.cpp randomwalkbehavior.h randomwalkbehavior.cpp phototaxisbehavior.h phototaxisbehavior.cpp antiphototaxisbehavior.h antiphototaxisbehavior.cpp homingtofoodbeaconbehavior.h homingtofoodbeaconbehavior.cpp aggregatebehavior.h aggregatebehavior.cpp circlebehavior.h circlebehavior.cpp)
 target_link_libraries(epuck_foraging
   argos3core_simulator
   argos3plugin_simulator_epuck

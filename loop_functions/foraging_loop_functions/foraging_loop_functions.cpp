@@ -48,17 +48,6 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
    }
    catch(CARGoSException& ex)
       THROW_ARGOSEXCEPTION_NESTED("Error parsing foraging loop function.", ex);
-
-
-
-    try
-     {
-       TConfigurationNode& tForaging = GetNode(t_node, "experiment_run");
-
-    }
-    catch(CARGoSException& ex)
-       THROW_ARGOSEXCEPTION_NESTED("Error parsing experiment_run parameters.", ex);
-
 }
 
 /****************************************/
@@ -93,12 +82,12 @@ void CForagingLoopFunctions::Destroy()
 
 CColor CForagingLoopFunctions::GetFloorColor(const CVector2& c_position_on_plane) // used to paint the floor by the floor entity
 {
-   if(c_position_on_plane.GetX() < -1.5f)
+   /*if(c_position_on_plane.GetX() < -1.5f)
       return CColor::GRAY50;
 
    for(UInt32 i = 0; i < m_cFoodPos.size(); ++i)
       if((c_position_on_plane - m_cFoodPos[i]).SquareLength() < m_fFoodSquareRadius)
-         return CColor::BLACK;
+         return CColor::BLACK;*/
 
    return CColor::WHITE;
 }
@@ -108,34 +97,34 @@ CColor CForagingLoopFunctions::GetFloorColor(const CVector2& c_position_on_plane
 
 void CForagingLoopFunctions::PreStep()
 {
-    /* Logic to pick and drop food items */
-    /*
-    * If a robot is in the nest, drop the food item // 'CHEATING' WITH LOOP FUNCTION
-    * If a robot is on a food item, pick it         // 'CHEATING' WITH LOOP FUNCTION
-    * Each robot can carry only one food item per time
-    * Update: The collection and deposit of food is now handled in the robot's control loop
-    */
+//    /* Logic to pick and drop food items */
+//    /*
+//    * If a robot is in the nest, drop the food item // 'CHEATING' WITH LOOP FUNCTION
+//    * If a robot is on a food item, pick it         // 'CHEATING' WITH LOOP FUNCTION
+//    * Each robot can carry only one food item per time
+//    * Update: The collection and deposit of food is now handled in the robot's control loop
+//    */
 
-    m_unCollectedFood = 0;
+//    m_unCollectedFood = 0;
 
-    /* Check whether a robot is on a food item */
-    CSpace::TMapPerType& m_cEPucks = GetSpace().GetEntitiesByType("e-puck");
+//    /* Check whether a robot is on a food item */
+//    CSpace::TMapPerType& m_cEPucks = GetSpace().GetEntitiesByType("e-puck");
 
-    for(CSpace::TMapPerType::iterator it = m_cEPucks.begin(); it != m_cEPucks.end(); ++it)
-    {
-        /* Get handle to e-puck entity and controller */
-        CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
-        CEPuckForaging& cController = dynamic_cast<CEPuckForaging&>(cEPuck.GetControllableEntity().GetController());
+//    for(CSpace::TMapPerType::iterator it = m_cEPucks.begin(); it != m_cEPucks.end(); ++it)
+//    {
+//        /* Get handle to e-puck entity and controller */
+//        CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
+//        CEPuckForaging& cController = dynamic_cast<CEPuckForaging&>(cEPuck.GetControllableEntity().GetController());
 
-        /* Get food data */
-        CEPuckForaging::SFoodData& sFoodData = cController.GetFoodData();
-        m_unCollectedFood += sFoodData.TotalFoodItems;
+//        /* Get food data */
+//        CEPuckForaging::SFoodData& sFoodData = cController.GetFoodData();
+//        m_unCollectedFood += sFoodData.TotalFoodItems;
 
-    }
+//    }
 
-    /* Output stuff to file */
-    m_cOutput << GetSpace().GetSimulationClock() << "\t"
-              << m_unCollectedFood << std::endl;
+//    /* Output stuff to file */
+//    m_cOutput << GetSpace().GetSimulationClock() << "\t"
+//              << m_unCollectedFood << std::endl;
 }
 
 /****************************************/

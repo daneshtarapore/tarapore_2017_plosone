@@ -51,6 +51,37 @@ void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
 
     if (errorbehav.compare("FAULT_NONE") == 0)
         FBehavior = FAULT_NONE;
+    else if  (errorbehav.compare("FAULT_STRAIGHTLINE") == 0)
+        FBehavior = FAULT_STRAIGHTLINE;
+    else if  (errorbehav.compare("FAULT_RANDOMWALK") == 0)
+        FBehavior = FAULT_RANDOMWALK;
+    else if  (errorbehav.compare("FAULT_CIRCLE") == 0)
+        FBehavior = FAULT_CIRCLE;
+    else if  (errorbehav.compare("FAULT_STOP") == 0)
+        FBehavior = FAULT_STOP;
+
+    /* The below faults are not yet implemented */
+    /*else if  (errorbehav.compare("FAULT_PROXIMITYSENSOR_SETZERO") == 0)
+        FBehavior = FAULT_PROXIMITYSENSOR_SETZERO;
+    else if  (errorbehav.compare("FAULT_GROUNDSENSOR_SETZERO") == 0)
+        FBehavior = FAULT_GROUNDSENSOR_SETZERO;
+    else if  (errorbehav.compare("FAULT_LIGHTSENSOR_SETZERO") == 0)
+        FBehavior = FAULT_LIGHTSENSOR_SETZERO;
+
+    else if  (errorbehav.compare("FAULT_RABCOMMUNICATION_SETZERO") == 0)
+        FBehavior = FAULT_RABCOMMUNICATION_SETZERO;
+
+    else if  (errorbehav.compare("FAULT_ACTUATOR_WHEELS_SETZERO") == 0)
+        FBehavior = FAULT_ACTUATOR_WHEELS_SETZERO;
+
+    else if  (errorbehav.compare("FAULT_CONTROLLER_COMPLETEFAILURE") == 0)
+        FBehavior = FAULT_CONTROLLER_COMPLETEFAILURE;*/
+    else
+    {
+        std::cerr << "invalid fault behavior";
+        exit(-1);
+    }
+
 }
 
 /****************************************/
@@ -179,7 +210,6 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
     CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = ToRadians(CDegrees(10.0f)); //10.0 - straight to food spot; 35.0 spiral to food spot
     CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = ToRadians(CDegrees(70.0f));
 
-
     if(this->GetId().compare("ep"+m_sExpRun.id_FaultyRobotInSwarm) == 0)
         b_damagedrobot = true;
 }
@@ -189,55 +219,24 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
 
 void CEPuckForaging::ControlStep()
 {
-    if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_FORAGING)
+    if(b_damagedrobot && (m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE ||
+                          m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK ||
+                          m_sExpRun.FBehavior == ExperimentToRun::FAULT_CIRCLE ||
+                          m_sExpRun.FBehavior == ExperimentToRun::FAULT_STOP))
+        RunGeneralFaults();
+
+
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_FORAGING)
         RunForagingExperiment();
 
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION)
-    {
-        m_vecBehaviors.clear();
-
-        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
-        m_vecBehaviors.push_back(pcDisperseBehavior);
-
-        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(30.0f); //range threshold in cm
-        m_vecBehaviors.push_back(pcAggregateBehavior);
-
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-        m_vecBehaviors.push_back(pcRandomWalkBehavior);
-    }
-
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION)
-    {
-        m_vecBehaviors.clear();
-
-        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
-        m_vecBehaviors.push_back(pcDisperseBehavior);
-
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-        m_vecBehaviors.push_back(pcRandomWalkBehavior);
-    }
-
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
-    {
-        m_vecBehaviors.clear();
-
-        if(this->GetId().compare("ep0") == 0) // ep0 is the beacon robot
-            BecomeABeacon(); m_pcLEDs->SetAllColors(CColor::YELLOW);
-        else
-        {
-            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
-            m_vecBehaviors.push_back(pcDisperseBehavior);
-
-            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
-            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
-
-            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-            m_vecBehaviors.push_back(pcRandomWalkBehavior);
-        }
-    }
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION ||
+            m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION ||
+            m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
+        RunHomogeneousSwarmExperiment();
 
 
     CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcLight->GetReadings(), m_pcGround->GetReadings(), m_pcRABS->GetReadings());
+
     Real leftSpeed = 0.0, rightSpeed = 0.0;
     bool bControlTaken = false;
     for (TBehaviorVectorIterator i = m_vecBehaviors.begin(); i != m_vecBehaviors.end(); i++)
@@ -254,6 +253,84 @@ void CEPuckForaging::ControlStep()
     }
 
     m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+}
+
+/****************************************/
+/****************************************/
+
+void CEPuckForaging::RunGeneralFaults()
+{
+    m_pcLEDs->SetAllColors(CColor::RED);
+
+    m_vecBehaviors.clear();
+    if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE)
+    {
+         CRandomWalkBehavior* pcStraightLineBehavior = new CRandomWalkBehavior(0.0f);
+         m_vecBehaviors.push_back(pcStraightLineBehavior);
+    }
+    else if (m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK)
+    {
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+
+    else if (m_sExpRun.FBehavior == ExperimentToRun::FAULT_CIRCLE)
+    {
+        CCircleBehavior* pcCircleBehavior = new CCircleBehavior();
+        m_vecBehaviors.push_back(pcCircleBehavior);
+
+    }
+    else //m_sExpRun.FBehavior == ExperimentToRun::FAULT_STOP
+    {}
+}
+
+/****************************************/
+/****************************************/
+
+void CEPuckForaging::RunHomogeneousSwarmExperiment()
+{
+    m_vecBehaviors.clear();
+
+    if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION)
+    {
+        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
+        m_vecBehaviors.push_back(pcDisperseBehavior);
+
+        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(30.0f); //range threshold in cm
+        m_vecBehaviors.push_back(pcAggregateBehavior);
+
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION)
+    {
+        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
+        m_vecBehaviors.push_back(pcDisperseBehavior);
+
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+
+    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
+    {
+        if(this->GetId().compare("ep0") == 0)
+        {
+            // ep0 is the beacon robot
+            BecomeABeacon(); m_pcLEDs->SetAllColors(CColor::YELLOW);
+        }
+        else
+        {
+            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
+            m_vecBehaviors.push_back(pcDisperseBehavior);
+
+            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
+            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
+
+            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+            m_vecBehaviors.push_back(pcRandomWalkBehavior);
+        }
+    }
 }
 
 /****************************************/

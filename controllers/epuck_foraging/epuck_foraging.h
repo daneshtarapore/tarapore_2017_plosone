@@ -60,6 +60,7 @@
 #include "phototaxisbehavior.h"
 #include "antiphototaxisbehavior.h"
 #include "homingtofoodbeaconbehavior.h"
+#include "circlebehavior.h"
 
 /*
  * All the ARGoS stuff in the 'argos' namespace.
@@ -91,25 +92,20 @@ public:
         enum FaultBehavior
         {
             FAULT_NONE = 0,
-            /*faults whose effects cause one of the following four general failures */
-            FAULT_STRAIGHTLINE,
-            FAULT_RANDOMWALK,
-            FAULT_CIRCLE,
-            FAULT_STOP,
 
-            /*specific faults to sensors */
+            /*faults in sensors */
             FAULT_PROXIMITYSENSOR_SETZERO,
             FAULT_GROUNDSENSOR_SETZERO,
             FAULT_LIGHTSENSOR_SETZERO,
 
-            /*specific faults to communication module */
+            /*faults in communication */
             FAULT_RABCOMMUNICATION_SETZERO,
 
-            /*specific faults to actuators */
-            FAULT_ACTUATOR_LWHEEL_SETZERO,
-            FAULT_ACTUATOR_RWHEEL_SETZERO,
+            /* faults in actuators */
+            FAULT_ACTUATOR_WHEELS_SETZERO,
 
-            /*fault in controller*/
+            /* fault in controller
+             * failure of all components. */
             FAULT_CONTROLLER_COMPLETEFAILURE
         } FBehavior;
 
@@ -144,22 +140,6 @@ public:
     */
     struct SWheelTurningParams
     {
-        //      /*
-        //       * The turning mechanism.
-        //       * The robot can be in three different turning states.
-        //       */
-        //      enum ETurningMechanism
-        //      {
-        //         NO_TURN = 0, // go straight
-        //         SOFT_TURN,   // both wheels are turning forwards, but at different speeds
-        //         HARD_TURN    // wheels are turning with opposite speeds
-        //      } TurningMechanism;
-        //      /*
-        //       * Angular thresholds to change turning state.
-        //       */
-        //      CRadians HardTurnOnAngleThreshold;
-        //      CRadians SoftTurnOnAngleThreshold;
-        //      CRadians NoTurnAngleThreshold;
         /* Maximum wheel speed */
         Real MaxSpeed;
 
@@ -187,24 +167,8 @@ public:
 
         /* Initial probability to switch from resting to exploring */
         Real InitialRestToExploreProb;
-        /* Current probability to switch from resting to exploring */
-        //Real RestToExploreProb;
-        /* Initial probability to switch from exploring to resting */
-        //Real InitialExploreToRestProb;
-        /* Current probability to switch from exploring to resting */
-        //Real ExploreToRestProb;
-        /* Used as a range for uniform number generation */
+
         CRange<Real> ProbRange;
-        /* The increase of ExploreToRestProb due to the food rule */
-        //Real FoodRuleExploreToRestDeltaProb;
-        /* The increase of RestToExploreProb due to the food rule */
-        //Real FoodRuleRestToExploreDeltaProb;
-        /* The increase of ExploreToRestProb due to the collision rule */
-        //Real CollisionRuleExploreToRestDeltaProb;
-        /* The increase of RestToExploreProb due to the social rule */
-        //Real SocialRuleRestToExploreDeltaProb;
-        /* The increase of ExploreToRestProb due to the social rule */
-        //Real SocialRuleExploreToRestDeltaProb;
         /* The minimum number of steps in resting state before the robots
          starts thinking that it's time to move */
         size_t MinimumRestingTime;
@@ -251,6 +215,9 @@ public:
     */
     virtual void ControlStep();
 
+    /*
+     * Run the foraging swarm experiment
+    */
     virtual void RunForagingExperiment();
 
     /*
@@ -314,27 +281,6 @@ private:
     * state update code here.
     */
     void UpdateState();
-
-    /*
-    * Calculates the vector to the light. Used to perform
-    * phototaxis and antiphototaxis.
-    */
-    //CVector2 CalculateVectorToLight();
-
-    /*
-    * Calculates the diffusion vector. If there is a close obstacle,
-    * it points away from it; it there is none, it points forwards.
-    * The b_collision parameter is used to return true or false whether
-    * a collision avoidance just happened or not. It is necessary for the
-    * collision rule.
-    */
-    //CVector2 DiffusionVector(bool& b_collision);
-
-    /*
-    * Gets a direction vector as input and transforms it into wheel
-    * actuation.
-    */
-    //void SetWheelSpeedsFromVector(const CVector2& c_heading);
 
     /*
     * Executes the resting state at the nest.
