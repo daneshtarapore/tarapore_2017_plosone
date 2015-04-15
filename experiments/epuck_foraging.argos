@@ -38,7 +38,7 @@
       </sensors>
       <params>
         <experiment_run swarm_behavior="SWARM_FORAGING"
-			fault_behavior="FAULT_CIRCLE" 
+			fault_behavior="FAULT_NONE" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="10" />
         <state initial_rest_to_explore_prob="0.1"
@@ -56,7 +56,7 @@
   <!-- ****************** -->
   <loop_functions library="build/loop_functions/foraging_loop_functions/libforaging_loop_functions.so"
                   label="foraging_loop_functions">
-    <foraging items="1"
+    <foraging items="2"
               radius="0.1"
               output="epuckforaging.txt" />
   </loop_functions>

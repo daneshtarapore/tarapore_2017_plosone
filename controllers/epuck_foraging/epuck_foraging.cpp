@@ -35,13 +35,7 @@ void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
     catch(CARGoSException& ex)
             THROW_ARGOSEXCEPTION_NESTED("Error initializing type of experiment to run, and fault to simulate.", ex);
 
-    if (swarmbehav.compare("SWARM_AGGREGATION") == 0)
-        SBehavior = SWARM_AGGREGATION;
-    else if (swarmbehav.compare("SWARM_DISPERSION") == 0)
-        SBehavior = SWARM_DISPERSION;
-    else if (swarmbehav.compare("SWARM_HOMING") == 0)
-        SBehavior = SWARM_HOMING;
-    else if (swarmbehav.compare("SWARM_FORAGING") == 0)
+    if (swarmbehav.compare("SWARM_FORAGING") == 0)
         SBehavior = SWARM_FORAGING;
     else
     {
@@ -229,10 +223,6 @@ void CEPuckForaging::ControlStep()
     else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_FORAGING)
         RunForagingExperiment();
 
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION ||
-            m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION ||
-            m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
-        RunHomogeneousSwarmExperiment();
 
 
     CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcLight->GetReadings(), m_pcGround->GetReadings(), m_pcRABS->GetReadings());
@@ -282,55 +272,6 @@ void CEPuckForaging::RunGeneralFaults()
     }
     else //m_sExpRun.FBehavior == ExperimentToRun::FAULT_STOP
     {}
-}
-
-/****************************************/
-/****************************************/
-
-void CEPuckForaging::RunHomogeneousSwarmExperiment()
-{
-    m_vecBehaviors.clear();
-
-    if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION)
-    {
-        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
-        m_vecBehaviors.push_back(pcDisperseBehavior);
-
-        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(30.0f); //range threshold in cm
-        m_vecBehaviors.push_back(pcAggregateBehavior);
-
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-        m_vecBehaviors.push_back(pcRandomWalkBehavior);
-    }
-
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION)
-    {
-        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
-        m_vecBehaviors.push_back(pcDisperseBehavior);
-
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-        m_vecBehaviors.push_back(pcRandomWalkBehavior);
-    }
-
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
-    {
-        if(this->GetId().compare("ep0") == 0)
-        {
-            // ep0 is the beacon robot
-            BecomeABeacon(); m_pcLEDs->SetAllColors(CColor::YELLOW);
-        }
-        else
-        {
-            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
-            m_vecBehaviors.push_back(pcDisperseBehavior);
-
-            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
-            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
-
-            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-            m_vecBehaviors.push_back(pcRandomWalkBehavior);
-        }
-    }
 }
 
 /****************************************/

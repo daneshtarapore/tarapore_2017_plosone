@@ -32,7 +32,7 @@ bool CAggregateBehavior::TakeControl()
     if(controltaken)
     {
         m_cAggregationVector /= robotsinrange;
-        std::cout << "Aggregation behavior taking control " << std::endl;
+        //std::cout << "Aggregation behavior taking control " << std::endl;
     }
 
     return controltaken;

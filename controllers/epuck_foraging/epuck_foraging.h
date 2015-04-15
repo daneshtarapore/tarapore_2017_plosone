@@ -81,10 +81,7 @@ public:
         /* The type of experiment to run */
         enum SwarmBehavior
         {
-            SWARM_AGGREGATION = 0,
-            SWARM_DISPERSION,
-            SWARM_HOMING,
-            SWARM_FORAGING
+            SWARM_FORAGING = 0
         } SBehavior;
 
 
@@ -92,6 +89,12 @@ public:
         enum FaultBehavior
         {
             FAULT_NONE = 0,
+
+            /*faults whose effects cause one of the following four general failures */
+            FAULT_STRAIGHTLINE,
+            FAULT_RANDOMWALK,
+            FAULT_CIRCLE,
+            FAULT_STOP,
 
             /*faults in sensors */
             FAULT_PROXIMITYSENSOR_SETZERO,
@@ -214,6 +217,11 @@ public:
     * The length of the time step is set in the XML file.
     */
     virtual void ControlStep();
+
+    /*
+     * Execute general faults
+    */
+    virtual void RunGeneralFaults();
 
     /*
      * Run the foraging swarm experiment
