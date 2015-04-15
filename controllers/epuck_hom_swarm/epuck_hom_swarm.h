@@ -53,6 +53,8 @@
 #include "homingtofoodbeaconbehavior.h"
 #include "circlebehavior.h"
 
+#include "propriofeaturevector.h"
+
 /*
  * All the ARGoS stuff in the 'argos' namespace.
  * With this statement, you save typing argos:: every time.
@@ -164,6 +166,8 @@ public:
         return m_sExpRun;
     }
 
+    Real m_rTime;
+
 private:
 
 
@@ -172,6 +176,8 @@ private:
 
     TBehaviorVector             m_vecBehaviors;
     bool                        b_damagedrobot;     // true if robot is damaged
+
+    CProprioceptiveFeatureVector  m_cProprioceptiveFeatureVector;
 
     /* Pointer to the differential steering actuator */
     CCI_DifferentialSteeringActuator* m_pcWheels;

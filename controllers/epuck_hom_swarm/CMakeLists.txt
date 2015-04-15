@@ -1,4 +1,4 @@
-add_library(epuck_hom_swarm SHARED epuck_hom_swarm.h epuck_hom_swarm.cpp behavior.h behavior.cpp dispersebehavior.h dispersebehavior.cpp randomwalkbehavior.h randomwalkbehavior.cpp phototaxisbehavior.h phototaxisbehavior.cpp antiphototaxisbehavior.h antiphototaxisbehavior.cpp homingtofoodbeaconbehavior.h homingtofoodbeaconbehavior.cpp aggregatebehavior.h aggregatebehavior.cpp circlebehavior.h circlebehavior.cpp)
+add_library(epuck_hom_swarm SHARED epuck_hom_swarm.h epuck_hom_swarm.cpp behavior.h behavior.cpp dispersebehavior.h dispersebehavior.cpp randomwalkbehavior.h randomwalkbehavior.cpp phototaxisbehavior.h phototaxisbehavior.cpp antiphototaxisbehavior.h antiphototaxisbehavior.cpp homingtofoodbeaconbehavior.h homingtofoodbeaconbehavior.cpp aggregatebehavior.h aggregatebehavior.cpp circlebehavior.h circlebehavior.cpp propriofeaturevector.h propriofeaturevector.cpp)
 target_link_libraries(epuck_hom_swarm
   argos3core_simulator
   argos3plugin_simulator_epuck

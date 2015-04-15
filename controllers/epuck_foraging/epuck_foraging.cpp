@@ -195,7 +195,7 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
 
 
     CBehavior::m_sRobotData.MaxSpeed = m_sWheelTurningParams.MaxSpeed;
-    CBehavior::m_sRobotData.iterations_per_second = 10.0f * 10.0f; /*10 ticks per second, and 10 interations per tick so dt=0.01s*/
+    CBehavior::m_sRobotData.iterations_per_second = 10.0f * 10.0f;  /*10 ticks per second so dt=0.01s. i.e., the controlcycle is run 10 times per second*/
     CBehavior::m_sRobotData.seconds_per_iterations * 1.0f / CBehavior::m_sRobotData.iterations_per_second;
     CBehavior::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f;
     CBehavior::m_sRobotData.INTERWHEEL_DISTANCE  = 0.053f;

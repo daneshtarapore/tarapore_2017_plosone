@@ -11,9 +11,10 @@
   <!-- ************************* -->
   <!-- * General configuration * -->
   <!-- ************************* -->
+ <!-- length in seconds -->
   <framework>
     <system threads="0" />
-    <experiment length="1500"
+    <experiment length="15"
                 ticks_per_second="10"
                 random_seed="0" />
   </framework>
@@ -36,7 +37,7 @@
       </sensors>
       <params>
         <experiment_run swarm_behavior="SWARM_AGGREGATION"
-			fault_behavior="FAULT_RANDOMWALK" 
+			fault_behavior="FAULT_CIRCLE" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="10" />
       </params>

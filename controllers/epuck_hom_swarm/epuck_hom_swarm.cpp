@@ -16,6 +16,8 @@
 CBehavior::SensoryData CBehavior::m_sSensoryData;
 CBehavior::RobotData CBehavior::m_sRobotData;
 
+CProprioceptiveFeatureVector::RobotData CProprioceptiveFeatureVector::m_sRobotData;
+
 /****************************************/
 /****************************************/
 
@@ -91,7 +93,7 @@ CEPuckHomSwarm::CEPuckHomSwarm() :
     m_pcRABS(NULL),
     m_pcProximity(NULL),
     m_pcRNG(NULL),
-    b_damagedrobot(false) {}
+    b_damagedrobot(false) {m_rTime=0.0f;}
 
 /****************************************/
 /****************************************/
@@ -130,8 +132,8 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
     Reset();
 
     CBehavior::m_sRobotData.MaxSpeed = m_sWheelTurningParams.MaxSpeed;
-    CBehavior::m_sRobotData.iterations_per_second = 10.0f * 10.0f; /*10 ticks per second, and 10 interations per tick so dt=0.01s*/
-    CBehavior::m_sRobotData.seconds_per_iterations * 1.0f / CBehavior::m_sRobotData.iterations_per_second;
+    CBehavior::m_sRobotData.iterations_per_second  = 10.0f; /*10 ticks per second so dt=0.01s. i.e., the controlcycle is run 10 times per second*/
+    CBehavior::m_sRobotData.seconds_per_iterations = 1.0f / CBehavior::m_sRobotData.iterations_per_second;
     CBehavior::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f;
     CBehavior::m_sRobotData.INTERWHEEL_DISTANCE  = 0.053f;
     CBehavior::m_sRobotData.WHEEL_RADIUS = 0.0205f;
@@ -141,6 +143,25 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
 
     if(this->GetId().compare("ep"+m_sExpRun.id_FaultyRobotInSwarm) == 0)
         b_damagedrobot = true;
+
+
+
+
+    CProprioceptiveFeatureVector::m_sRobotData.MaxLinearSpeed           = m_sWheelTurningParams.MaxSpeed; //cm/s
+    CProprioceptiveFeatureVector::m_sRobotData.MaxLinearAcceleration    = m_sWheelTurningParams.MaxSpeed; //cm/s^2
+
+
+    CProprioceptiveFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f; // m
+    CProprioceptiveFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = 0.053f; // m
+    CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = (m_sWheelTurningParams.MaxSpeed + m_sWheelTurningParams.MaxSpeed) /
+                                                                          (CBehavior::m_sRobotData.INTERWHEEL_DISTANCE * 100.0f); //rad/s
+    CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed; //rad/s^2;
+
+    CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second    = 10.0f; /*10 ticks per second so dt=0.01s. i.e., the controlcycle is run 10 times per second*/
+    CProprioceptiveFeatureVector::m_sRobotData.seconds_per_iterations   = 1.0f / CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second;
+    CProprioceptiveFeatureVector::m_sRobotData.WHEEL_RADIUS             = 0.0205f; //m
+
+    CProprioceptiveFeatureVector::robotid = this->GetId();
 }
 
 /****************************************/
@@ -178,6 +199,9 @@ void CEPuckHomSwarm::ControlStep()
     }
 
     m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+
+    m_rTime+=1.0f;
+    std::cout << "m_rTime = " << m_rTime << std::endl;
 }
 
 /****************************************/

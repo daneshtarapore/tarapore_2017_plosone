@@ -5,8 +5,6 @@
 /******************************************************************************/
 
 #include <vector>
-//#include "common.h"
-//#include "epuck_foraging.h"
 
 /* Definitions for random number generation */
 #include <argos3/core/utility/math/rng.h>
