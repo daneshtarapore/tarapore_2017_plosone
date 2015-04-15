@@ -161,7 +161,7 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
     CProprioceptiveFeatureVector::m_sRobotData.seconds_per_iterations   = 1.0f / CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second;
     CProprioceptiveFeatureVector::m_sRobotData.WHEEL_RADIUS             = 0.0205f; //m
 
-    CProprioceptiveFeatureVector::robotid = this->GetId();
+    CProprioceptiveFeatureVector::m_sRobotData.robotid                  = this->GetId();
 }
 
 /****************************************/

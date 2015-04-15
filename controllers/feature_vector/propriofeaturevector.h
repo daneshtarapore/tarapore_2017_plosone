@@ -44,6 +44,7 @@ public:
 
     struct SensoryData
     {
+       Real m_rTime;
        Real f_LeftWheelSpeed, f_RightWheelSpeed;
        CCI_EPuckProximitySensor::TReadings m_ProximitySensorData;
        CCI_LightUpdatedSensor::TReadings m_LightSensorData;
@@ -55,6 +56,7 @@ public:
 
        SensoryData()
        {
+           m_rTime = 0.0f;
            f_LeftWheelSpeed = 0.0f; f_RightWheelSpeed = 0.0f;
            LinearSpeed = 0.0f; AngularSpeed = 0.0f; LinearAcceleration = 0.0f; AngularAcceleration = 0.0f;
            pos = CVector2(0.0, 0.0);
@@ -135,8 +137,6 @@ protected:
     virtual void ComputeFeatureValues();
 
     virtual unsigned CountNeighbors(double sensor_range);
-
-    Real        m_rTime;
 
     unsigned  m_unValue;
     unsigned  m_unLength;
