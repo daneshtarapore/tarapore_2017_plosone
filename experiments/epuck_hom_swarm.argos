@@ -14,9 +14,9 @@
  <!-- length in seconds -->
   <framework>
     <system threads="0" />
-    <experiment length="15"
+    <experiment length="150"
                 ticks_per_second="10"
-                random_seed="0" />
+                random_seed="463753" />
   </framework>
 
   <!-- *************** -->
@@ -37,7 +37,7 @@
       </sensors>
       <params>
         <experiment_run swarm_behavior="SWARM_AGGREGATION"
-			fault_behavior="FAULT_CIRCLE" 
+			fault_behavior="FAULT_STRAIGHTLINE" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="10" />
       </params>
@@ -76,7 +76,7 @@
     </box>
 
     <distribute>
-      <position method="uniform" min="-2.5,-2.5,0" max="2.5,2.5,0" />
+      <position method="uniform" min="-2.5,-2,0" max="2.5,2,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
       <entity quantity="20" max_trials="100">
         <e-puck id="ep">
@@ -113,7 +113,9 @@
                    look_at="0,0,0"
                    lens_focal_length="20" />
       </camera>
-      <user_functions label="homswarm_qt_user_functions" />
+      <!-- <user_functions label="homswarm_qt_user_functions" /> -->
+      <user_functions library="build/loop_functions/id_loop_functions/libid_loop_functions"
+                      label="id_qtuser_functions" />
     </qt-opengl>
   </visualization>
 

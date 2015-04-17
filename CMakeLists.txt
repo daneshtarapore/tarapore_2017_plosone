@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(argos3_foraging)
 
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x")
+endif()
+
 # Deactivate RPATH for MacOSX
 set(CMAKE_MACOSX_RPATH 0)
 

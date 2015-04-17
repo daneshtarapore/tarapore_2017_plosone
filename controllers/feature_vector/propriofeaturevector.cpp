@@ -13,21 +13,21 @@ double       CProprioceptiveFeatureVector::FEATURE_RANGE             = 60.0; //c
 /******************************************************************************/
 /******************************************************************************/
 
+//CVector2 pos_ref(0.0f, 0.0f);
+
 
 CProprioceptiveFeatureVector::CProprioceptiveFeatureVector()
 {
-    m_rTime = 0.0f;
-
     m_unValue  = 0;
     m_unLength = NUMBER_OF_FEATURES;
 
     NUMBER_OF_FEATURE_VECTORS = 1 << NUMBER_OF_FEATURES;
 
-    m_pfFeatureValues         = new float[m_unLength];
+    m_pfFeatureValues         = new Real[m_unLength];
     m_piLastOccuranceEvent    = new int[m_unLength];
     m_piLastOccuranceNegEvent = new int[m_unLength];
 
-    m_pfAllFeatureValues     = new float[NUMBER_OF_FEATURES];
+    m_pfAllFeatureValues     = new Real[NUMBER_OF_FEATURES];
 
 
     m_iEventSelectionTimeWindow = MODELSTARTTIME; //1500;
@@ -39,12 +39,6 @@ CProprioceptiveFeatureVector::CProprioceptiveFeatureVector()
 
         m_pfFeatureValues[i]         = 0.0;
     }
-
-    m_fVelocityThreshold            = 0.05  * (m_sRobotData.MaxLinearSpeed);
-    m_fAccelerationThreshold        = 0.05  * (m_sRobotData.MaxLinearAcceleration);
-
-    m_tAngularVelocityThreshold     = 0.032  * (m_sRobotData.MaxAngularSpeed);
-    m_tAngularAccelerationThreshold = 0.032  * (m_sRobotData.MaxAngularAcceleration);
 
 
     // keeping track of neighbors in last m_iEventSelectionTimeWindow time-steps
@@ -62,8 +56,6 @@ CProprioceptiveFeatureVector::CProprioceptiveFeatureVector()
     m_unCoordCurrQueueIndex    = 0;
 
     m_fSquaredDistTravelled = 0.0;
-    m_fSquaredDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow)) *
-                              (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow));
 
     m_pvecCoordAtTimeStep = new CVector2[m_iDistTravelledTimeWindow];
 }
@@ -105,6 +97,17 @@ unsigned int CProprioceptiveFeatureVector::GetLength() const
 
 unsigned int CProprioceptiveFeatureVector::SimulationStep()
 {
+    m_fVelocityThreshold            = 0.05  * (m_sRobotData.MaxLinearSpeed);
+    m_fAccelerationThreshold        = 0.05  * (m_sRobotData.MaxLinearAcceleration);
+
+    m_tAngularVelocityThreshold     = 0.032  * (m_sRobotData.MaxAngularSpeed);
+    m_tAngularAccelerationThreshold = 0.032  * (m_sRobotData.MaxAngularAcceleration);
+
+    // the time window is in ticks and is to be convered to seconds
+    m_fSquaredDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations)) *
+            (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations));
+
+
     ComputeFeatureValues();
     m_unValue = 0;
     
@@ -117,18 +120,18 @@ unsigned int CProprioceptiveFeatureVector::SimulationStep()
 
 void CProprioceptiveFeatureVector::ComputeFeatureValues()
 {
-     unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
-     unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;
+    unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
+    unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;
 
-     bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0) ? true : false;
+    bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0) ? true : false;
 
 
-    int CurrentStepNumber = m_rTime;
+    int CurrentStepNumber = m_sSensoryData.m_rTime;
 
     // Feature (from LS to MS bits in FV)
     // Sensors
-    //1st: set if bot has atleast one neighbor in range 0-3 in the majority of of past X time-steps
-    //2nd: set if bot has atleast one neighbor in range 3-6 in the majority of of past X time-steps
+    //1st: set if bot has atleast one neighbor in range 0-30cm in the majority of of past X time-steps
+    //2nd: set if bot has atleast one neighbor in range 30-60cm in the majority of of past X time-steps
     if(CurrentStepNumber >= m_iEventSelectionTimeWindow)
     {
         // decision based on the last X time-steps
@@ -208,8 +211,13 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
     if(CurrentStepNumber >= m_iDistTravelledTimeWindow)
     {
         // distance travelled in last 100 time-steps
-        m_fSquaredDistTravelled = vecAgentPos.GetX() * m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex].GetX() +
-                                  vecAgentPos.GetY() * m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex].GetY();
+        m_fSquaredDistTravelled = (vecAgentPos.GetX() - m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex].GetX()) *
+                (vecAgentPos.GetX() - m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex].GetX())  +
+                (vecAgentPos.GetY() - m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex].GetY()) *
+                (vecAgentPos.GetY() - m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex].GetY());
+
+
+        //pos_ref = m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex];
 
 
         // decision based on distance travelled in the last 100 time-steps
@@ -236,7 +244,7 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
 /******************************************************************************/
 /******************************************************************************/
 
-void unsigned CProprioceptiveFeatureVector::CountNeighbors(double sensor_range)
+unsigned CProprioceptiveFeatureVector::CountNeighbors(Real sensor_range)
 {
     unsigned count_nbrs = 0;
     for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
@@ -254,50 +262,50 @@ void unsigned CProprioceptiveFeatureVector::CountNeighbors(double sensor_range)
 
 void CProprioceptiveFeatureVector::PrintFeatureDetails()
 {
-    int CurrentStepNumber = (int) m_rTime;
+    int CurrentStepNumber = (int) m_sSensoryData.m_rTime;
+
+    std::cout << "Step: " << CurrentStepNumber << " TimeSteps_NbrsInRange0to3:  " << m_unSumTimeStepsNbrsRange0to30 <<
+                 " TimeSteps_NbrsInRange3to6: " << m_unSumTimeStepsNbrsRange30to60 << " SquaredDistTravelled:  " << m_fSquaredDistTravelled <<
+                 " SquaredDistThreshold: " << m_fSquaredDistThreshold << " Linear speed: " << m_sSensoryData.LinearSpeed << " Angular speed: " << m_sSensoryData.AngularSpeed <<
+                 " Linear acceleration: " << m_sSensoryData.LinearAcceleration << " Angular acceleration: " << m_sSensoryData.AngularAcceleration <<
+                 std::endl;
 
 
-    //if (m_pcAgent->GetBehavIdentification() == 1)
-    {
-
-        printf("Step: %d, RobotId: %s, TimeSteps_NbrsInRange0to3: %d, TimeSteps_NbrsInRange3to6: %d, SquaredDistTravelled: %f, SquaredDistThreshold: %f\n",
-               CurrentStepNumber, m_sRobotData.robotid, m_unSumTimeStepsNbrsRange0to30, m_unSumTimeStepsNbrsRange30to60, m_fSquaredDistTravelled, m_fSquaredDistThreshold);
-    }
-
-//    if (m_pcAgent->GetBehavIdentification() == -1) //&& CurrentStepNumber > MODELSTARTTIME)
-//    {
-
-//        printf("Step: %d, RobotId: %s, TimeSteps_NbrsInRange0to3: %d, TimeSteps_NbrsInRange3to6: %d, SquaredDistTravelled: %f, SquaredDistThreshold: %f\n",
-//               CurrentStepNumber, m_sRobotData.robotid, m_unSumTimeStepsNbrsRange0to30, m_unSumTimeStepsNbrsRange30to60, m_fSquaredDistTravelled, m_fSquaredDistThreshold);
-//    }
+    //        std::cout << "Step: " << CurrentStepNumber << " DistTravelled:  " << sqrt(m_fSquaredDistTravelled) <<
+    //                     " X " << m_sSensoryData.pos.GetX() << " Y " << m_sSensoryData.pos.GetY() <<
+    //                     " X-ref " << pos_ref.GetX() << " Y-ref " << pos_ref.GetY() <<
+    //                     " Linear speed: " << m_sSensoryData.LinearSpeed << " Angular speed: " << m_sSensoryData.AngularSpeed <<
+    //                     std::endl;
 }
 
 /******************************************************************************/
 /******************************************************************************/
 
-std::string CProprioceptiveFeatureVector::ToString()
-{
-    char pchTemp[4096];
+//std::string CProprioceptiveFeatureVector::ToString()
+//{
+//    char pchTemp[4096];
 
-    if(NUMBER_OF_FEATURES == 6U)
-        sprintf(pchTemp, "Values - "
-                "TS_nbrs:0to3: %f - "
-                "TS_nbrs:3to6: %f - "
-                "TW450_dist0to6_angacc: %1.1f - "
-                "TW450_dist6_angacc: %1.1f - "
-                "DistTW100: %1.1f - "
-                "speed: %1.1f - fv: %u",
+//    if(NUMBER_OF_FEATURES == 6U)
+//        sprintf(pchTemp, "Values - "
+//                "TS_nbrs:0to3: %f - "
+//                "TS_nbrs:3to6: %f - "
+//                "TW450_dist0to6_angacc: %1.1f - "
+//                "TW450_dist6_angacc: %1.1f - "
+//                "DistTW100: %1.1f - "
+//                "speed: %1.1f - fv: %u",
 
-                m_pfFeatureValues[0],
-                m_pfFeatureValues[1],
-                m_pfFeatureValues[2],
-                m_pfFeatureValues[3],
-                m_pfFeatureValues[4],
-                m_pfFeatureValues[5],
-                m_unValue);
+//                m_pfFeatureValues[0],
+//                m_pfFeatureValues[1],
+//                m_pfFeatureValues[2],
+//                m_pfFeatureValues[3],
+//                m_pfFeatureValues[4],
+//                m_pfFeatureValues[5],
+//                m_unValue);
 
-    return string(pchTemp);
-}
+
+
+//    return string(pchTemp);
+//}
 
 /******************************************************************************/
 /******************************************************************************/

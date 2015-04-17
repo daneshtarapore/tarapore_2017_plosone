@@ -4,13 +4,22 @@
 /******************************************************************************/
 /******************************************************************************/
 
-CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior()
+CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior(int beacon_data)
 {
+    m_iBeaconData = beacon_data;
 }
 
 /******************************************************************************/
 /******************************************************************************/
-    
+
+CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior()
+{
+    m_iBeaconData = -1;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
 bool CHomingToFoodBeaconBehavior::TakeControl()
 {
     /* Get readings from RAB sensor */
@@ -21,8 +30,8 @@ bool CHomingToFoodBeaconBehavior::TakeControl()
     Real closestBeaconRange = 10000.0f;  CRadians closestBeaconBearing; /*Range of 10000.0cm will never be exceeded */
     for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
     {
-        //BEACON_ESTABLISHED = 3
-        if(m_sSensoryData.m_RABSensorData[i].Data[0] == 3)
+        //BEACON_ESTABLISHED = m_iBeaconData
+        if((m_iBeaconData != -1 && m_sSensoryData.m_RABSensorData[i].Data[0] == m_iBeaconData) || (m_iBeaconData == -1))
         {
             controltaken = true;
 

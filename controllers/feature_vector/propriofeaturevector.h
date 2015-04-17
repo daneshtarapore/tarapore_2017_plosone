@@ -2,13 +2,12 @@
 #define PROPRIOCEPTIVE_FEATUREVECTOR_H_
 
 
-#define MODELSTARTTIME 450.0
+#define MODELSTARTTIME 450.0 // used for your sliding window
 
 /******************************************************************************/
 /******************************************************************************/
 
 #include <string>
-
 /******************************************************************************/
 /******************************************************************************/
 #include <argos3/core/utility/math/vector2.h>
@@ -38,8 +37,6 @@ public:
         Real     iterations_per_second, seconds_per_iterations;
         Real     INTERWHEEL_DISTANCE, HALF_INTERWHEEL_DISTANCE;
         Real     WHEEL_RADIUS;
-
-        std::string robotid;
     };
 
     struct SensoryData
@@ -75,7 +72,6 @@ public:
 
            EstimateCurrentSpeedAndAcceleration();
            EstimateCurrentPosition();
-
        }
 
        void SetSensoryData(Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
@@ -96,7 +92,7 @@ public:
            LinearAcceleration = LinearSpeed - prev_LinearSpeed;
 
            Real prev_AngularSpeed = AngularSpeed;
-           AngularSpeed = (-f_LeftWheelSpeed + f_RightWheelSpeed) / m_sRobotData.INTERWHEEL_DISTANCE;
+           AngularSpeed = (-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f);
            AngularAcceleration = AngularSpeed - prev_AngularSpeed;
        }
 
@@ -105,7 +101,7 @@ public:
            CVector2 prev_pos         = pos;
            CRadians prev_orientation = orientation;
 
-           orientation = prev_orientation + CRadians(m_sRobotData.seconds_per_iterations * ((-f_LeftWheelSpeed + f_RightWheelSpeed) / m_sRobotData.INTERWHEEL_DISTANCE));
+           orientation = prev_orientation + CRadians(m_sRobotData.seconds_per_iterations * ((-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f)));
            Real rX = prev_pos.GetX() + m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * Cos(orientation);
            Real rY = prev_pos.GetY() + m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * Sin(orientation);
            pos.Set(rX, rY);
@@ -128,7 +124,7 @@ public:
 
     virtual unsigned int SimulationStep();
 
-    virtual std::string ToString();
+    //virtual std::string ToString();
 
     static RobotData m_sRobotData;
     SensoryData m_sSensoryData;
@@ -136,7 +132,7 @@ public:
 protected:
     virtual void ComputeFeatureValues();
 
-    virtual unsigned CountNeighbors(double sensor_range);
+    virtual unsigned CountNeighbors(Real sensor_range);
 
     unsigned  m_unValue;
     unsigned  m_unLength;
@@ -174,8 +170,8 @@ protected:
 
     unsigned int     m_unCoordCurrQueueIndex;
 
-    double           m_fSquaredDistTravelled;
-    double           m_fSquaredDistThreshold;
+    Real           m_fSquaredDistTravelled;
+    Real           m_fSquaredDistThreshold;
 
     argos::CVector2  *m_pvecCoordAtTimeStep;
 

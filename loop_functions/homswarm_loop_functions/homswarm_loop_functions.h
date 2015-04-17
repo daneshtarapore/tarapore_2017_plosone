@@ -6,6 +6,7 @@
 #include <argos3/core/utility/math/range.h>
 #include <argos3/core/utility/math/rng.h>
 
+
 using namespace argos;
 
 class CHomSwarmLoopFunctions : public CLoopFunctions {
@@ -19,7 +20,8 @@ public:
    virtual void Reset();
    virtual void Destroy();
    virtual CColor GetFloorColor(const CVector2& c_position_on_plane);
-   //virtual void PreStep();
+   virtual void PreStep();
+   virtual void PostStep();
 
 private:
 
@@ -28,6 +30,12 @@ private:
 
    std::string m_strOutput;
    std::ofstream m_cOutput;
+
+
+
+//   unsigned int     m_unCoordCurrQueueIndex, CurrentStepNumber;
+//    int              m_iDistTravelledTimeWindow;
+//   argos::CVector2  *m_pvecCoordAtTimeStep;
 
 };
 

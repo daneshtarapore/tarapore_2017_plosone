@@ -15,6 +15,7 @@ using namespace argos;
 class CHomingToFoodBeaconBehavior : public CBehavior
 {
 public:
+    CHomingToFoodBeaconBehavior(int m_iBeaconData);
     CHomingToFoodBeaconBehavior();
 
     virtual bool TakeControl();
@@ -22,7 +23,7 @@ public:
 
 protected:
     CVector2       m_cHomingVector;
-
+    int            m_iBeaconData;
 };
 
 

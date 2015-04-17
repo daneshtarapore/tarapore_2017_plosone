@@ -93,7 +93,19 @@ CEPuckHomSwarm::CEPuckHomSwarm() :
     m_pcRABS(NULL),
     m_pcProximity(NULL),
     m_pcRNG(NULL),
-    b_damagedrobot(false) {m_rTime=0.0f;}
+    b_damagedrobot(false) {m_fInternalRobotTimer=0.0f;}
+
+/****************************************/
+/****************************************/
+
+CEPuckHomSwarm::~CEPuckHomSwarm()
+{
+    // delete all behaviors
+
+    // delete list of feature-vectors
+
+    // delete crm model's data containers
+}
 
 /****************************************/
 /****************************************/
@@ -154,14 +166,16 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
     CProprioceptiveFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f; // m
     CProprioceptiveFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = 0.053f; // m
     CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = (m_sWheelTurningParams.MaxSpeed + m_sWheelTurningParams.MaxSpeed) /
-                                                                          (CBehavior::m_sRobotData.INTERWHEEL_DISTANCE * 100.0f); //rad/s
+            (CBehavior::m_sRobotData.INTERWHEEL_DISTANCE * 100.0f); //rad/s
     CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed; //rad/s^2;
 
     CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second    = 10.0f; /*10 ticks per second so dt=0.01s. i.e., the controlcycle is run 10 times per second*/
     CProprioceptiveFeatureVector::m_sRobotData.seconds_per_iterations   = 1.0f / CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second;
     CProprioceptiveFeatureVector::m_sRobotData.WHEEL_RADIUS             = 0.0205f; //m
 
-    CProprioceptiveFeatureVector::m_sRobotData.robotid                  = this->GetId();
+
+    // robotid set to 0 for now
+    crminAgent = new CRMinRobotAgentOptimised(RobotIdStrToInt(GetId()), CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
 }
 
 /****************************************/
@@ -169,6 +183,8 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
 
 void CEPuckHomSwarm::ControlStep()
 {
+    m_fInternalRobotTimer+=1.0f;
+
     if(b_damagedrobot && (m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE ||
                           m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK ||
                           m_sExpRun.FBehavior == ExperimentToRun::FAULT_CIRCLE ||
@@ -197,11 +213,51 @@ void CEPuckHomSwarm::ControlStep()
         } else
             (*i)->Suppress();
     }
-
     m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
 
-    m_rTime+=1.0f;
-    std::cout << "m_rTime = " << m_rTime << std::endl;
+
+    /****************************************/
+    /****************************************/
+    /* Estimate feature-vectors - proprioceptively */
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
+    m_cProprioceptiveFeatureVector.SimulationStep();
+
+    /* Broadcast the proprioceptively computed FV to whoever is in range, using the RAB sensor*/
+    m_pcRABA->ClearData();
+    m_pcRABA->SetData(0, RobotIdStrToInt(GetId()));
+    m_pcRABA->SetData(1, m_cProprioceptiveFeatureVector.GetValue());
+
+    /* Listen for broadcasted feature vectors from neighbours and then assimilate them */
+    Sense(1.0f);
+
+    if(m_fInternalRobotTimer > 450.0 && listFVsSensed.size() >= 3)
+    {
+        std::cout << "RobotTimer " << m_fInternalRobotTimer << " Id. " << RobotIdStrToInt(GetId()) << std::endl;
+        crminAgent->SimulationStepUpdatePosition(m_fInternalRobotTimer, listFVsSensed, listDetailedInformationFVsSensed);
+    }
+}
+
+/****************************************/
+/****************************************/
+
+void CEPuckHomSwarm::Sense(Real m_fProbForget)
+{
+    if(m_fProbForget < 1.0f)
+    {
+        std:cerr << "History of FVs still to be implemented"; exit(-1);
+    }
+
+    /* Listen for broadcasted feature vectors from neighbours */
+    listFVsSensed.clear();  listDetailedInformationFVsSensed.clear();
+
+    const CCI_RangeAndBearingSensor::TReadings& tPackets = m_pcRABS->GetReadings();
+    for(size_t i = 0; i < tPackets.size(); ++i)
+    {
+        unsigned robotId = tPackets[i].Data[0];
+        unsigned fv      = tPackets[i].Data[1];
+
+        UpdateFeatureVectorDistribution(listFVsSensed, listDetailedInformationFVsSensed, fv, robotId, m_fInternalRobotTimer);
+    }
 }
 
 /****************************************/
@@ -214,8 +270,8 @@ void CEPuckHomSwarm::RunGeneralFaults()
     m_vecBehaviors.clear();
     if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE)
     {
-         CRandomWalkBehavior* pcStraightLineBehavior = new CRandomWalkBehavior(0.0f);
-         m_vecBehaviors.push_back(pcStraightLineBehavior);
+        CRandomWalkBehavior* pcStraightLineBehavior = new CRandomWalkBehavior(0.0f);
+        m_vecBehaviors.push_back(pcStraightLineBehavior);
     }
     else if (m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK)
     {
@@ -263,25 +319,28 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
 
     else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
     {
-        if(this->GetId().compare("ep0") == 0)
-        {
-            // ep0 is the beacon robot
-            /* Sends out data with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
-            unsigned BEACON_ESTABLISHED = 3u;
-            m_pcRABA->SetData(0, BEACON_ESTABLISHED);
-            m_pcLEDs->SetAllColors(CColor::YELLOW);
-        }
-        else
-        {
-            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
-            m_vecBehaviors.push_back(pcDisperseBehavior);
+        //        if(this->GetId().compare("ep0") == 0)
+        //        {
+        //            // ep0 is the beacon robot
+        //            /* Sends out data with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
+        //            unsigned BEACON_ESTABLISHED = 3u;
+        //            m_pcRABA->SetData(0, BEACON_ESTABLISHED);
+        //            m_pcLEDs->SetAllColors(CColor::YELLOW);
+        //        }
+        //        else
+        //        {
+        //            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
+        //            m_vecBehaviors.push_back(pcDisperseBehavior);
 
-            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
-            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
+        //            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
+        //            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
 
-            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-            m_vecBehaviors.push_back(pcRandomWalkBehavior);
-        }
+        //            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        //            m_vecBehaviors.push_back(pcRandomWalkBehavior);
+        //        }
+
+        // Homing disabled as the beacon signal data will interfere with the FV data
+        exit(-1);
     }
 }
 
@@ -293,6 +352,75 @@ void CEPuckHomSwarm::Reset()
     /* Set LED color */
     m_pcLEDs->SetAllColors(CColor::WHITE);
     m_pcRABA->ClearData();
+}
+
+/****************************************/
+/****************************************/
+
+unsigned CEPuckHomSwarm::RobotIdStrToInt(std::string id)
+{
+    if(id.compare("ep0")==0)
+        return 0;
+
+    else if(id.compare("ep1")==0)
+        return 1;
+
+    else if(id.compare("ep2")==0)
+        return 2;
+
+    else if(id.compare("ep3")==0)
+        return 3;
+
+    else if(id.compare("ep4")==0)
+        return 4;
+
+    else if(id.compare("ep5")==0)
+        return 5;
+
+    else if(id.compare("ep6")==0)
+        return 6;
+
+    else if(id.compare("ep7")==0)
+        return 7;
+
+    else if(id.compare("ep8")==0)
+        return 8;
+
+    else if(id.compare("ep9")==0)
+        return 9;
+
+    else if(id.compare("ep10")==0)
+        return 10;
+
+    else if(id.compare("ep11")==0)
+        return 11;
+
+    else if(id.compare("ep12")==0)
+        return 12;
+
+    else if(id.compare("ep13")==0)
+        return 13;
+
+    else if(id.compare("ep14")==0)
+        return 14;
+
+    else if(id.compare("ep15")==0)
+        return 15;
+
+    else if(id.compare("ep16")==0)
+        return 16;
+
+    else if(id.compare("ep17")==0)
+        return 17;
+
+    else if(id.compare("ep18")==0)
+        return 18;
+
+    else if(id.compare("ep19")==0)
+        return 19;
+
+    else
+        LOGERR << "We can't be here, there's a bug!" << std::endl;
 }
 
 /****************************************/

@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[      8747,        314]
-NotebookOptionsPosition[      7659,        273]
-NotebookOutlinePosition[      7994,        288]
-CellTagsIndexPosition[      7951,        285]
+NotebookDataLength[      9222,        331]
+NotebookOptionsPosition[      8024,        286]
+NotebookOutlinePosition[      8359,        301]
+CellTagsIndexPosition[      8316,        298]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -269,7 +269,20 @@ Cell[BoxData[
  CellChangeTimes->{{3.63749140467199*^9, 3.637491412456904*^9}}],
 
 Cell[BoxData["\[IndentingNewLine]"], "Input",
- CellChangeTimes->{3.637491217262671*^9}]
+ CellChangeTimes->{3.637491217262671*^9}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ FractionBox[
+  RowBox[{"10", "+", "10"}], 
+  RowBox[{"0.053", "*", "100"}]]], "Input",
+ CellChangeTimes->{{3.638167499212061*^9, 3.638167507002377*^9}, {
+  3.638167584619607*^9, 3.63816758529105*^9}}],
+
+Cell[BoxData["3.7735849056603774`"], "Output",
+ CellChangeTimes->{3.638167507747902*^9, 3.638167586076579*^9}]
+}, Open  ]]
 },
 WindowSize->{808, 911},
 WindowMargins->{{737, Automatic}, {Automatic, 26}},
@@ -315,7 +328,11 @@ Cell[5959, 213, 310, 9, 32, "Input"],
 Cell[6272, 224, 364, 12, 55, "Input"],
 Cell[6639, 238, 462, 14, 32, "Input"],
 Cell[7104, 254, 461, 14, 32, "Input"],
-Cell[7568, 270, 87, 1, 55, "Input"]
+Cell[7568, 270, 87, 1, 55, "Input"],
+Cell[CellGroupData[{
+Cell[7680, 275, 215, 5, 56, "Input"],
+Cell[7898, 282, 110, 1, 65, "Output"]
+}, Open  ]]
 }
 ]
 *)
