@@ -118,7 +118,7 @@ void CHomSwarmLoopFunctions::PostStep()
 
            unsigned observers_rob_id = cController_Observers.RobotIdStrToInt(cEPuck_Observers.GetId());
 
-           if(observed_rob_id == observers_rob_id)
+           if(observed_rob_id == observers_rob_id) // can't observe yourself
                continue;
 
            t_listFVsSensed listFVsSensed = cController_Observers.GetListFVsSensed();
@@ -132,7 +132,7 @@ void CHomSwarmLoopFunctions::PostStep()
                    robot_observed = true;
                    observed_rob_fv = itd->uFV;
                    total_observers++;
-                   break;
+                   break; // the observer can only observe the robot once in one time-step
                }
            }
 
