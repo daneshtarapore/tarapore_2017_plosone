@@ -233,7 +233,8 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
 
 
     //6th: velocity, higher than 5% of speed is accepted as feature=1
-    m_pfAllFeatureValues[5] = (m_sSensoryData.LinearSpeed >= m_fVelocityThreshold) ? 1.0:0.0;
+    m_pfAllFeatureValues[5] = (m_sSensoryData.LinearSpeed  >= m_fVelocityThreshold  ||
+                               m_sSensoryData.AngularSpeed >= m_tAngularVelocityThreshold) ? 1.0:0.0;
 
 
     // adding the selected features into the feature vector

@@ -7,6 +7,12 @@
 /* Logging */
 #include <argos3/core/utility/logging/argos_log.h>
 
+
+/****************************************/
+/****************************************/
+
+UInt8 CEPuckForaging::BEACON_SIGNAL = 200;
+
 /****************************************/
 /****************************************/
 
@@ -387,7 +393,7 @@ void CEPuckForaging::RunForagingExperiment()
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
         m_vecBehaviors.push_back(pcDisperseBehavior);
 
-        CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
+        CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior(BEACON_SIGNAL);
         m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
 
         CAntiPhototaxisBehavior* pcAntiPhototaxisBehavior = new CAntiPhototaxisBehavior();
@@ -487,7 +493,7 @@ void CEPuckForaging::RestAtFood()
 void CEPuckForaging::BecomeABeacon()
 {
     /* Send out data with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
-    m_pcRABA->SetData(0, BEACON_ESTABLISHED);
+    m_pcRABA->SetData(0, BEACON_SIGNAL);
 }
 
 /****************************************/
@@ -516,10 +522,10 @@ void CEPuckForaging::Explore()
         const CCI_RangeAndBearingSensor::TReadings& tPackets = m_pcRABS->GetReadings();
         for(size_t i = 0; i < tPackets.size(); ++i)
         {
-            /*if(tPackets[i].Data[0] == BEACON_ESTABLISHED)
+            /*if(tPackets[i].Data[0] == BEACON_SIGNAL)
                 std::cout << "Packet index " << i << " packet range to beacon " << tPackets[i].Range << "cm" << std::endl;*/
             /* tPackets[i].Range is in cm and bearing is normalized [-pi pi] */
-            if(tPackets[i].Data[0] == BEACON_ESTABLISHED && tPackets[i].Range < 25.0f) // Each food spot has radius of 0.2m // a slightly higher threshold is chosen to be safe
+            if(tPackets[i].Data[0] == BEACON_SIGNAL && tPackets[i].Range < 25.0f) // Each food spot has radius of 0.2m // a slightly higher threshold is chosen to be safe
             {
                 // Note: If a foraging robot blocks the IR rays from the RAB actuator of a beacon robot, more than one beacons may be formed at the foraging site
                 bBecomeBeacon = false;
@@ -547,7 +553,9 @@ void CEPuckForaging::Explore()
         bRestAtFood = true;
     }
     else if(bBecomeBeacon)
-        m_eLastExplorationResult = BEACON_ESTABLISHED;
+    {
+        //m_eLastExplorationResult = BEACON_ESTABLISHED;
+    }
 
     /* Test the second condition: we switch to 'return to
     * nest' if we have been wandering for a lot of time and found nothing */

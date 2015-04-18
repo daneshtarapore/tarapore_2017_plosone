@@ -202,6 +202,8 @@ public:
 
     Real m_fInternalRobotTimer;
 
+    static UInt8 BEACON_SIGNAL;
+
 private:
 
 
@@ -236,6 +238,7 @@ private:
     SWheelTurningParams m_sWheelTurningParams;
 
     unsigned m_uRobotId;
+
 };
 
 #endif

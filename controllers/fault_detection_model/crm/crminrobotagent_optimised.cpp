@@ -94,11 +94,11 @@ CRMinRobotAgentOptimised::~CRMinRobotAgentOptimised()
 /******************************************************************************/
 /******************************************************************************/
 
-void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed &FVsSensed, t_listDetailedInfoFVsSensed &DetailedInformationFVsSensed)
+void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed* FVsSensed, t_listDetailedInfoFVsSensed* DetailedInformationFVsSensed)
 {    
     m_fInternalRobotTimer = InternalRobotTimer;
-    listFVsSensed = FVsSensed;
-    listDetailedInformationFVsSensed = DetailedInformationFVsSensed;
+    ptr_listFVsSensed = FVsSensed;
+    ptr_listDetailedInformationFVsSensed = DetailedInformationFVsSensed;
 
 
     // Convert the feature vectors of robot agents in the vicinity to APCs for the CRM to work with
@@ -333,6 +333,8 @@ void CRMinRobotAgentOptimised::TcellNumericalIntegration_RK2()
 
     while(integration_t < integrationtimeofcrm)
     {
+        //std::cout << "Clock " << m_fInternalRobotTimer << " robot_id " << m_uRobotId << " integration_t " << integration_t << std::endl;
+
         /*if(this->GetIdentification() == 8 && CSimulator::GetInstance()->GetSimulationStepNumber() == 5973)
         {
             {
@@ -1360,7 +1362,7 @@ void CRMinRobotAgentOptimised::PrintFeatureVectorDistribution(unsigned int id)
 
     t_listFVsSensed::iterator it;
     printf("\n====R%d Feature Vector Distribution=====\n",GetIdentification());
-    for (it = listFVsSensed.begin(); it != listFVsSensed.end(); ++it)
+    for (it = ptr_listFVsSensed->begin(); it != ptr_listFVsSensed->end(); ++it)
         printf("FV:%d, Robots:%f ",(*it).uFV, (*it).fRobots);
 }
 
@@ -1373,7 +1375,7 @@ void CRMinRobotAgentOptimised::UpdateState()
     list<structAPC>::iterator it_apcs = listAPCs.begin();
     list<structTcell>::iterator it_tcells;
 
-    t_listFVsSensed::iterator it_fvsensed = listFVsSensed.begin();
+    t_listFVsSensed::iterator it_fvsensed = ptr_listFVsSensed->begin();
 
     while(it_apcs != listAPCs.end())
     {
@@ -1397,6 +1399,7 @@ void CRMinRobotAgentOptimised::UpdateState()
         {
             //Dont know - no T-cells to make decision or E approx. equal to R
             SetMostWantedList(&it_fvsensed, 0);
+            //std::cout << "Decision: " << (*it_fvsensed).uFV << " don't know" << std::endl;
 #ifdef FLOATINGPOINTOPERATIONS
             IncNumberFloatingPtOperations(3);
 #endif
@@ -1405,12 +1408,16 @@ void CRMinRobotAgentOptimised::UpdateState()
         else if (tmp_E > tmp_R) // (tmp_E/tmp_R > 1.0)
             //else if (tmp_E/tmp_R > 0.9)// > 0.95 // (tmp_E/tmp_R > 1.0)
             // Attack      
+        {
             SetMostWantedList(&it_fvsensed, 1);
-
+            //std::cout << "Decision: " << (*it_fvsensed).uFV << " attack" << std::endl;
+        }
         else      
             // Tolerate
+        {
             SetMostWantedList(&it_fvsensed, 2);
-
+            //std::cout << "Decision: " << (*it_fvsensed).uFV << " tolerate" << std::endl;
+        }
         ++it_apcs; ++it_fvsensed;
     }
 }
@@ -1423,8 +1430,8 @@ void CRMinRobotAgentOptimised::UpdateAPCList()
     t_listFVsSensed::iterator it_fvsensed;
     list<structAPC>::iterator it_apcs;
 
-    it_fvsensed = listFVsSensed.begin(); it_apcs = listAPCs.begin();
-    while(it_apcs != listAPCs.end() && it_fvsensed != listFVsSensed.end())
+    it_fvsensed = ptr_listFVsSensed->begin(); it_apcs = listAPCs.begin();
+    while(it_apcs != listAPCs.end() && it_fvsensed != ptr_listFVsSensed->end())
     {
         if((*it_fvsensed).uFV == (*it_apcs).uFV)
         {
@@ -1461,7 +1468,7 @@ void CRMinRobotAgentOptimised::UpdateAPCList()
         (*it_apcs).listConjugatesonAPC.clear();
         it_apcs = listAPCs.erase(it_apcs);}
 
-    while(it_fvsensed != listFVsSensed.end()) {
+    while(it_fvsensed != ptr_listFVsSensed->end()) {
             listAPCs.push_back(structAPC((*it_fvsensed).uFV,
                                          (*it_fvsensed).fRobots * m_fFVtoApcscaling, (double)sites));
 #ifdef FLOATINGPOINTOPERATIONS

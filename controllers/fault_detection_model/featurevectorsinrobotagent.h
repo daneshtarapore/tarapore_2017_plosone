@@ -10,8 +10,6 @@ struct StructFVsSensed
     unsigned int uMostWantedState; // 0:  Dont know - no T-cells to make decision or E approx. equal to R (should not occur as T-cells are seeded for APCs where affinity=1)
                                    // 1:  Attack
                                    // 2:  Tolerate
-                                   // 3:  FV not in sensed list
-                                   // 4:  Suspicious to be abnormal
 
     // proportion of the past time-steps when the FV would have been deemed as abnormal
     //double fSuspicious; //we are now going to use a history of previously sensed feature vectors
@@ -20,6 +18,7 @@ struct StructFVsSensed
     {
         uFV     = fv;
         fRobots = density;
+        uMostWantedState = 999;
     }
 
     StructFVsSensed(unsigned int fv, double density, unsigned int state)

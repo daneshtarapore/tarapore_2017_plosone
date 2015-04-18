@@ -13,6 +13,11 @@
 /****************************************/
 /****************************************/
 
+UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 200;
+
+/****************************************/
+/****************************************/
+
 CBehavior::SensoryData CBehavior::m_sSensoryData;
 CBehavior::RobotData CBehavior::m_sRobotData;
 
@@ -223,17 +228,26 @@ void CEPuckHomSwarm::ControlStep()
     m_cProprioceptiveFeatureVector.SimulationStep();
 
     /* Broadcast the proprioceptively computed FV to whoever is in range, using the RAB sensor*/
-    m_pcRABA->ClearData();
-    m_pcRABA->SetData(0, RobotIdStrToInt(GetId()));
-    m_pcRABA->SetData(1, m_cProprioceptiveFeatureVector.GetValue());
+    if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    {
+        // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 and 2
+        m_pcRABA->SetData(1, RobotIdStrToInt(GetId()));
+        m_pcRABA->SetData(2, m_cProprioceptiveFeatureVector.GetValue());
+    }
+    else
+    {
+        m_pcRABA->ClearData();
+        m_pcRABA->SetData(0, RobotIdStrToInt(GetId()));
+        m_pcRABA->SetData(1, m_cProprioceptiveFeatureVector.GetValue());
+    }
 
     /* Listen for broadcasted feature vectors from neighbours and then assimilate them */
     Sense(1.0f);
 
     if(m_fInternalRobotTimer > 450.0 && listFVsSensed.size() >= 3)
     {
-        std::cout << "RobotTimer " << m_fInternalRobotTimer << " Id. " << RobotIdStrToInt(GetId()) << std::endl;
-        crminAgent->SimulationStepUpdatePosition(m_fInternalRobotTimer, listFVsSensed, listDetailedInformationFVsSensed);
+        //std::cout << "RobotTimer " << m_fInternalRobotTimer << " Id. " << RobotIdStrToInt(GetId()) << std::endl;
+        crminAgent->SimulationStepUpdatePosition(m_fInternalRobotTimer, &listFVsSensed, &listDetailedInformationFVsSensed);
     }
 }
 
@@ -253,8 +267,17 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
     const CCI_RangeAndBearingSensor::TReadings& tPackets = m_pcRABS->GetReadings();
     for(size_t i = 0; i < tPackets.size(); ++i)
     {
-        unsigned robotId = tPackets[i].Data[0];
-        unsigned fv      = tPackets[i].Data[1];
+        unsigned robotId, fv;
+        if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        {
+            robotId = tPackets[i].Data[1];
+            fv      = tPackets[i].Data[2];
+        }
+        else
+        {
+            robotId = tPackets[i].Data[0];
+            fv      = tPackets[i].Data[1];
+        }
 
         UpdateFeatureVectorDistribution(listFVsSensed, listDetailedInformationFVsSensed, fv, robotId, m_fInternalRobotTimer);
     }
@@ -319,25 +342,26 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
 
     else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
     {
-        //        if(this->GetId().compare("ep0") == 0)
-        //        {
-        //            // ep0 is the beacon robot
-        //            /* Sends out data with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
-        //            unsigned BEACON_ESTABLISHED = 3u;
-        //            m_pcRABA->SetData(0, BEACON_ESTABLISHED);
-        //            m_pcLEDs->SetAllColors(CColor::YELLOW);
-        //        }
-        //        else
-        //        {
-        //            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
-        //            m_vecBehaviors.push_back(pcDisperseBehavior);
+        if(this->GetId().compare("ep0") == 0)
+        {
+            // ep0 is the beacon robot
+            /* Sends out data '200' with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
+            // 200 is way above the maximum 6-bit FV of range [0,63] and the possible ids of robots (max 20 in swarm). Also within 1 byte [0-255] of RAB sensor data [4 or 10 1 byte array depending on epuck or footbot]
+            m_pcRABA->ClearData();
+            m_pcRABA->SetData(0, BEACON_SIGNAL);
+            m_pcLEDs->SetAllColors(CColor::YELLOW);
+        }
+        else
+        {
+            CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
+            m_vecBehaviors.push_back(pcDisperseBehavior);
 
-        //            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior();
-        //            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
+            CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior(BEACON_SIGNAL);
+            m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
 
-        //            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
-        //            m_vecBehaviors.push_back(pcRandomWalkBehavior);
-        //        }
+            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+            m_vecBehaviors.push_back(pcRandomWalkBehavior);
+        }
 
         // Homing disabled as the beacon signal data will interfere with the FV data
         exit(-1);

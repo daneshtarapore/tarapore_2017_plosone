@@ -15,15 +15,14 @@ using namespace argos;
 class CHomingToFoodBeaconBehavior : public CBehavior
 {
 public:
-    CHomingToFoodBeaconBehavior(int m_iBeaconData);
-    CHomingToFoodBeaconBehavior();
+    CHomingToFoodBeaconBehavior(UInt8 BeaconData);
 
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
 protected:
     CVector2       m_cHomingVector;
-    int            m_iBeaconData;
+    UInt8          m_iBeaconData;
 };
 
 

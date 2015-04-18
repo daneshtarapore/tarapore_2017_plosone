@@ -14,7 +14,7 @@
  <!-- length in seconds -->
   <framework>
     <system threads="0" />
-    <experiment length="150"
+    <experiment length="500"
                 ticks_per_second="10"
                 random_seed="463753" />
   </framework>
@@ -50,7 +50,7 @@
   <!-- ****************** -->
   <loop_functions library="build/loop_functions/homswarm_loop_functions/libhomswarm_loop_functions.so"
                   label="homswarm_loop_functions">
-    <params  output="logs.txt" />
+    <params  output="nohup.txt" />
   </loop_functions>
 
   <!-- *********************** -->

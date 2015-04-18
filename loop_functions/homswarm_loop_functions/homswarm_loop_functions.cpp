@@ -35,7 +35,7 @@ void CHomSwarmLoopFunctions::Init(TConfigurationNode& t_node)
       GetNodeAttribute(tParams, "output", m_strOutput);
       /* Open the file, erasing its contents */
       m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
-      m_cOutput << "# clock\trobot_id\trobot_fv\tobserving_robots\tattack\ttolerate\tundecided" << std::endl;
+      //m_cOutput << "# clock\trobot_id\trobot_fv\tobserving_robots\tattack\ttolerate\tundecided" << std::endl;
    }
    catch(CARGoSException& ex)
       THROW_ARGOSEXCEPTION_NESTED("Error parsing homswarm loop function.", ex);
@@ -49,7 +49,7 @@ void CHomSwarmLoopFunctions::Reset()
    m_cOutput.close();
    /* Open the file, erasing its contents */
    m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
-   m_cOutput << "# clock\trobot_id\trobot_fv\tobserving_robots\tattack\ttolerate\tundecided" << std::endl;
+   //m_cOutput << "# clock\trobot_id\trobot_fv\tobserving_robots\tattack\ttolerate\tundecided" << std::endl;
 }
 
 /****************************************/
@@ -99,6 +99,9 @@ void CHomSwarmLoopFunctions::PreStep()
 
 void CHomSwarmLoopFunctions::PostStep()
 {
+    if(GetSpace().GetSimulationClock() <= 450.0)
+        return;
+
     CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
 
     for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
@@ -147,19 +150,24 @@ void CHomSwarmLoopFunctions::PostStep()
                            attackers++;
                        else if(itd->uMostWantedState == 2)
                            tolerators++;
+                       else
+                       {
+                            //LOGERR << "Not an attacker or tolerator. We can't be here, there's a bug! " << itd->uMostWantedState << std::endl;
+                            //UPDATE: This is not a bug. It is just that this observer has not observed enough another robots of the swarm to run the CRM and make a decision
+                       }
 
                         break;
                    }
                }
        }
 
-       m_cOutput << GetSpace().GetSimulationClock() << "\t"
-                 << observed_rob_id << "\t"
-                 << observed_rob_fv << "\t"
-                 << total_observers << "\t"
-                 << tolerators << "\t"
-                 << attackers << "\t"
-                 << undecided << std::endl;
+       m_cOutput << "Clock: " << GetSpace().GetSimulationClock() << "\t"
+                 << "Id: " << observed_rob_id << "\t"
+                 << "FV: " << observed_rob_fv << "\t"
+                 << "NumObservers: " << total_observers << "\t"
+                 << "NumTolerators: " << tolerators << "\t"
+                 << "NumAttackers: " << attackers << "\t"
+                 << "NumDontKnows: " << undecided << std::endl;
 
 
 

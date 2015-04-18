@@ -315,6 +315,8 @@ private:
     */
     void ReturnToNest();
 
+    static UInt8 BEACON_SIGNAL;
+
 private:
 
     TBehaviorVector             m_vecBehaviors;
@@ -345,7 +347,6 @@ private:
         LAST_EXPLORATION_NONE = 0,    // nothing to report
         LAST_EXPLORATION_SUCCESSFUL,  // the last exploration resulted in a food item found
         LAST_EXPLORATION_UNSUCCESSFUL, // no food found in the last exploration
-        BEACON_ESTABLISHED // a beacon has been established at a food source
     } m_eLastExplorationResult;
 
     /*Information on the experiment to run - the swarm behavior and the faulty behavior*/

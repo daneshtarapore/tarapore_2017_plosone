@@ -4,17 +4,9 @@
 /******************************************************************************/
 /******************************************************************************/
 
-CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior(int beacon_data)
+CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior(UInt8 BeaconData)
 {
-    m_iBeaconData = beacon_data;
-}
-
-/******************************************************************************/
-/******************************************************************************/
-
-CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior()
-{
-    m_iBeaconData = -1;
+    m_iBeaconData = BeaconData;
 }
 
 /******************************************************************************/
@@ -31,7 +23,7 @@ bool CHomingToFoodBeaconBehavior::TakeControl()
     for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
     {
         //BEACON_ESTABLISHED = m_iBeaconData
-        if((m_iBeaconData != -1 && m_sSensoryData.m_RABSensorData[i].Data[0] == m_iBeaconData) || (m_iBeaconData == -1))
+        if(m_sSensoryData.m_RABSensorData[i].Data[0] == m_iBeaconData)
         {
             controltaken = true;
 

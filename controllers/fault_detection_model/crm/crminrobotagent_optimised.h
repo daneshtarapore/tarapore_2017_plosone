@@ -81,7 +81,7 @@ public:
     virtual void PrintConjugatestoTcellList(unsigned int id, ConjugationIntegrationPhase CONJK);
 
     virtual void TcellNumericalIntegration_RK2();
-    virtual void SimulationStepUpdatePosition(double m_fInternalRobotTimer, t_listFVsSensed &listFVsSensed, t_listDetailedInfoFVsSensed &listDetailedInformationFVsSensed);
+    virtual void SimulationStepUpdatePosition(double m_fInternalRobotTimer, t_listFVsSensed *listFVsSensed, t_listDetailedInfoFVsSensed *listDetailedInformationFVsSensed);
     virtual void DiffuseTcells();
 
     void ScaleDownConjugates(ConjugationIntegrationPhase CONJK);
@@ -119,8 +119,8 @@ protected:
 
     unsigned long long m_uNumberFloatingPtOperations;
 
-    t_listFVsSensed              listFVsSensed;
-    t_listDetailedInfoFVsSensed  listDetailedInformationFVsSensed;
+    t_listFVsSensed*              ptr_listFVsSensed;
+    t_listDetailedInfoFVsSensed*  ptr_listDetailedInformationFVsSensed;
 
 
     double step_h; double conjstep_h; // internal step count of the CRM instance

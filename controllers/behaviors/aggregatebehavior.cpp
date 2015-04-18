@@ -65,7 +65,7 @@ bool CAggregateBehavior::TakeControl()
 // Move in the opposite direction of CoM
 void CAggregateBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 {
-     CVector2 m_cHeadingVector = m_cAggregationVector.Normalize() * m_sRobotData.MaxSpeed;
+     CVector2 m_cHeadingVector = m_cAggregationVector.Normalize() * m_sRobotData.MaxSpeed  + 1.0f * m_sRobotData.MaxSpeed * CVector2(1.0f, 0.0f);
 
      WheelSpeedsFromHeadingVector(m_cHeadingVector, fLeftWheelSpeed, fRightWheelSpeed);
 }
