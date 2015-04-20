@@ -11,11 +11,12 @@
   <!-- ************************* -->
   <!-- * General configuration * -->
   <!-- ************************* -->
+ <!-- length in seconds -->
   <framework>
     <system threads="0" />
-    <experiment length="1500"
+    <experiment length="500"
                 ticks_per_second="10"
-                random_seed="0" />
+                random_seed="SEED" />
   </framework>
 
   <!-- *************** -->
@@ -23,8 +24,8 @@
   <!-- *************** -->
   <controllers>
 
-    <epuck_foraging_controller id="efc"
-                                 library="build/controllers/epuck_foraging/libepuck_foraging.so">
+    <epuck_homswarm_controller id="ehs"
+                                 library="/home/danesh/argos3-foraging/build/controllers/epuck_hom_swarm/libepuck_hom_swarm.so">
       <actuators>
         <differential_steering implementation="default" />
         <leds implementation="default" medium="leds" />
@@ -32,33 +33,24 @@
       </actuators>
       <sensors>
         <epuck_proximity implementation="default" show_rays="false" />
-        <light_updated implementation="default" show_rays="false" />
-        <ground implementation="rot_z_only" />
-        <range_and_bearing implementation="medium" medium="rab" show_rays="false" />
+        <range_and_bearing implementation="medium" medium="rab" show_rays="true" />
       </sensors>
       <params>
-        <experiment_run swarm_behavior="SWARM_FORAGING"
-			fault_behavior="FAULT_NONE" 
+        <experiment_run swarm_behavior="SWARM_BEHAVIOR"
+			fault_behavior="FAULT_BEHAVIOR" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="10" />
-        <state initial_rest_to_explore_prob="0.1"
-	       minimum_resting_time="50"
-               minimum_unsuccessful_explore_time="6000000"
-               minimum_search_for_place_in_nest_time="50" >
-        </state>
       </params>
-    </epuck_foraging_controller>
+    </epuck_homswarm_controller>
 
   </controllers>
 
   <!-- ****************** -->
   <!-- * Loop functions * -->
   <!-- ****************** -->
-  <loop_functions library="build/loop_functions/foraging_loop_functions/libforaging_loop_functions.so"
-                  label="foraging_loop_functions">
-    <foraging items="2"
-              radius="0.1"
-              output="epuckforaging.txt" />
+  <loop_functions library="/home/danesh/argos3-foraging/build/loop_functions/homswarm_loop_functions/libhomswarm_loop_functions.so"
+                  label="homswarm_loop_functions">
+    <params  output="DATAFILE" />
   </loop_functions>
 
   <!-- *********************** -->
@@ -83,19 +75,12 @@
       <body position="-1.5,0,0" orientation="0,0,0" />
     </box>
 
-    <light id="light_1"
-           position="-1.7,0,1.5"
-           orientation="0,0,0"
-           color="yellow"
-           intensity="3.0"
-           medium="leds" />
-
     <distribute>
-      <position method="uniform" min="-1.5,-1.5,0" max="-1.0,1.5,0" />
+      <position method="uniform" min="-1.5,-1.5,0" max="1.5,1.5,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
       <entity quantity="20" max_trials="100">
-        <e-puck id="ep">
-          <controller config="efc" />
+        <e-puck id="ep" rab_data_size="20" rab_range="5">
+          <controller config="ehs" />
         </e-puck>
       </entity>
     </distribute>
@@ -121,15 +106,6 @@
   <!-- * Visualization * -->
   <!-- ****************** -->
   <visualization>
-    <qt-opengl>
-      <camera>
-        <placement idx="0"
-                   position="0,0,4.6"
-                   look_at="0,0,0"
-                   lens_focal_length="20" />
-      </camera>
-      <user_functions label="foraging_qt_user_functions" />
-    </qt-opengl>
   </visualization>
 
 </argos-configuration>
