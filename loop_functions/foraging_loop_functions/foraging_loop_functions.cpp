@@ -8,8 +8,8 @@
 /****************************************/
 
 CForagingLoopFunctions::CForagingLoopFunctions() :
-   m_cForagingArenaSideX(1.2f, 2.2f),
-   m_cForagingArenaSideY(-2.2f, 2.2f),
+   m_cForagingArenaSideX(1.0f, 1.2f),
+   m_cForagingArenaSideY(-1.2f, 1.2f),
    m_pcFloor(NULL),
    m_pcRNG(NULL),
    m_unCollectedFood(0)
@@ -82,7 +82,7 @@ void CForagingLoopFunctions::Destroy()
 
 CColor CForagingLoopFunctions::GetFloorColor(const CVector2& c_position_on_plane) // used to paint the floor by the floor entity
 {
-   if(c_position_on_plane.GetX() < -1.5f)
+   if(c_position_on_plane.GetX() < -1.0f)
       return CColor::GRAY50;
 
    for(UInt32 i = 0; i < m_cFoodPos.size(); ++i)

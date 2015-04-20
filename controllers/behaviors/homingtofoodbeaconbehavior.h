@@ -15,7 +15,7 @@ using namespace argos;
 class CHomingToFoodBeaconBehavior : public CBehavior
 {
 public:
-    CHomingToFoodBeaconBehavior(UInt8 BeaconData);
+    CHomingToFoodBeaconBehavior(UInt8 BeaconData, Real MAX_BEACON_SIGNAL_RANGE);
 
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
@@ -23,6 +23,7 @@ public:
 protected:
     CVector2       m_cHomingVector;
     UInt8          m_iBeaconData;
+    Real           m_fBeaconSignalRange;
 };
 
 

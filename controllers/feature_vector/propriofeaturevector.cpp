@@ -232,7 +232,7 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
     m_unCoordCurrQueueIndex = (m_unCoordCurrQueueIndex + 1) % m_iDistTravelledTimeWindow;
 
 
-    //6th: velocity, higher than 5% of speed is accepted as feature=1
+    //6th: linear speed, higher than 5% of max. speed is accepted as feature=1 OR angular speed higher than 5% of max. angular speed is accepted as feature=1
     m_pfAllFeatureValues[5] = (m_sSensoryData.LinearSpeed  >= m_fVelocityThreshold  ||
                                m_sSensoryData.AngularSpeed >= m_tAngularVelocityThreshold) ? 1.0:0.0;
 

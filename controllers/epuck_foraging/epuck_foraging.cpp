@@ -393,7 +393,8 @@ void CEPuckForaging::RunForagingExperiment()
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
         m_vecBehaviors.push_back(pcDisperseBehavior);
 
-        CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior(BEACON_SIGNAL);
+        Real MAX_BEACON_SIGNAL_RANGE = 1.0f; //1m
+        CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior(BEACON_SIGNAL, MAX_BEACON_SIGNAL_RANGE);
         m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
 
         CAntiPhototaxisBehavior* pcAntiPhototaxisBehavior = new CAntiPhototaxisBehavior();

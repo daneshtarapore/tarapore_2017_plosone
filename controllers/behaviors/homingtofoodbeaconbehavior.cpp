@@ -4,9 +4,10 @@
 /******************************************************************************/
 /******************************************************************************/
 
-CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior(UInt8 BeaconData)
+CHomingToFoodBeaconBehavior::CHomingToFoodBeaconBehavior(UInt8 BeaconData, Real MAX_BEACON_SIGNAL_RANGE)
 {
-    m_iBeaconData = BeaconData;
+    m_iBeaconData        = BeaconData;
+    m_fBeaconSignalRange = MAX_BEACON_SIGNAL_RANGE * 100.0f; // converting max range to cm
 }
 
 /******************************************************************************/
@@ -19,11 +20,13 @@ bool CHomingToFoodBeaconBehavior::TakeControl()
 
     bool controltaken(false);
 
-    Real closestBeaconRange = 10000.0f;  CRadians closestBeaconBearing; /*Range of 10000.0cm will never be exceeded */
+    Real closestBeaconRange = 1000000.0f;  CRadians closestBeaconBearing; /*Range of 1000000.0cm will never be exceeded */
     for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
     {
         //BEACON_ESTABLISHED = m_iBeaconData
-        if(m_sSensoryData.m_RABSensorData[i].Data[0] == m_iBeaconData)
+        //std::cout << "Received - byte  0 " << m_sSensoryData.m_RABSensorData[i].Data[0] << std::endl;
+
+        if(m_sSensoryData.m_RABSensorData[i].Data[0] == m_iBeaconData && m_sSensoryData.m_RABSensorData[i].Range < m_fBeaconSignalRange)
         {
             controltaken = true;
 
