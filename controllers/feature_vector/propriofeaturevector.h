@@ -117,7 +117,7 @@ public:
     static unsigned int NUMBER_OF_FEATURE_VECTORS;
     static double       FEATURE_RANGE;
 
-    virtual unsigned int GetValue() const;
+    virtual unsigned GetValue() const;
     virtual unsigned int GetLength() const;
 
     void PrintFeatureDetails();

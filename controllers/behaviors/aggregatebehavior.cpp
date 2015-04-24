@@ -65,7 +65,8 @@ bool CAggregateBehavior::TakeControl()
 // Move in the opposite direction of CoM
 void CAggregateBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 {
-     CVector2 m_cHeadingVector = m_cAggregationVector.Normalize() * m_sRobotData.MaxSpeed  + 1.0f * m_sRobotData.MaxSpeed * CVector2(1.0f, 0.0f);
+     //CVector2 m_cHeadingVector = m_cAggregationVector.Normalize() * m_sRobotData.MaxSpeed + m_sRobotData.MaxSpeed * CVector2(1.0f, 0.0f);
+     CVector2 m_cHeadingVector = m_cAggregationVector.Normalize() * m_sRobotData.MaxSpeed + m_sRobotData.MaxSpeed * CVector2(1.0f, m_sSensoryData.m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI, CRadians::PI))); // i add the random component to break stable aggregates of pair of robots.
 
      WheelSpeedsFromHeadingVector(m_cHeadingVector, fLeftWheelSpeed, fRightWheelSpeed);
 }

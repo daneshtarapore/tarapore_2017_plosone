@@ -148,16 +148,69 @@ public:
     virtual void Init(TConfigurationNode& t_node);
 
     /*
+     *
+     *
+     */
+    unsigned SumFVDist(t_listFVsSensed& FVsSensed);
+
+    /*
     * This function is called once every time step.
     * The length of the time step is set in the XML file.
     */
     virtual void ControlStep();
 
     /*
+     *
+     *
+    */
+    virtual void SendFVsToNeighbours();
+
+    /*
+     *
+     *
+     */
+    virtual void WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
+
+    /*
+     *
+     */
+    virtual bool ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearingSensor::TReadings& tPackets);
+
+
+    /*
+     *
+     */
+    virtual bool ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBearingSensor::TReadings& tPackets);
+
+    /*
     * This function is called once every time step.
     * It listens for feature-vectors at the current time-step and then assimilates them into the robot's internal feature-vector distribution.
     */
     virtual void Sense(Real m_fProbForget);
+
+    /*
+     *
+     */
+    virtual void ReceiveVotesAndConsensus();
+
+    /*
+     *
+     */
+    virtual void EstablishConsensus();
+
+
+    /*
+     *
+     *
+     */
+    virtual void SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_Valid);
+
+    /*
+     *
+     *
+     */
+    virtual void WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
+                                             t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid);
 
     /*
      * Execute general faults
@@ -179,7 +232,7 @@ public:
     /*
      *  This function returns the interger cast of the string robot id
     */
-    virtual unsigned RobotIdStrToInt(std::string id);
+    virtual unsigned RobotIdStrToInt();
 
     /*
     * Called to cleanup what done by Init() when the experiment finishes.
@@ -188,6 +241,19 @@ public:
     * completeness.
     */
     virtual void Destroy() {}
+
+    virtual t_listConsensusInfoOnRobotIds& GetListConsensusInfoOnRobotIds()
+    {
+        return listConsensusInfoOnRobotIds;
+    }
+
+    /*
+     * For debugging purposes
+     */
+    virtual unsigned GetRobotFeatureVector()
+    {
+        return m_uRobotFV;
+    }
 
     /*
     * Returns the experiment type
@@ -198,9 +264,11 @@ public:
     }
 
     t_listFVsSensed&             GetListFVsSensed()         {return listFVsSensed;}
-    t_listDetailedInfoFVsSensed& GetDetailedListFVsSensed() {return listDetailedInformationFVsSensed;}
+    t_listMapFVsToRobotIds&      GetMapFVsSensed()          {return listMapFVsToRobotIds;}
 
     Real m_fInternalRobotTimer;
+    Real m_fCRM_RUN_TIMESTAMP;
+    bool b_CRM_Run;
 
     static UInt8 BEACON_SIGNAL;
 
@@ -214,7 +282,15 @@ private:
     bool                        b_damagedrobot;     // true if robot is damaged
 
     CProprioceptiveFeatureVector  m_cProprioceptiveFeatureVector;
-    t_listFVsSensed               listFVsSensed;  t_listDetailedInfoFVsSensed  listDetailedInformationFVsSensed;
+
+    t_listFVsSensed               listFVsSensed;
+    t_listMapFVsToRobotIds        listMapFVsToRobotIds; // ids and fvs of observed neighbours, including ids and fvs the neighbours have relayed to you
+    t_listMapFVsToRobotIds        listMapFVsToRobotIds_relay; // ids and fvs of observed neighbours - for you to relay to your neighbours.
+
+    t_listConsensusInfoOnRobotIds listConsensusInfoOnRobotIds; // consensus established on the following robots
+
+    t_listVoteInformationRobots   listVoteInformationRobots;   // list of registered votes for each observed robot id, and the corresponding voter ids
+
     CRMinRobotAgentOptimised*     crminAgent;
 
     /* Pointer to the differential steering actuator */
@@ -237,7 +313,7 @@ private:
     /* The turning parameters */
     SWheelTurningParams m_sWheelTurningParams;
 
-    unsigned m_uRobotId;
+    unsigned m_uRobotId, m_uRobotFV;
 
 };
 

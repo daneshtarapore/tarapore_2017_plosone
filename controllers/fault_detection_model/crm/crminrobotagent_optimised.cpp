@@ -94,11 +94,10 @@ CRMinRobotAgentOptimised::~CRMinRobotAgentOptimised()
 /******************************************************************************/
 /******************************************************************************/
 
-void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed* FVsSensed, t_listDetailedInfoFVsSensed* DetailedInformationFVsSensed)
+void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed* FVsSensed)
 {    
     m_fInternalRobotTimer = InternalRobotTimer;
     ptr_listFVsSensed = FVsSensed;
-    ptr_listDetailedInformationFVsSensed = DetailedInformationFVsSensed;
 
 
     // Convert the feature vectors of robot agents in the vicinity to APCs for the CRM to work with
@@ -1397,12 +1396,13 @@ void CRMinRobotAgentOptimised::UpdateState()
 
         if ((tmp_E + tmp_R) <= CELLLOWERBOUND || fabs(tmp_E - tmp_R) <= CELLLOWERBOUND)
         {
-            //Dont know - no T-cells to make decision or E approx. equal to R
-            SetMostWantedList(&it_fvsensed, 0);
-            //std::cout << "Decision: " << (*it_fvsensed).uFV << " don't know" << std::endl;
-#ifdef FLOATINGPOINTOPERATIONS
-            IncNumberFloatingPtOperations(3);
-#endif
+            std::cout << "Dont know - no T-cells to make decision or E approx. equal to R";
+            std::cout << "Never going to happen as specific T-cells are pumped into the population";
+            exit(-1);
+//            SetMostWantedList(&it_fvsensed, 0);
+//#ifdef FLOATINGPOINTOPERATIONS
+//            IncNumberFloatingPtOperations(3);
+//#endif
         }
 
         else if (tmp_E > tmp_R) // (tmp_E/tmp_R > 1.0)
@@ -1608,7 +1608,14 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
     else  // Affinities less than 0.108 have no effect on T-cell population cross-interactions. We do this to prevent intermediary regulatory T-cells (with FV between abnormal and normal FVs) to result in tolerance of abnromal FVs. This can occur even when the APC sub-populations are normalized. Without CRM_ENABLE_SENSORY_HISTORY such intermediary T-cell populations would disappear quickly and not linger in the FV history
         return 0.0;
 #else
-    return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
+
+    //return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
+
+    //for smaller samples of FV distribution
+    if (((double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES) < ((double)2.0/(double)6.0))
+        return 1.0;
+    else
+        return 0.0;
 #endif
 }
 

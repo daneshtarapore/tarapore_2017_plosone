@@ -79,7 +79,7 @@ CProprioceptiveFeatureVector::~CProprioceptiveFeatureVector()
 /******************************************************************************/
 /******************************************************************************/
 
-unsigned int CProprioceptiveFeatureVector::GetValue() const
+unsigned CProprioceptiveFeatureVector::GetValue() const
 {
     return m_unValue;
 }
