@@ -1612,7 +1612,7 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
     //return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
 
     //for smaller samples of FV distribution
-    if (((double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES) < ((double)2.0/(double)6.0))
+    if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) <= (1.0f/6.0f))
         return 1.0;
     else
         return 0.0;

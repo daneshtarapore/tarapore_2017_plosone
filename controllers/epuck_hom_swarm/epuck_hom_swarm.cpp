@@ -34,7 +34,7 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 200;
 /*
  * Consensus threshold on FVs.
  */
-#define CONSENSUS_THRESHOLD 3u /* odd number so that we don't have a tie in attackers and tolerators - but this is just a threshold. number of voters may be more than threshold */
+#define CONSENSUS_THRESHOLD 5u /* odd number so that we don't have a tie in attackers and tolerators - but this is just a threshold. number of voters may be more than threshold */
 
 /*
  * The results of the CRM are valid for atmost 10s in the absence of any FVs to run the CRM
@@ -242,6 +242,8 @@ unsigned CEPuckHomSwarm::SumFVDist(t_listFVsSensed& FVsSensed)
 
 void CEPuckHomSwarm::ControlStep()
 {
+    m_pcRABA->ClearData(); // clear the channel at the start of each control cycle
+
     m_fInternalRobotTimer+=1.0f;
 
     if(b_damagedrobot && (m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE ||
@@ -281,6 +283,7 @@ void CEPuckHomSwarm::ControlStep()
     m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cProprioceptiveFeatureVector.SimulationStep();
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
+    m_uRobotId = RobotIdStrToInt();
 
     /* Communicate your id and proprioceptively computed FV to whoever is in range, using the RAB sensor*/
     /* Also relay the id and fvs of neighbours, received by you in the previous control cycle */
@@ -297,8 +300,11 @@ void CEPuckHomSwarm::ControlStep()
     }
 
     /* Listen for voting packets and consensus packets from neighbours*/
-    ReceiveVotesAndConsensus();
-    EstablishConsensus();
+    if(m_fInternalRobotTimer > 450.0)
+    {
+        ReceiveVotesAndConsensus();
+        EstablishConsensus();
+    }
 
 
     Real TimeSinceCRM = (m_fInternalRobotTimer - m_fCRM_RUN_TIMESTAMP) * CProprioceptiveFeatureVector::m_sRobotData.seconds_per_iterations; // in seconds
@@ -323,7 +329,7 @@ void CEPuckHomSwarm::ControlStep()
                                 RobotIdStrToInt(), it_fv->uFV, it_fv->uMostWantedState);
     }
 
-    if ((unsigned)m_fInternalRobotTimer%2u == 1)
+    if ((m_fInternalRobotTimer > 450.0) && (unsigned)m_fInternalRobotTimer%2u == 1)
         SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
 
 }
@@ -353,12 +359,6 @@ void CEPuckHomSwarm::SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_V
 
 void CEPuckHomSwarm::Sense(Real m_fProbForget)
 {
-    if(m_fProbForget < 1.0f)
-    {
-        std:cerr << "History of FVs still to be implemented";
-        exit(-1);
-    }
-
     const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
 
     /* Listen for feature vectors from neighbours */
@@ -429,8 +429,10 @@ void CEPuckHomSwarm::EstablishConsensus()
             continue; /* consensus already reached for VotedOnRobotId, lets go to the next robot in the listVoteInformationRobots list */
         else
         {
-            bool b_OneSecondToVotConReset = (((unsigned)m_fInternalRobotTimer %
-                                              (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) >= 9u);
+            /*bool b_OneSecondToVotConReset = (((unsigned)m_fInternalRobotTimer %
+                                              (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) >= 9u);*/
+              bool b_OneSecondToVotConReset(false);
+
 
             /* If #votes-registered > CONSENSUS_THRESHOLD, or if we are close to the expiry time of current VOTCON_RESULTS_VALIDFOR_SECONDS window (1s remaining) after which the consensus and vote vectors will be cleared */
             if ((it_vot->uVoterIds.size() > CONSENSUS_THRESHOLD) || b_OneSecondToVotConReset) /* at least one vote will be registered. establish consensus on that */
@@ -645,8 +647,10 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
             m_pcRABA->SetData(databyte_index, END_BUFFER);
             break;
         }
-
     }
+
+    if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
+        m_pcRABA->SetData(databyte_index, END_BUFFER);
 }
 
 /****************************************/
@@ -655,6 +659,9 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
 void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
                                                  t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid)
 {
+    if(CRMResultsOnFVDist.size() == 0 && ConsensusLst.size() == 0) // nothing to be written
+        return;
+
     size_t databyte_index;
 
     if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
@@ -672,7 +679,6 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
      */
     for (t_listConsensusInfoOnRobotIds::iterator it_cons = ConsensusLst.begin(); it_cons != ConsensusLst.end(); ++it_cons)
     {
-
         m_pcRABA->SetData(databyte_index++, it_cons->uRobotId);
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
@@ -692,8 +698,9 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
 
     if(buffer_full)
     {
-        std::cerr << " No longer able to write the vote packet. complain by exiting";
-        exit(-1);
+        std::cerr << " Written consensus. But buffer full now. No longer able to write the vote packet. complain by exiting" << std::endl;
+        std::cerr << " CRMResultsOnFVDist.size() " << CRMResultsOnFVDist.size() << " ConsensusLst.size() " << ConsensusLst.size() << std::endl;
+        assert(-1);
     }
 
     if(!b_CRM_Results_Valid) /* the crm results on the FVs in CRMResultsOnFVDist is no longer valid */
@@ -732,10 +739,14 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
 
         if(buffer_full)
         {
-            std::cerr << " No longer able to write the rest of the vote packets. complain by exiting";
-            exit(-1);
+            std::cerr << " No longer able to write the vote packet. complain by exiting" << std::endl;
+            std::cerr << " CRMResultsOnFVDist.size() " << CRMResultsOnFVDist.size() << " ConsensusLst.size() " << ConsensusLst.size() << std::endl;
+            assert(-1);
         }
     }
+
+    if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
+        m_pcRABA->SetData(databyte_index, END_BUFFER);
 }
 
 /****************************************/
@@ -865,7 +876,7 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBear
             }
             else
             {
-                assert(tmp2 == ATTACK_CONSENSUS || ConsensusState == TOLERATE_CONSENSUS);
+                assert(tmp2 == ATTACK_CONSENSUS || tmp2 == TOLERATE_CONSENSUS);
                 ConsensusOnRobotId = tmp1;
                 ConsensusState     = (tmp2==ATTACK_CONSENSUS)?1u:2u;
 
