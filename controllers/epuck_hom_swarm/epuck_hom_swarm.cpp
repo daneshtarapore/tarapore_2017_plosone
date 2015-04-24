@@ -435,7 +435,7 @@ void CEPuckHomSwarm::EstablishConsensus()
 
 
             /* If #votes-registered > CONSENSUS_THRESHOLD, or if we are close to the expiry time of current VOTCON_RESULTS_VALIDFOR_SECONDS window (1s remaining) after which the consensus and vote vectors will be cleared */
-            if ((it_vot->uVoterIds.size() > CONSENSUS_THRESHOLD) || b_OneSecondToVotConReset) /* at least one vote will be registered. establish consensus on that */
+            if ((it_vot->uVoterIds.size() >= CONSENSUS_THRESHOLD) || b_OneSecondToVotConReset) /* at least one vote will be registered. establish consensus on that */
             {
                 listConsensusInfoOnRobotIds.push_back(ConsensusInformationRobots(it_vot->uRobotId,
                                                                                  (it_vot->attackvote_count > it_vot->toleratevote_count)?1u:2u)); /* if equal votes, we tolerate robot*/
