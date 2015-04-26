@@ -299,7 +299,7 @@ void CEPuckHomSwarm::ControlStep()
             std::cout << " id " << it_con->uRobotId << " state " << it_con->consensus_state << std::endl;
     }*/
 
-    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) < 5u) // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
+    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u) // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
     {
         /*if (RobotIdStrToInt() == 0)
         {
@@ -352,8 +352,9 @@ void CEPuckHomSwarm::ControlStep()
         }
     }
 
-    if ((m_fInternalRobotTimer > 450.0) && (unsigned)m_fInternalRobotTimer%2u == 1)
-        SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
+    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) != 0u) /* dont send if buffer is cleared*/
+        if ((m_fInternalRobotTimer > 450.0) && (unsigned)m_fInternalRobotTimer%2u == 1)
+            SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
 
 }
 

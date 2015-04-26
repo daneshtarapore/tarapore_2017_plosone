@@ -1437,7 +1437,7 @@ void CRMinRobotAgentOptimised::UpdateAPCList()
      *
 */
     /* to clear the t-cell list, its easier to clear the apc list as well so that all the conjugates are reset*/
-    /*listAPCs.clear();*/
+    listAPCs.clear();
 
 
     t_listFVsSensed::iterator it_fvsensed;
@@ -1536,11 +1536,11 @@ void CRMinRobotAgentOptimised::UpdateTcellList(unsigned hammingdistance)
      * we were anyway not using the t-cell history earlier. the history would be useful to have memory t-cells that react quickly to antigens (useful if t-cell clones were introduced randomly in the population). history would also be useful to prevent misclassification due to perturbations in number of robots with a FV. this advantage is also lost since we are integrating the t-cells over a long period of time at each simulation-step, thus causing the misclassification, which is then dealt with by integrating all classifications over a time-window of 100 previous classifications.
      *
 */
-    /*listTcells.clear();
+    listTcells.clear();
     for(it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
         listTcells.push_back(structTcell((*it_apcs).uFV, seedE, seedR, 0, &(*it_apcs)));
-    return;*/
-    /********************************/
+    return;
+/********************************/
 
     it_apcs = listAPCs.begin(); it_tcells = listTcells.begin();
     while(it_tcells != listTcells.end() && it_apcs != listAPCs.end())
@@ -1634,13 +1634,13 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
         return 0.0;
 #else
 
-    return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
+    //return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
 
-    /*//for smaller samples of FV distribution
+    //for smaller samples of FV distribution
     if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) <= (1.0f/6.0f))
         return 1.0;
     else
-        return 0.0;*/
+        return 0.0;
 #endif
 }
 
