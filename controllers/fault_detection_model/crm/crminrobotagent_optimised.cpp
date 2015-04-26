@@ -1261,6 +1261,10 @@ void CRMinRobotAgentOptimised::PrintAPCList(unsigned int id)
         return;
 
     list<structAPC>::iterator it_apcs;
+    std::cout << "\n==========R" << GetIdentification()  << " APCs list================" <<  std::endl;
+    for(it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
+        std::cout << "APC[" << (*it_apcs).uFV << "]=" << (*it_apcs).fAPC << std::endl;
+
     printf("\n==========R%d APCs list================\n", GetIdentification());
     for(it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
         printf("APC[%d]=%f  ", (*it_apcs).uFV, (*it_apcs).fAPC);
@@ -1427,6 +1431,15 @@ void CRMinRobotAgentOptimised::UpdateState()
 
 void CRMinRobotAgentOptimised::UpdateAPCList()
 {
+    /* for small distributions, we define affinity to follow a step function. Because of this there are more than one T-cell populations with affinity 1 to an APC sub-population. In such cases, if one of these t-cell populations is present in history, with affinity 1 to two or more current apc sub-populations, it causes a misclassification. to prevent this we clear the t-cell history at each time-step.
+     *
+     * we were anyway not using the t-cell history earlier. the history would be useful to have memory t-cells that react quickly to antigens (useful if t-cell clones were introduced randomly in the population). history would also be useful to prevent misclassification due to perturbations in number of robots with a FV. this advantage is also lost since we are integrating the t-cells over a long period of time at each simulation-step, thus causing the misclassification, which is then dealt with by integrating all classifications over a time-window of 100 previous classifications.
+     *
+*/
+    /* to clear the t-cell list, its easier to clear the apc list as well so that all the conjugates are reset*/
+    /*listAPCs.clear();*/
+
+
     t_listFVsSensed::iterator it_fvsensed;
     list<structAPC>::iterator it_apcs;
 
@@ -1516,6 +1529,18 @@ void CRMinRobotAgentOptimised::UpdateTcellList(unsigned hammingdistance)
         }
         printf("Other hamming dist to be coded."); exit(-1);
     }
+
+    /********************************/
+    /* for small distributions, we define affinity to follow a step function. Because of this there are more than one T-cell populations with affinity 1 to an APC sub-population. In such cases, if one of these t-cell populations is present in history, with affinity 1 to two or more current apc sub-populations, it causes a misclassification. to prevent this we clear the t-cell history at each time-step.
+     *
+     * we were anyway not using the t-cell history earlier. the history would be useful to have memory t-cells that react quickly to antigens (useful if t-cell clones were introduced randomly in the population). history would also be useful to prevent misclassification due to perturbations in number of robots with a FV. this advantage is also lost since we are integrating the t-cells over a long period of time at each simulation-step, thus causing the misclassification, which is then dealt with by integrating all classifications over a time-window of 100 previous classifications.
+     *
+*/
+    /*listTcells.clear();
+    for(it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
+        listTcells.push_back(structTcell((*it_apcs).uFV, seedE, seedR, 0, &(*it_apcs)));
+    return;*/
+    /********************************/
 
     it_apcs = listAPCs.begin(); it_tcells = listTcells.begin();
     while(it_tcells != listTcells.end() && it_apcs != listAPCs.end())
@@ -1609,13 +1634,13 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
         return 0.0;
 #else
 
-    //return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
+    return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
 
-    //for smaller samples of FV distribution
+    /*//for smaller samples of FV distribution
     if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) <= (1.0f/6.0f))
         return 1.0;
     else
-        return 0.0;
+        return 0.0;*/
 #endif
 }
 

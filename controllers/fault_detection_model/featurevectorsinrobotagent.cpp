@@ -8,84 +8,90 @@
 /******************************************************************************/
 /******************************************************************************/
 
+
 void UpdaterFvDistribution(t_listFVsSensed &listFVsSensed, t_listMapFVsToRobotIds &listMapFVsToRobotIds,
                            CRandom::CRNG* m_pcRNG, Real m_fProbForget)
 {
 
-    t_listFVsSensed::iterator it, it_history;
+    t_listFVsSensed::iterator it_dist, it_history;
 
     // forget old FVs in distribution with probability m_fProbForgetFV
-    it = listFVsSensed.begin();
-    while(it != listFVsSensed.end())
+    it_dist = listFVsSensed.begin();
+    while(it_dist != listFVsSensed.end())
     {
         if(m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f)) <= m_fProbForget)
         {
-            it = listFVsSensed.erase(it);
+            it_dist = listFVsSensed.erase(it_dist);
             continue;
         }
-        ++it;
+        ++it_dist;
     }
 
     t_listFVsSensed tmp_list = t_listFVsSensed(listFVsSensed.begin(), listFVsSensed.end());
 
     listFVsSensed.clear();
-    /* updated listFVsSensed distribution with the most recent number of robots for different FVs. */
-    for(t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin(); itd != listMapFVsToRobotIds.end(); ++itd)
+    // updated listFVsSensed distribution with the most recent number of robots for different FVs.
+    for(t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
     {
-        unsigned fv = (*itd).uFV;
-
         double increment = 1.0f;
+
+        bool b_EntryInserted(false);
 
         // check if fv is in listFVsSensed
         // if so, update the value it holds by increment
         // if not insert it (while keeping list sorted based on fv) and initialize its value by increment
-        for ( t_listFVsSensed::iterator it = listFVsSensed.begin(); it != listFVsSensed.end(); ++it)
+        for (it_dist = listFVsSensed.begin(); it_dist != listFVsSensed.end(); ++it_dist)
         {
-            if((*it).uFV == fv)
+            if(it_dist->uFV == it_map->uFV)
             {
                 // if fv is already present
-                (*it).fRobots += increment;
-                return;
+                it_dist->fRobots += increment;
+                b_EntryInserted = true;
+                break;
             }
 
-            if((*it).uFV > fv)
+            if(it_dist->uFV > it_map->uFV)
             {   // we assume the list is kept sorted.
                 // if fv is absent
-                listFVsSensed.insert(it, StructFVsSensed(fv, increment));
-                return;
+                listFVsSensed.insert(it_dist, StructFVsSensed(it_map->uFV, increment));
+                b_EntryInserted = true;
+                break;
             }
         }
+
+        if(b_EntryInserted)
+            continue;
+
         // when the list is empty or item is to be inserted in the end
-        listFVsSensed.push_back(StructFVsSensed(fv, increment));
+        listFVsSensed.push_back(StructFVsSensed(it_map->uFV, increment));
     }
 
     // integrate into the current list listFVsSensed the history from tmp_list
     // if FV is the same in the current list, and in the history, - the history for that FV is ignored.
     // else the FV is integrated into the current list
-    it = listFVsSensed.begin(); it_history = tmp_list.begin();
-    while(it_history != tmp_list.end() && it != listFVsSensed.end())
+    it_dist = listFVsSensed.begin(); it_history = tmp_list.begin();
+    while(it_history != tmp_list.end() && it_dist != listFVsSensed.end())
     {
-        if((*it_history).uFV == (*it).uFV)
+        if(it_history->uFV == it_dist->uFV)
         {
-            ++it_history; ++it;
+            ++it_history; ++it_dist;
             continue;
         }
 
-        if((*it_history).uFV < (*it).uFV)
+        if(it_history->uFV < it_dist->uFV)
         {
-                listFVsSensed.insert(it, StructFVsSensed((*it_history).uFV, (*it_history).fRobots, (*it_history).uMostWantedState));
+                listFVsSensed.insert(it_dist, StructFVsSensed(it_history->uFV, it_history->fRobots, it_history->uMostWantedState));
                 ++it_history;
         }
         else
-             ++it;
+             ++it_dist;
    }
 
     while(it_history != tmp_list.end())
     {
-            listFVsSensed.push_back(StructFVsSensed((*it_history).uFV, (*it_history).fRobots, (*it_history).uMostWantedState));
+            listFVsSensed.push_back(StructFVsSensed(it_history->uFV, it_history->fRobots, it_history->uMostWantedState));
             ++it_history;
     }
-
 }
 
 /******************************************************************************/

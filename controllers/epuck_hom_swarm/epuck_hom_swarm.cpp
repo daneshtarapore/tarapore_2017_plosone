@@ -293,15 +293,25 @@ void CEPuckHomSwarm::ControlStep()
     /* Listen for robot ids + feature vectors from neighbours and then assimilate them */
     Sense(PROBABILITY_FORGET_FV);
 
-    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u)
+    /*for (t_listConsensusInfoOnRobotIds::iterator it_con = listConsensusInfoOnRobotIds.begin(); it_con != listConsensusInfoOnRobotIds.end(); ++it_con)
     {
+        if (RobotIdStrToInt() == 0)
+            std::cout << " id " << it_con->uRobotId << " state " << it_con->consensus_state << std::endl;
+    }*/
+
+    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) < 5u) // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
+    {
+        /*if (RobotIdStrToInt() == 0)
+        {
+            std::cout << " cons info cleared " << std::endl;
+        }*/
+
         listConsensusInfoOnRobotIds.clear();
         listVoteInformationRobots.clear();
     }
-
-    /* Listen for voting packets and consensus packets from neighbours*/
-    if(m_fInternalRobotTimer > 450.0)
+    else if(m_fInternalRobotTimer > 450.0) /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
     {
+        /* Listen for voting packets and consensus packets from neighbours*/
         ReceiveVotesAndConsensus();
         EstablishConsensus();
     }
@@ -323,10 +333,23 @@ void CEPuckHomSwarm::ControlStep()
     {
         // the CRM results on FVs in listFVsSensed is not outdated
         for(t_listFVsSensed::iterator it_fv = listFVsSensed.begin(); it_fv != listFVsSensed.end(); ++it_fv)
+        {
+            /*for(t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
+            {
+                if (RobotIdStrToInt() == 19 && it_map->uFV == it_fv->uFV && it_map->uRobotId == 19 && it_fv->uMostWantedState==1) // why am i attacking myself...
+                {
+                    std::cout << "Clock: " << m_fInternalRobotTimer << " it_map->uFV " << it_map->uFV <<  std::endl;
+
+                    crminAgent->PrintAPCList(RobotIdStrToInt());
+                    crminAgent->PrintTcellList(RobotIdStrToInt());
+                    crminAgent->PrintTcellResponseToAPCList(RobotIdStrToInt());
+                }
+            }*/
             UpdateVoterRegistry(listVoteInformationRobots,
                                 listMapFVsToRobotIds,
                                 listConsensusInfoOnRobotIds,
                                 RobotIdStrToInt(), it_fv->uFV, it_fv->uMostWantedState);
+        }
     }
 
     if ((m_fInternalRobotTimer > 450.0) && (unsigned)m_fInternalRobotTimer%2u == 1)
@@ -370,8 +393,39 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS); /*remove entries older than 10s */
 
-    //listFVsSensed.clear();
+
+    /*if (m_fInternalRobotTimer == 771 && RobotIdStrToInt()==19)
+    {
+        std::cerr << " Before " << std::endl;
+        for (t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
+        {
+            std::cerr << "MAP: fv " << it_map->uFV << " id " << it_map->uRobotId << std::endl;
+        }
+
+        for (t_listFVsSensed::iterator it_dist = listFVsSensed.begin(); it_dist != listFVsSensed.end(); ++it_dist)
+        {
+            std::cerr << "Dist: fv " << it_dist->uFV << " #apcs " << it_dist->fRobots <<  " state " << it_dist->uMostWantedState << std::endl;
+        }
+    }*/
+
     UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, m_fProbForget); // update listFVsSensed
+
+//    if (RobotIdStrToInt()==0)
+//    {
+//        std::cerr << " After " << std::endl;
+//        for (t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
+//        {
+//            std::cerr << "MAP: fv " << it_map->uFV << " id " << it_map->uRobotId << std::endl;
+//        }
+
+////        if(listFVsSensed.empty())
+////            std::cerr << "dist empty " << std::endl;
+
+////        for (t_listFVsSensed::iterator it_dist = listFVsSensed.begin(); it_dist != listFVsSensed.end(); ++it_dist)
+////        {
+////            std::cerr << "Dist: fv " << it_dist->uFV << " #apcs " << it_dist->fRobots <<  " state " << it_dist->uMostWantedState << std::endl;
+////        }
+//    }
 
     /*if(m_fInternalRobotTimer == 2616 && (this->GetId().compare("ep4") == 0))
         std::cout << "listFVsSensed.size() " << listMapFVsToRobotIds.size() << std::endl;*/
