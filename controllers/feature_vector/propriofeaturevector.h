@@ -50,13 +50,15 @@ public:
 
        Real LinearSpeed, AngularSpeed, LinearAcceleration, AngularAcceleration;
        CVector2 pos; CRadians orientation;
+       Real dist;
 
        SensoryData()
        {
            m_rTime = 0.0f;
            f_LeftWheelSpeed = 0.0f; f_RightWheelSpeed = 0.0f;
            LinearSpeed = 0.0f; AngularSpeed = 0.0f; LinearAcceleration = 0.0f; AngularAcceleration = 0.0f;
-           pos = CVector2(0.0, 0.0);
+           pos  = CVector2(0.0, 0.0);
+           dist = Real(0.0f);
            orientation.SetValue(0.0f);
        }
 
@@ -88,11 +90,11 @@ public:
        void EstimateCurrentSpeedAndAcceleration()
        {
            Real prev_LinearSpeed = LinearSpeed;
-           LinearSpeed = (f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f;
+           LinearSpeed = ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * m_sRobotData.seconds_per_iterations; // speed in per control-cycle
            LinearAcceleration = LinearSpeed - prev_LinearSpeed;
 
            Real prev_AngularSpeed = AngularSpeed;
-           AngularSpeed = (-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f);
+           AngularSpeed = ((-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f)) *  m_sRobotData.seconds_per_iterations;
            AngularAcceleration = AngularSpeed - prev_AngularSpeed;
        }
 
@@ -101,10 +103,15 @@ public:
            CVector2 prev_pos         = pos;
            CRadians prev_orientation = orientation;
 
-           orientation = prev_orientation + CRadians(m_sRobotData.seconds_per_iterations * ((-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f)));
-           Real rX = prev_pos.GetX() + m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * Cos(orientation);
-           Real rY = prev_pos.GetY() + m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * Sin(orientation);
+           CRadians delta_orientation = CRadians(m_sRobotData.seconds_per_iterations * ((-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f)));
+
+           orientation = prev_orientation + delta_orientation;
+
+           Real rX = prev_pos.GetX() + m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * Cos(prev_orientation + delta_orientation/(2.0f));
+           Real rY = prev_pos.GetY() + m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * Sin(prev_orientation + delta_orientation/(2.0f));
            pos.Set(rX, rY);
+
+           dist = m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f);
        }
     };
 
@@ -172,8 +179,11 @@ protected:
 
     Real           m_fSquaredDistTravelled;
     Real           m_fSquaredDistThreshold;
+    Real           m_fCumulativeDistTravelled, m_fCumulativeDistThreshold;
 
     argos::CVector2  *m_pvecCoordAtTimeStep;
+
+    Real             *m_pfDistAtTimeStep;
 
 
 };

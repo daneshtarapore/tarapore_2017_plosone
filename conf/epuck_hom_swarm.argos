@@ -16,7 +16,7 @@
     <system threads="0" />
     <experiment length="500"
                 ticks_per_second="10"
-                random_seed="111" />
+                random_seed="222" />
   </framework>
 
   <!-- *************** -->
@@ -36,8 +36,8 @@
         <range_and_bearing implementation="medium" medium="rab" show_rays="true" />
       </sensors>
       <params>
-        <experiment_run swarm_behavior="SWARM_AGGREGATION"
-			fault_behavior="FAULT_RANDOMWALK" 
+        <experiment_run swarm_behavior="SWARM_HOMING"
+			fault_behavior="FAULT_STOP" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="10" />
       </params>

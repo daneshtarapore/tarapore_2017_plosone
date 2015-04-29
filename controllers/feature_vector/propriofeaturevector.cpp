@@ -56,8 +56,10 @@ CProprioceptiveFeatureVector::CProprioceptiveFeatureVector()
     m_unCoordCurrQueueIndex    = 0;
 
     m_fSquaredDistTravelled = 0.0;
+    m_fCumulativeDistTravelled = 0.0f;
 
     m_pvecCoordAtTimeStep = new CVector2[m_iDistTravelledTimeWindow];
+    m_pfDistAtTimeStep    = new Real[m_iDistTravelledTimeWindow];
 }
 
 /******************************************************************************/
@@ -74,6 +76,7 @@ CProprioceptiveFeatureVector::~CProprioceptiveFeatureVector()
     delete m_punNbrsRange30to60AtTimeStep;
 
     delete m_pvecCoordAtTimeStep;
+    delete m_pfDistAtTimeStep;
 }
 
 /******************************************************************************/
@@ -97,16 +100,22 @@ unsigned int CProprioceptiveFeatureVector::GetLength() const
 
 unsigned int CProprioceptiveFeatureVector::SimulationStep()
 {
-    m_fVelocityThreshold            = 0.05  * (m_sRobotData.MaxLinearSpeed);
-    m_fAccelerationThreshold        = 0.05  * (m_sRobotData.MaxLinearAcceleration);
+    // too small thresholded distance. robot moves very little in one control-cycle. better to intergrate distance over time and use threshold on that
+    m_fVelocityThreshold            = 0.05  * (m_sRobotData.MaxLinearSpeed); // max speed is 1 cm per control cycle
+    m_fAccelerationThreshold        = 0.05  * (m_sRobotData.MaxLinearAcceleration); // max change in speed is \[PlusMinus]1 cm per control cycle per control cycle
 
-    m_tAngularVelocityThreshold     = 0.032  * (m_sRobotData.MaxAngularSpeed);
-    m_tAngularAccelerationThreshold = 0.032  * (m_sRobotData.MaxAngularAcceleration);
+
+    // 0.032
+    m_tAngularVelocityThreshold     = 0.15  * (m_sRobotData.MaxAngularSpeed); //Maximum angular speed is \[PlusMinus]21.621 degrees per control cycle
+    m_tAngularAccelerationThreshold = 0.015  * (m_sRobotData.MaxAngularAcceleration); //Maximum angular acceleation is \[PlusMinus]43.242 degrees per control cycle per control cycle
+
 
     // the time window is in ticks and is to be convered to seconds
     m_fSquaredDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations)) *
             (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations));
 
+
+    m_fCumulativeDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations));
 
     ComputeFeatureValues();
     m_unValue = 0;
@@ -208,6 +217,8 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
     //5th: distance travelled by bot in past 100 time-steps. Higher than 5% of max-possible distance travelled is accepted as feature=1.
     CVector2 vecAgentPos = m_sSensoryData.pos;
 
+    m_fCumulativeDistTravelled += m_sSensoryData.dist;
+
     if(CurrentStepNumber >= m_iDistTravelledTimeWindow)
     {
         // distance travelled in last 100 time-steps
@@ -220,21 +231,57 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
         //pos_ref = m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex];
 
 
+        // removing the distance travelled in the first time-step of the moving time-window from the queue
+        m_fCumulativeDistTravelled -= m_pfDistAtTimeStep[m_unCoordCurrQueueIndex];
+
+
         // decision based on distance travelled in the last 100 time-steps
-        if(m_fSquaredDistTravelled >= m_fSquaredDistThreshold)
+        if(m_fCumulativeDistTravelled >= m_fCumulativeDistThreshold)
             m_pfAllFeatureValues[4] = 1.0;
         else
             m_pfAllFeatureValues[4] = 0.0;
+
+        /*
+        if(m_fSquaredDistTravelled >= m_fSquaredDistThreshold)
+            m_pfAllFeatureValues[4] = 1.0;
+        else
+            m_pfAllFeatureValues[4] = 0.0;*/
+
+
     }
+
+    //std::cout << " cumulative distance " << m_fCumulativeDistTravelled << std::endl;
+    //std::cout << " LinearSpeed " <<  m_sSensoryData.LinearSpeed << " angular speed " << m_sSensoryData.AngularSpeed << std::endl;
+    //std::cout << " LinearAcceleration " <<  m_sSensoryData.LinearAcceleration << " angular acceleration " << m_sSensoryData.AngularAcceleration << std::endl;
 
     // adding new coordinate values into the queue
     m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex] = vecAgentPos;
+
+    // adding distance travelled at last time-step into queue
+    m_pfDistAtTimeStep[m_unCoordCurrQueueIndex] = m_sSensoryData.dist;
+
     m_unCoordCurrQueueIndex = (m_unCoordCurrQueueIndex + 1) % m_iDistTravelledTimeWindow;
 
 
+    if((m_sSensoryData.AngularAcceleration > m_tAngularAccelerationThreshold ||
+        m_sSensoryData.AngularAcceleration < -m_tAngularAccelerationThreshold))
+    {
+         m_piLastOccuranceEvent[5] = CurrentStepNumber;
+    }
+
+
+    // 6th: set if the robot changed its angular speed (per control cycle) atleast once in the past time-window.
+    if ((CurrentStepNumber - m_piLastOccuranceEvent[5]) <= m_iEventSelectionTimeWindow)
+    {
+        m_pfAllFeatureValues[5] = 1.0;
+    }
+    else
+    {
+        m_pfAllFeatureValues[5] = 0.0;
+    }
+
     //6th: linear speed, higher than 5% of max. speed is accepted as feature=1 OR angular speed higher than 5% of max. angular speed is accepted as feature=1
-    m_pfAllFeatureValues[5] = (m_sSensoryData.LinearSpeed  >= m_fVelocityThreshold  ||
-                               m_sSensoryData.AngularSpeed >= m_tAngularVelocityThreshold) ? 1.0:0.0;
+    /*m_pfAllFeatureValues[5] = (m_sSensoryData.LinearSpeed  >= m_fVelocityThreshold) ? 1.0:0.0;*/
 
 
     // adding the selected features into the feature vector

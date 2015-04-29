@@ -145,12 +145,15 @@ void CHomSwarmLoopFunctions::PostStep()
         m_cOutput << "Consensus_Tolerators: ";
         for (std::list<unsigned>::iterator it_tolcon = list_Consensus_Tolerators.begin(); it_tolcon != list_Consensus_Tolerators.end(); ++it_tolcon)
             m_cOutput << (*it_tolcon) << " ";
+        for (int i = 0; i < 20 - list_Consensus_Tolerators.size(); ++i)
+            m_cOutput << " -1 ";
 
         m_cOutput <<  "\t" << "Consensus_Attackers: ";
         for (std::list<unsigned>::iterator it_atkcon = list_Consensus_Attackers.begin(); it_atkcon != list_Consensus_Attackers.end(); ++it_atkcon)
             m_cOutput << (*it_atkcon) << " ";
+        for (int i = 0; i < 20 - list_Consensus_Attackers.size(); ++i)
+            m_cOutput << " -1 ";
         m_cOutput << std::endl;
-
     }
 
 

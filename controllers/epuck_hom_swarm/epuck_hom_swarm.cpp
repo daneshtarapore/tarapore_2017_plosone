@@ -29,7 +29,7 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 200;
 /*
  * Probability to forget FV in distribution
  */
-#define PROBABILITY_FORGET_FV 0.002f
+#define PROBABILITY_FORGET_FV 0.001f
 
 /*
  * Consensus threshold on FVs.
@@ -85,7 +85,7 @@ void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
     else
     {
         std::cerr << "invalid swarm behavior";
-        exit(-1);
+        assert(-1);
     }
 
     if (errorbehav.compare("FAULT_NONE") == 0)
@@ -101,7 +101,7 @@ void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
     else
     {
         std::cerr << "invalid fault behavior";
-        exit(-1);
+        assert(-1);
     }
 }
 
@@ -282,7 +282,7 @@ void CEPuckHomSwarm::ControlStep()
     /* Estimate feature-vectors - proprioceptively */
     m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cProprioceptiveFeatureVector.SimulationStep();
-    m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
+    m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue(); // to debug
     m_uRobotId = RobotIdStrToInt();
 
     /* Communicate your id and proprioceptively computed FV to whoever is in range, using the RAB sensor*/

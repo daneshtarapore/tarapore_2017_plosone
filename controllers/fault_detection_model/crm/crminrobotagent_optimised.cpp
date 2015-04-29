@@ -84,8 +84,7 @@ CRMinRobotAgentOptimised::~CRMinRobotAgentOptimised()
 {
     listTcells.clear();
 
-    list<structAPC>::iterator it_apcs;
-    for(it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
+    for(list<structAPC>::iterator it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
         (*it_apcs).listConjugatesonAPC.clear();
 
     listAPCs.clear();
@@ -95,7 +94,7 @@ CRMinRobotAgentOptimised::~CRMinRobotAgentOptimised()
 /******************************************************************************/
 
 void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed* FVsSensed)
-{    
+{
     m_fInternalRobotTimer = InternalRobotTimer;
     ptr_listFVsSensed = FVsSensed;
 
@@ -332,23 +331,6 @@ void CRMinRobotAgentOptimised::TcellNumericalIntegration_RK2()
 
     while(integration_t < integrationtimeofcrm)
     {
-        //std::cout << "Clock " << m_fInternalRobotTimer << " robot_id " << m_uRobotId << " integration_t " << integration_t << std::endl;
-
-        /*if(this->GetIdentification() == 8 && CSimulator::GetInstance()->GetSimulationStepNumber() == 5973)
-        {
-            {
-                it_tcells = listTcells.begin();
-                std::cout << std::endl << std::endl << " special last " << " (*it_tcells).fE " << (*it_tcells).fE << " (*it_tcells).fR " << (*it_tcells).fR;
-            }
-            printf("\n\n The integration time is NOW %f\n",integration_t);
-            printf("\nConvergence error = %f (perc:%f)", m_dconvergence_error, m_dpercconvergence_error);
-            unsigned PrntRobotId = GetIdentification();
-            robotAgent->PrintFeatureVectorDistribution(PrntRobotId);
-            PrintAPCList(PrntRobotId); PrintTcellList(PrntRobotId);
-            PrintConjugatestoAPCList(PrntRobotId, CONJ);
-            PrintConjugatestoTcellList(PrntRobotId, CONJ);
-        }*/
-
         // Compute number of conjugates for T cells listTcells members fE and fR. Stores conjugates in listApcs member listConjugatesonAPC having member conjugate fConjugates
         if(FDMODELTYPE == CRM) //!TODO to avoid this check all the time, we could preprocess the code and define out the unused conjugate functions.
         {
@@ -556,7 +538,6 @@ void CRMinRobotAgentOptimised::TcellNumericalIntegration_RK2()
 
             ++it_tcells;
         }
-
 
         if(listTcells.size() == 0)
         {
@@ -1375,54 +1356,43 @@ void CRMinRobotAgentOptimised::PrintFeatureVectorDistribution(unsigned int id)
 void CRMinRobotAgentOptimised::UpdateState()
 {
     double tmp_E, tmp_R, tmp_affinity;
-    list<structAPC>::iterator it_apcs = listAPCs.begin();
-    list<structTcell>::iterator it_tcells;
-
     t_listFVsSensed::iterator it_fvsensed = ptr_listFVsSensed->begin();
 
-    while(it_apcs != listAPCs.end())
+    for (list<structAPC>::iterator it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
     {
         assert((*it_fvsensed).uFV == (*it_apcs).uFV);
 
         tmp_E = 0.0; tmp_R = 0.0;
-        for(it_tcells = listTcells.begin(); it_tcells != listTcells.end(); ++it_tcells)
+        for(list<structTcell>::iterator it_tcells = listTcells.begin(); it_tcells != listTcells.end(); ++it_tcells)
         {
-            tmp_affinity = NegExpDistAffinity((*it_tcells).uFV, (*it_apcs).uFV, m_fcross_affinity);
-            tmp_E += tmp_affinity * (*it_tcells).fE;
-            tmp_R += tmp_affinity * (*it_tcells).fR;
+            tmp_affinity = NegExpDistAffinity(it_tcells->uFV, it_apcs->uFV, m_fcross_affinity);
+            tmp_E += tmp_affinity * it_tcells->fE;
+            tmp_R += tmp_affinity * it_tcells->fR;
 #ifdef FLOATINGPOINTOPERATIONS
             IncNumberFloatingPtOperations(4+3); //3 operations in NegExpDistAffinity
 #endif
         }
 
-        (*it_apcs).fE_weightedbyaffinity = tmp_E;
-        (*it_apcs).fR_weightedbyaffinity = tmp_R;
+        it_apcs->fE_weightedbyaffinity = tmp_E;
+        it_apcs->fR_weightedbyaffinity = tmp_R;
 
         if ((tmp_E + tmp_R) <= CELLLOWERBOUND || fabs(tmp_E - tmp_R) <= CELLLOWERBOUND)
         {
-            std::cout << "Dont know - no T-cells to make decision or E approx. equal to R";
-            std::cout << "Never going to happen as specific T-cells are pumped into the population";
-            exit(-1);
-//            SetMostWantedList(&it_fvsensed, 0);
-//#ifdef FLOATINGPOINTOPERATIONS
-//            IncNumberFloatingPtOperations(3);
-//#endif
+            SetMostWantedList(&it_fvsensed, 0);
+#ifdef FLOATINGPOINTOPERATIONS
+            IncNumberFloatingPtOperations(3);
+#endif
         }
 
-        else if (tmp_E > tmp_R) // (tmp_E/tmp_R > 1.0)
-            //else if (tmp_E/tmp_R > 0.9)// > 0.95 // (tmp_E/tmp_R > 1.0)
-            // Attack      
+        else if (tmp_E > tmp_R)            // Attack
         {
             SetMostWantedList(&it_fvsensed, 1);
-            //std::cout << "Decision: " << (*it_fvsensed).uFV << " attack" << std::endl;
         }
-        else      
-            // Tolerate
+        else            // Tolerate
         {
             SetMostWantedList(&it_fvsensed, 2);
-            //std::cout << "Decision: " << (*it_fvsensed).uFV << " tolerate" << std::endl;
         }
-        ++it_apcs; ++it_fvsensed;
+        ++it_fvsensed;
     }
 }
 
@@ -1437,7 +1407,9 @@ void CRMinRobotAgentOptimised::UpdateAPCList()
      *
 */
     /* to clear the t-cell list, its easier to clear the apc list as well so that all the conjugates are reset*/
-    listAPCs.clear();
+    /*for(list<structAPC>::iterator it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
+        (*it_apcs).listConjugatesonAPC.clear();
+    listAPCs.clear();*/
 
 
     t_listFVsSensed::iterator it_fvsensed;
@@ -1535,12 +1507,13 @@ void CRMinRobotAgentOptimised::UpdateTcellList(unsigned hammingdistance)
      *
      * we were anyway not using the t-cell history earlier. the history would be useful to have memory t-cells that react quickly to antigens (useful if t-cell clones were introduced randomly in the population). history would also be useful to prevent misclassification due to perturbations in number of robots with a FV. this advantage is also lost since we are integrating the t-cells over a long period of time at each simulation-step, thus causing the misclassification, which is then dealt with by integrating all classifications over a time-window of 100 previous classifications.
      *
-*/
-    listTcells.clear();
+     */
+
+    /*listTcells.clear();
     for(it_apcs = listAPCs.begin(); it_apcs != listAPCs.end(); ++it_apcs)
         listTcells.push_back(structTcell((*it_apcs).uFV, seedE, seedR, 0, &(*it_apcs)));
-    return;
-/********************************/
+    return;*/
+    /********************************/
 
     it_apcs = listAPCs.begin(); it_tcells = listTcells.begin();
     while(it_tcells != listTcells.end() && it_apcs != listAPCs.end())
@@ -1627,21 +1600,20 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
 
     // Should we normalize the hammingdistance when input to the exp function, or as above?
 
-#ifdef FALSE
-    if ((double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES < 2.0/6.0)
-        return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
-    else  // Affinities less than 0.108 have no effect on T-cell population cross-interactions. We do this to prevent intermediary regulatory T-cells (with FV between abnormal and normal FVs) to result in tolerance of abnromal FVs. This can occur even when the APC sub-populations are normalized. Without CRM_ENABLE_SENSORY_HISTORY such intermediary T-cell populations would disappear quickly and not linger in the FV history
-        return 0.0;
-#else
 
-    //return 1.0 * exp(-(1.0/k) * (double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
+    /*if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) < (2.0f/6.0f))
+        return exp(-(1.0f/k) * (((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)));
+    else  // Affinities less than 0.108 have no effect on T-cell population cross-interactions. We do this to prevent intermediary regulatory T-cells (with FV between abnormal and normal FVs) to result in tolerance of abnromal FVs. This can occur even when the APC sub-populations are normalized. Without CRM_ENABLE_SENSORY_HISTORY such intermediary T-cell populations would disappear quickly and not linger in the FV history
+        return 0.0f;*/
+
+
+    //return 1.0 * exp(-(1.0f/k) * ((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES));
 
     //for smaller samples of FV distribution
     if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) <= (1.0f/6.0f))
-        return 1.0;
+        return 1.0f * exp(-(1.0f/k) * ((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES));
     else
         return 0.0;
-#endif
 }
 
 /******************************************************************************/
