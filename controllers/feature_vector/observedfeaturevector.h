@@ -1,5 +1,5 @@
-#ifndef PROPRIOCEPTIVE_FEATUREVECTOR_H_
-#define PROPRIOCEPTIVE_FEATUREVECTOR_H_
+#ifndef OBSERVED_FEATUREVECTOR_H_
+#define OBSERVED_FEATUREVECTOR_H_
 
 
 #define MODELSTARTTIME 450.0 // used for your sliding window
@@ -8,6 +8,7 @@
 /******************************************************************************/
 
 #include <string>
+#include <list>
 /******************************************************************************/
 /******************************************************************************/
 #include <argos3/core/utility/math/vector2.h>
@@ -22,7 +23,7 @@
 
 using namespace argos;
 
-class CProprioceptiveFeatureVector
+class CObservedFeatureVector
 {
 public:
 
@@ -43,6 +44,8 @@ public:
     {
        Real m_rTime;
        Real f_LeftWheelSpeed, f_RightWheelSpeed;
+       Real f_LeftWheelSpeed_prev, f_RightWheelSpeed_prev;
+
        CCI_EPuckProximitySensor::TReadings m_ProximitySensorData;
        CCI_LightUpdatedSensor::TReadings m_LightSensorData;
        CCI_GroundSensor::TReadings m_GroundSensorData;
@@ -55,7 +58,7 @@ public:
        SensoryData()
        {
            m_rTime = 0.0f;
-           f_LeftWheelSpeed = 0.0f; f_RightWheelSpeed = 0.0f;
+           f_LeftWheelSpeed = 0.0f; f_RightWheelSpeed = 0.0f; f_LeftWheelSpeed_prev = 0.0f; f_RightWheelSpeed_prev = 0.0f;
            LinearSpeed = 0.0f; AngularSpeed = 0.0f; LinearAcceleration = 0.0f; AngularAcceleration = 0.0f;
            pos  = CVector2(0.0, 0.0);
            dist = Real(0.0f);
@@ -70,6 +73,9 @@ public:
            m_LightSensorData = light;
            m_GroundSensorData = ground;
            m_RABSensorData = rab;
+
+           f_LeftWheelSpeed_prev = f_LeftWheelSpeed; f_RightWheelSpeed_prev = f_RightWheelSpeed;
+
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
 
            EstimateCurrentSpeedAndAcceleration();
@@ -90,11 +96,11 @@ public:
        void EstimateCurrentSpeedAndAcceleration()
        {
            Real prev_LinearSpeed = LinearSpeed;
-           LinearSpeed = ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * m_sRobotData.seconds_per_iterations; // speed in cm per control-cycle
+           LinearSpeed = ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f) * m_sRobotData.seconds_per_iterations; // speed in per control-cycle
            LinearAcceleration = LinearSpeed - prev_LinearSpeed;
 
            Real prev_AngularSpeed = AngularSpeed;
-           AngularSpeed = ((-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f)) *  m_sRobotData.seconds_per_iterations; // angular speed in rad per control-cycle
+           AngularSpeed = ((-f_LeftWheelSpeed + f_RightWheelSpeed) / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f)) *  m_sRobotData.seconds_per_iterations;
            AngularAcceleration = AngularSpeed - prev_AngularSpeed;
        }
 
@@ -116,75 +122,84 @@ public:
     };
 
 
-    CProprioceptiveFeatureVector();
-    virtual ~CProprioceptiveFeatureVector();
+    struct ObservedRobots_FeatureVector
+    {
+        ObservedRobots_FeatureVector(CObservedFeatureVector& owner);
+        ~ObservedRobots_FeatureVector();
+
+        unsigned GetValue() const
+        {
+            return m_unValue;
+        }
+
+        void PrintFeatureDetails();
+        void ComputeFeatureValues();
+        unsigned CountNeighbors(Real sensor_range);
+
+
+        unsigned  m_unRobotId;
+        Real      m_fTimeFirstObserved;
+
+        unsigned  m_unValue;
+
+
+        private:
+
+            CObservedFeatureVector& owner;
+
+            Real*        m_pfFeatureValues;
+            Real*        m_pfAllFeatureValues;
+
+            int*         m_piLastOccuranceEvent;
+            int*         m_piLastOccuranceNegEvent;
+
+            unsigned int m_unSumTimeStepsNbrsRange0to30;
+            unsigned int m_unSumTimeStepsNbrsRange30to60;
+
+            unsigned int* m_punNbrsRange0to30AtTimeStep;
+            unsigned int* m_punNbrsRange30to60AtTimeStep;
+
+            // keeping track of neighbors in last m_iEventSelectionTimeWindow time-steps
+            unsigned int m_unNbrsCurrQueueIndex;
+            unsigned int m_unCoordCurrQueueIndex;
+
+            Real             m_fSquaredDistTravelled, m_fCumulativeDistTravelled, *m_pfDistAtTimeStep;
+            CVector2         *m_pvecCoordAtTimeStep;
+    };
+
+
+    CObservedFeatureVector();
+    virtual ~CObservedFeatureVector();
+
+    virtual unsigned SimulationStep();
+
+    static RobotData m_sRobotData;
+    SensoryData m_sSensoryData;
+
+    typedef std::list <ObservedRobots_FeatureVector> t_ListObservedRobots;
+    t_ListObservedRobots m_pcListObservedRobots;
+
+
+
+
+
+protected:
 
     static unsigned int NUMBER_OF_FEATURES;
     static unsigned int MAX_NUMBER_OF_FEATURES;
     static unsigned int NUMBER_OF_FEATURE_VECTORS;
     static double       FEATURE_RANGE;
 
-    virtual unsigned GetValue() const;
-    virtual unsigned int GetLength() const;
-
-    void PrintFeatureDetails();
-
-    virtual unsigned int SimulationStep();
-
-    //virtual std::string ToString();
-
-    static RobotData m_sRobotData;
-    SensoryData m_sSensoryData;
-
-protected:
-    virtual void ComputeFeatureValues();
-
-    virtual unsigned CountNeighbors(Real sensor_range);
-
-    unsigned  m_unValue;
-    unsigned  m_unLength;
-
-    Real*         m_pfFeatureValues;
-    Real*         m_pfAllFeatureValues;
-
-    int*           m_piLastOccuranceEvent;
-    int*           m_piLastOccuranceNegEvent;
-
-    int          m_iEventSelectionTimeWindow;
-
-
-    Real       m_fVelocityThreshold;
-    Real       m_fAccelerationThreshold;
-
-    Real       m_tAngularVelocityThreshold;
-    Real       m_tAngularAccelerationThreshold;
-
-
 
     // keeping track of neighbors in last m_iEventSelectionTimeWindow time-steps
-    unsigned int m_unNbrsCurrQueueIndex;
-
-    unsigned int m_unSumTimeStepsNbrsRange0to30;
-    unsigned int m_unSumTimeStepsNbrsRange30to60;
-
-    unsigned int* m_punNbrsRange0to30AtTimeStep;
-    unsigned int* m_punNbrsRange30to60AtTimeStep;
-
-
+    static int        m_iEventSelectionTimeWindow;
 
     // keeping track of distance travelled by bot in last 100 time-steps
-    int              m_iDistTravelledTimeWindow;
+    static int        m_iDistTravelledTimeWindow;
 
-    unsigned int     m_unCoordCurrQueueIndex;
-
-    Real           m_fSquaredDistTravelled;
-    Real           m_fSquaredDistThreshold;
-    Real           m_fCumulativeDistTravelled, m_fCumulativeDistThreshold;
-
-    argos::CVector2  *m_pvecCoordAtTimeStep;
-
-    Real             *m_pfDistAtTimeStep;
-
+    static Real       m_fSquaredDistThreshold, m_fCumulativeDistThreshold;
+    static Real       m_fVelocityThreshold, m_fAccelerationThreshold;
+    static Real       m_tAngularVelocityThreshold, m_tAngularAccelerationThreshold;
 
 };
 

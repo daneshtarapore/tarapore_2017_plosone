@@ -54,6 +54,8 @@ CBehavior::RobotData CBehavior::m_sRobotData;
 
 CProprioceptiveFeatureVector::RobotData CProprioceptiveFeatureVector::m_sRobotData;
 
+CObservedFeatureVector::RobotData CObservedFeatureVector::m_sRobotData;
+
 /****************************************/
 /****************************************/
 
@@ -190,39 +192,62 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
 
     Reset();
 
-    CBehavior::m_sRobotData.MaxSpeed = m_sWheelTurningParams.MaxSpeed;
-    CBehavior::m_sRobotData.iterations_per_second  = 10.0f; /*10 ticks per second so dt=0.01s. i.e., the controlcycle is run 10 times per second*/
-    CBehavior::m_sRobotData.seconds_per_iterations = 1.0f / CBehavior::m_sRobotData.iterations_per_second;
-    CBehavior::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f;
-    CBehavior::m_sRobotData.INTERWHEEL_DISTANCE  = 0.053f;
-    CBehavior::m_sRobotData.WHEEL_RADIUS = 0.0205f;
+    m_sRobotDetails.SetKinematicDetails(m_sWheelTurningParams.MaxSpeed, m_sWheelTurningParams.MaxSpeed);
 
-    CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = ToRadians(CDegrees(10.0f)); //10.0 - straight to food spot; 35.0 spiral to food spot
-    CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = ToRadians(CDegrees(70.0f));
+    CopyRobotDetails(m_sRobotDetails);
 
     if(this->GetId().compare("ep"+m_sExpRun.id_FaultyRobotInSwarm) == 0)
         b_damagedrobot = true;
 
-
-
-
-    CProprioceptiveFeatureVector::m_sRobotData.MaxLinearSpeed           = m_sWheelTurningParams.MaxSpeed; //cm/s
-    CProprioceptiveFeatureVector::m_sRobotData.MaxLinearAcceleration    = m_sWheelTurningParams.MaxSpeed; //cm/s^2
-
-
-    CProprioceptiveFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f; // m
-    CProprioceptiveFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = 0.053f; // m
-    CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = (m_sWheelTurningParams.MaxSpeed + m_sWheelTurningParams.MaxSpeed) /
-            (CBehavior::m_sRobotData.INTERWHEEL_DISTANCE * 100.0f); //rad/s
-    CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed; //rad/s^2;
-
-    CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second    = 10.0f; /*10 ticks per second so dt=0.01s. i.e., the controlcycle is run 10 times per second*/
-    CProprioceptiveFeatureVector::m_sRobotData.seconds_per_iterations   = 1.0f / CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second;
-    CProprioceptiveFeatureVector::m_sRobotData.WHEEL_RADIUS             = 0.0205f; //m
-
-
     // robotid set to 0 for now
     crminAgent = new CRMinRobotAgentOptimised(RobotIdStrToInt(), CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
+}
+
+/****************************************/
+/****************************************/
+
+void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
+{
+
+    CBehavior::m_sRobotData.MaxSpeed                    = robdetails.MaxLinearSpeed * robdetails.iterations_per_second; // max speed in cm/s to control behavior
+    CBehavior::m_sRobotData.iterations_per_second       = robdetails.iterations_per_second;
+    CBehavior::m_sRobotData.seconds_per_iterations      = 1.0f / robdetails.iterations_per_second;
+    CBehavior::m_sRobotData.HALF_INTERWHEEL_DISTANCE    = robdetails.HALF_INTERWHEEL_DISTANCE;
+    CBehavior::m_sRobotData.INTERWHEEL_DISTANCE         = robdetails.INTERWHEEL_DISTANCE;
+    CBehavior::m_sRobotData.WHEEL_RADIUS                = robdetails.WHEEL_RADIUS;
+
+    CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = robdetails.m_cNoTurnOnAngleThreshold;
+    CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = robdetails.m_cSoftTurnOnAngleThreshold;
+
+
+
+    CProprioceptiveFeatureVector::m_sRobotData.MaxLinearSpeed           = robdetails.MaxLinearSpeed; //cm/controlcycle
+    CProprioceptiveFeatureVector::m_sRobotData.MaxLinearAcceleration    = robdetails.MaxLinearAcceleration; //cm/controlcycle/controlcycle
+
+    CProprioceptiveFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = robdetails.HALF_INTERWHEEL_DISTANCE; // m
+    CProprioceptiveFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = robdetails.INTERWHEEL_DISTANCE; // m
+
+    CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = robdetails.MaxAngularSpeed; // rad/controlcycle
+    CProprioceptiveFeatureVector::m_sRobotData.MaxAngularAcceleration   = robdetails.MaxAngularAcceleration; // rad/controlcycle/controlcycle
+
+    CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second    = robdetails.iterations_per_second;
+    CProprioceptiveFeatureVector::m_sRobotData.seconds_per_iterations   = robdetails.seconds_per_iterations;
+    CProprioceptiveFeatureVector::m_sRobotData.WHEEL_RADIUS             = robdetails.WHEEL_RADIUS;
+
+
+
+    CObservedFeatureVector::m_sRobotData.MaxLinearSpeed           = robdetails.MaxLinearSpeed; //cm/controlcycle
+    CObservedFeatureVector::m_sRobotData.MaxLinearAcceleration    = robdetails.MaxLinearAcceleration; //cm/controlcycle/controlcycle
+
+    CObservedFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = robdetails.HALF_INTERWHEEL_DISTANCE; // m
+    CObservedFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = robdetails.INTERWHEEL_DISTANCE; // m
+
+    CObservedFeatureVector::m_sRobotData.MaxAngularSpeed          = robdetails.MaxAngularSpeed; // rad/controlcycle
+    CObservedFeatureVector::m_sRobotData.MaxAngularAcceleration   = robdetails.MaxAngularAcceleration; // rad/controlcycle/controlcycle
+
+    CObservedFeatureVector::m_sRobotData.iterations_per_second    = robdetails.iterations_per_second;
+    CObservedFeatureVector::m_sRobotData.seconds_per_iterations   = robdetails.seconds_per_iterations;
+    CObservedFeatureVector::m_sRobotData.WHEEL_RADIUS             = robdetails.WHEEL_RADIUS;
 }
 
 /****************************************/
@@ -282,6 +307,12 @@ void CEPuckHomSwarm::ControlStep()
     /* Estimate feature-vectors - proprioceptively */
     m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cProprioceptiveFeatureVector.SimulationStep();
+
+    /* Estimate feature-vectors - via observation */
+    m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
+    m_cObservationFeatureVector.SimulationStep();
+
+
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue(); // to debug
     m_uRobotId = RobotIdStrToInt();
 

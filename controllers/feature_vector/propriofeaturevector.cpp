@@ -107,15 +107,15 @@ unsigned int CProprioceptiveFeatureVector::SimulationStep()
 
     // 0.032
     m_tAngularVelocityThreshold     = 0.15  * (m_sRobotData.MaxAngularSpeed); //Maximum angular speed is \[PlusMinus]21.621 degrees per control cycle
-    m_tAngularAccelerationThreshold = 0.015  * (m_sRobotData.MaxAngularAcceleration); //Maximum angular acceleation is \[PlusMinus]43.242 degrees per control cycle per control cycle
+    m_tAngularAccelerationThreshold = 0.15  * (m_sRobotData.MaxAngularAcceleration); //Maximum angular acceleation is \[PlusMinus]43.242 degrees per control cycle per control cycle
 
 
-    // the time window is in ticks and is to be convered to seconds
-    m_fSquaredDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations)) *
-            (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations));
+    // the time window is in ticks and the maxlinearspeed is in cm / tick
+    m_fSquaredDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow)) *
+                              (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow));
 
 
-    m_fCumulativeDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow*m_sRobotData.seconds_per_iterations));
+    m_fCumulativeDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow));
 
     ComputeFeatureValues();
     m_unValue = 0;
