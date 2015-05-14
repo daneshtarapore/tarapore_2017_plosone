@@ -81,6 +81,25 @@ void CBehavior::WheelSpeedsFromHeadingVector(CVector2 &m_cHeadingVector, Real &f
                              m_sRobotData.m_cSoftTurnOnAngleThreshold.GetValue();
         fSpeed1 = fBaseAngularWheelSpeed - fBaseAngularWheelSpeed * (1.0 - fSpeedFactor);
         fSpeed2 = fBaseAngularWheelSpeed + fBaseAngularWheelSpeed * (1.0 - fSpeedFactor);
+
+
+        /*
+         * to make sure the speeds do not exceed the max speed
+         *
+         */
+        if (fSpeed1 > m_sRobotData.MaxSpeed)
+            fSpeed1 = m_sRobotData.MaxSpeed;
+
+        if (fSpeed2 > m_sRobotData.MaxSpeed)
+            fSpeed2 = m_sRobotData.MaxSpeed;
+
+        if (fSpeed1 < -m_sRobotData.MaxSpeed)
+            fSpeed1 = -m_sRobotData.MaxSpeed;
+
+        if (fSpeed2 < -m_sRobotData.MaxSpeed)
+            fSpeed2 = -m_sRobotData.MaxSpeed;
+
+
         break;
     }
 

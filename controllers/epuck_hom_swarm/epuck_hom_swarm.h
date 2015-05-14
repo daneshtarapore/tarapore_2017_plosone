@@ -221,8 +221,21 @@ public:
     /*
      *
      *
+     */
+    virtual void SendIDToNeighbours();
+
+    /*
+     *
+     *
     */
     virtual void SendFVsToNeighbours();
+
+
+    /*
+     *
+     *
+     */
+    virtual void WriteToCommunicationChannel(unsigned SelfId);
 
     /*
      *

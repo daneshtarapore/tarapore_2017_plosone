@@ -24,7 +24,7 @@ void CCircleBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 {
     // Circle with radius INTERWHEEL_DISTANCE - 5.3 cm
     fLeftWheelSpeed  = 0.0f;
-    fRightWheelSpeed = m_sRobotData.MaxSpeed;// * 0.5f;
+    fRightWheelSpeed = m_sRobotData.MaxSpeed;
 }
 
 /******************************************************************************/

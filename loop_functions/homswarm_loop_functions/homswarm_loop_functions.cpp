@@ -70,9 +70,9 @@ void CHomSwarmLoopFunctions::PreStep()
 
 //       cPos.Set(cEPuck.GetEmbodiedEntity().GetOriginAnchor().Position.GetX(),
 //                cEPuck.GetEmbodiedEntity().GetOriginAnchor().Position.GetY());
+
+//       std::cerr << " Pos X " << cPos.GetX() << " Y " << cPos.GetY() << std::endl;
 //    }
-
-
 
 //    CVector2 vecAgentPos = cPos;
 
@@ -101,8 +101,26 @@ void CHomSwarmLoopFunctions::PreStep()
 
 void CHomSwarmLoopFunctions::PostStep()
 {
-    if(GetSpace().GetSimulationClock() <= 450.0)
-        return;
+//    if(GetSpace().GetSimulationClock() <= 100.0)
+//        return;
+
+//     m_cOutput << "Clock: " << GetSpace().GetSimulationClock() << "\t";
+//    CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
+//    for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
+//    {
+//        /* Get handle to e-puck entity and controller */
+//        CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
+//        CEPuckHomSwarm& cController = dynamic_cast<CEPuckHomSwarm&>(cEPuck.GetControllableEntity().GetController());
+
+//        unsigned observed_rob_id = cController.RobotIdStrToInt();
+//        unsigned observed_rob_fv = cController.GetRobotFeatureVector();
+
+//        m_cOutput << "Id: " << observed_rob_id << "\t"
+//                  << "FV: " << observed_rob_fv << "\t";
+//    }
+//    m_cOutput << std::endl;
+//    return;
+
 
 
     CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
@@ -155,6 +173,11 @@ void CHomSwarmLoopFunctions::PostStep()
             m_cOutput << " -1 ";
         m_cOutput << std::endl;
     }
+
+
+
+
+
 
 
 

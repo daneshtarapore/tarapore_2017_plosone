@@ -11,7 +11,7 @@ enum faultdetectionmodeltype {CRM, CRM_TCELLSINEXCESS, CTRNN, LINEQ, THRESHOLDON
 
 //#define DEBUGCROSSREGULATIONMODELFLAG
 
-#define MODELSTARTTIME 450.0
+#define MODELSTARTTIME 450.0 //100.0
 
 /******************************************************************************/
 /******************************************************************************/

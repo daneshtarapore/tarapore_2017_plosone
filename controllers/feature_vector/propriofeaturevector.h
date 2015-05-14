@@ -1,9 +1,6 @@
 #ifndef PROPRIOCEPTIVE_FEATUREVECTOR_H_
 #define PROPRIOCEPTIVE_FEATUREVECTOR_H_
 
-
-#define MODELSTARTTIME 450.0 // used for your sliding window
-
 /******************************************************************************/
 /******************************************************************************/
 
@@ -41,8 +38,11 @@ public:
 
     struct SensoryData
     {
+       unsigned m_unRobotId;
+
        Real m_rTime;
        Real f_LeftWheelSpeed, f_RightWheelSpeed;
+       Real f_LeftWheelSpeed_prev, f_RightWheelSpeed_prev;
        CCI_EPuckProximitySensor::TReadings m_ProximitySensorData;
        CCI_LightUpdatedSensor::TReadings m_LightSensorData;
        CCI_GroundSensor::TReadings m_GroundSensorData;
@@ -54,33 +54,37 @@ public:
 
        SensoryData()
        {
-           m_rTime = 0.0f;
-           f_LeftWheelSpeed = 0.0f; f_RightWheelSpeed = 0.0f;
+           m_rTime = 0.0f;           
+           f_LeftWheelSpeed = 0.0f; f_RightWheelSpeed = 0.0f;  f_LeftWheelSpeed_prev = 0.0f; f_RightWheelSpeed_prev = 0.0f;
            LinearSpeed = 0.0f; AngularSpeed = 0.0f; LinearAcceleration = 0.0f; AngularAcceleration = 0.0f;
            pos  = CVector2(0.0, 0.0);
            dist = Real(0.0f);
            orientation.SetValue(0.0f);
        }
 
-       void SetSensoryData(Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_LightUpdatedSensor::TReadings light, CCI_GroundSensor::TReadings ground,
+       void SetSensoryData(unsigned RobId, Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_LightUpdatedSensor::TReadings light, CCI_GroundSensor::TReadings ground,
                            CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
        {
+           m_unRobotId = RobId;
            m_rTime = time;
            m_ProximitySensorData = proximity;
            m_LightSensorData = light;
            m_GroundSensorData = ground;
            m_RABSensorData = rab;
+           f_LeftWheelSpeed_prev = f_LeftWheelSpeed; f_RightWheelSpeed_prev = f_RightWheelSpeed;
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
 
            EstimateCurrentSpeedAndAcceleration();
            EstimateCurrentPosition();
        }
 
-       void SetSensoryData(Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
+       void SetSensoryData(unsigned RobId, Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
        {
+           m_unRobotId = RobId;
            m_rTime = time;
            m_ProximitySensorData = proximity;
            m_RABSensorData = rab;
+           f_LeftWheelSpeed_prev = f_LeftWheelSpeed; f_RightWheelSpeed_prev = f_RightWheelSpeed;
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
 
            EstimateCurrentSpeedAndAcceleration();
@@ -115,6 +119,14 @@ public:
        }
     };
 
+    struct RobotRelativePosData
+    {
+        CVector2 NetTranslationSinceStart;
+        CRadians NetRotationSinceStart;
+
+        Real     TimeSinceStart;
+    };
+
 
     CProprioceptiveFeatureVector();
     virtual ~CProprioceptiveFeatureVector();
@@ -137,9 +149,14 @@ public:
     SensoryData m_sSensoryData;
 
 protected:
+    virtual void ComputeFeatureValues_Old();
     virtual void ComputeFeatureValues();
 
     virtual unsigned CountNeighbors(Real sensor_range);
+    virtual Real TrackNeighborsInQueue(Real step, unsigned current_num_nbrs, unsigned num_nbrs_threshold,
+                               unsigned queue_length, Real queue_length_threshold,
+                               unsigned int& sum_nbrs, unsigned int& queue_index, unsigned int* queue_nbrs);
+    virtual Real TrackRobotDisplacement(Real step, std::vector<RobotRelativePosData>& displacement_vector);
 
     unsigned  m_unValue;
     unsigned  m_unLength;
@@ -184,6 +201,19 @@ protected:
     argos::CVector2  *m_pvecCoordAtTimeStep;
 
     Real             *m_pfDistAtTimeStep;
+
+    /************************************************************************************/
+    /* Keeping track of neighbours at different time scales*/
+    unsigned int  m_unSumTimeStepsNbrs_ShortRangeTimeWindow, m_unSumTimeStepsNbrs_MediumRangeTimeWindow, m_unSumTimeStepsNbrs_LongRangeTimeWindow;
+    unsigned int  *m_punNbrs_ShortRangeTimeWindow, *m_punNbrs_MediumRangeTimeWindow, *m_punNbrs_LongRangeTimeWindow;
+    unsigned int m_unQueueIndex_ShortRangeTimeWindow, m_unQueueIndex_MediumRangeTimeWindow, m_unQueueIndex_LongRangeTimeWindow;
+    Real m_fEstimated_Dist_ShortTimeWindow, m_fEstimated_Dist_MediumTimeWindow, m_fEstimated_Dist_LongTimeWindow;
+
+    // keeping track of nbrs in time windows of different lengths
+    static int        m_iShortTimeWindowLength, m_iMediumTimeWindowLength, m_iLongTimeWindowLength;
+
+    std::vector<RobotRelativePosData> vec_RobPos_ShortRangeTimeWindow, vec_RobPos_MediumRangeTimeWindow, vec_RobPos_LongRangeTimeWindow;
+    /************************************************************************************/
 
 
 };

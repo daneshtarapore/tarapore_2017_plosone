@@ -5,10 +5,20 @@
 /******************************************************************************/
 /******************************************************************************/
 
+#define MODELSTARTTIME 450.0 // used for your sliding window
+
+/******************************************************************************/
+/******************************************************************************/
+
 unsigned int CProprioceptiveFeatureVector::NUMBER_OF_FEATURES        = 6;
 unsigned int CProprioceptiveFeatureVector::MAX_NUMBER_OF_FEATURES    = 15;
 unsigned int CProprioceptiveFeatureVector::NUMBER_OF_FEATURE_VECTORS = 0;
-double       CProprioceptiveFeatureVector::FEATURE_RANGE             = 60.0; //cm
+double       CProprioceptiveFeatureVector::FEATURE_RANGE             = 15.0; //cm  // was 60 cm for the old features
+
+/* Length of time windows for observing neighbours of your neighbours and the distance they travel */
+int CProprioceptiveFeatureVector::m_iShortTimeWindowLength  = 10u; //10u;
+int CProprioceptiveFeatureVector::m_iMediumTimeWindowLength = 50u; //50u;
+int CProprioceptiveFeatureVector::m_iLongTimeWindowLength   = 100u; //100u;
 
 /******************************************************************************/
 /******************************************************************************/
@@ -60,6 +70,23 @@ CProprioceptiveFeatureVector::CProprioceptiveFeatureVector()
 
     m_pvecCoordAtTimeStep = new CVector2[m_iDistTravelledTimeWindow];
     m_pfDistAtTimeStep    = new Real[m_iDistTravelledTimeWindow];
+
+
+
+    /************************************************************************************/
+    /* Keeping track of neighbours at different time scales*/
+
+    m_unQueueIndex_ShortRangeTimeWindow = 0u; m_unQueueIndex_MediumRangeTimeWindow = 0u; m_unQueueIndex_LongRangeTimeWindow = 0u;
+    m_unSumTimeStepsNbrs_ShortRangeTimeWindow = 0u; m_unSumTimeStepsNbrs_MediumRangeTimeWindow = 0u; m_unSumTimeStepsNbrs_LongRangeTimeWindow = 0u;
+    m_punNbrs_ShortRangeTimeWindow   = new unsigned int[m_iLongTimeWindowLength];
+    m_punNbrs_MediumRangeTimeWindow  = new unsigned int[m_iLongTimeWindowLength];
+    m_punNbrs_LongRangeTimeWindow    = new unsigned int[m_iLongTimeWindowLength];
+    m_fEstimated_Dist_ShortTimeWindow = 0.0f; m_fEstimated_Dist_MediumTimeWindow = 0.0f; m_fEstimated_Dist_LongTimeWindow = 0.0f;
+
+    vec_RobPos_ShortRangeTimeWindow.resize(m_iShortTimeWindowLength);
+    vec_RobPos_MediumRangeTimeWindow.resize(m_iMediumTimeWindowLength);
+    vec_RobPos_LongRangeTimeWindow.resize(m_iLongTimeWindowLength);
+    /************************************************************************************/
 }
 
 /******************************************************************************/
@@ -77,6 +104,11 @@ CProprioceptiveFeatureVector::~CProprioceptiveFeatureVector()
 
     delete m_pvecCoordAtTimeStep;
     delete m_pfDistAtTimeStep;
+
+
+    delete m_punNbrs_ShortRangeTimeWindow;
+    delete m_punNbrs_MediumRangeTimeWindow;
+    delete m_punNbrs_LongRangeTimeWindow;
 }
 
 /******************************************************************************/
@@ -117,6 +149,15 @@ unsigned int CProprioceptiveFeatureVector::SimulationStep()
 
     m_fCumulativeDistThreshold = (0.05 * (m_sRobotData.MaxLinearSpeed*(Real)m_iDistTravelledTimeWindow));
 
+
+
+
+
+
+    /*assert(m_iShortTimeWindowLength  == (unsigned)m_sRobotData.iterations_per_second);
+    assert(m_iMediumTimeWindowLength == (unsigned)m_sRobotData.iterations_per_second * 5u);
+    assert(m_iLongTimeWindowLength   == (unsigned)m_sRobotData.iterations_per_second * 10u);*/
+
     ComputeFeatureValues();
     m_unValue = 0;
     
@@ -127,7 +168,7 @@ unsigned int CProprioceptiveFeatureVector::SimulationStep()
 /******************************************************************************/
 /******************************************************************************/
 
-void CProprioceptiveFeatureVector::ComputeFeatureValues()
+void CProprioceptiveFeatureVector::ComputeFeatureValues_Old()
 {
     unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
     unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;
@@ -292,6 +333,91 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
 /******************************************************************************/
 /******************************************************************************/
 
+void CProprioceptiveFeatureVector::ComputeFeatureValues()
+{
+    Real f1, f2, f3, f4, f5, f6;
+    unsigned  unNbrCount = CountNeighbors(FEATURE_RANGE);
+
+    unsigned  unNbrCount1 = CountNeighbors(15.0f);
+    unsigned  unNbrCount2 = CountNeighbors(30.0f);
+    unsigned  unNbrCount3 = CountNeighbors(45.0f);
+
+    /*
+     * Time since the robot was first observed
+     */
+    Real CurrentStepNumber =  m_sSensoryData.m_rTime;
+
+    unsigned num_nbrs_threshold = 1u; Real queue_length_threshold = 0.5f;
+    /*f1 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount, num_nbrs_threshold,
+                               m_iShortTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_ShortRangeTimeWindow, m_unQueueIndex_ShortRangeTimeWindow, m_punNbrs_ShortRangeTimeWindow);
+
+    f2 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount, num_nbrs_threshold,
+                               m_iMediumTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_MediumRangeTimeWindow, m_unQueueIndex_MediumRangeTimeWindow, m_punNbrs_MediumRangeTimeWindow);
+
+    f3 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount, num_nbrs_threshold,
+                               m_iLongTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_LongRangeTimeWindow, m_unQueueIndex_LongRangeTimeWindow, m_punNbrs_LongRangeTimeWindow);*/
+
+    queue_length_threshold = 0.25f;
+    f1 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount1, num_nbrs_threshold,
+                               m_iLongTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_ShortRangeTimeWindow, m_unQueueIndex_ShortRangeTimeWindow, m_punNbrs_ShortRangeTimeWindow);
+
+    queue_length_threshold = 0.5f;
+    f2 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount1, num_nbrs_threshold,
+                               m_iLongTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_MediumRangeTimeWindow, m_unQueueIndex_MediumRangeTimeWindow, m_punNbrs_MediumRangeTimeWindow);
+
+    queue_length_threshold = 0.75f;
+    f3 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount1, num_nbrs_threshold,
+                               m_iLongTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_LongRangeTimeWindow, m_unQueueIndex_LongRangeTimeWindow, m_punNbrs_LongRangeTimeWindow);
+
+
+
+    m_fEstimated_Dist_ShortTimeWindow  = TrackRobotDisplacement(CurrentStepNumber, vec_RobPos_ShortRangeTimeWindow);
+    m_fEstimated_Dist_MediumTimeWindow = TrackRobotDisplacement(CurrentStepNumber, vec_RobPos_MediumRangeTimeWindow);
+    m_fEstimated_Dist_LongTimeWindow   = TrackRobotDisplacement(CurrentStepNumber, vec_RobPos_LongRangeTimeWindow);
+
+
+    /*if (m_sSensoryData.m_unRobotId == 1u)
+    {
+            std::cout << " Dist - short time window " <<   m_fEstimated_Dist_ShortTimeWindow << std::endl;
+            std::cout << " Dist - medium time window " <<  m_fEstimated_Dist_MediumTimeWindow << std::endl;
+            std::cout << " Dist - long time window " <<    m_fEstimated_Dist_LongTimeWindow << std::endl;
+    }*/
+
+
+    Real disp_ShortWindow_Threshold  = 0.25f;
+    Real disp_MediumWindow_Threshold = 0.25f;
+    Real disp_LongWindow_Threshold   = 0.25f;
+    // MaxLinearSpeed in cm / control cycle
+//    f4 = (m_fEstimated_Dist_ShortTimeWindow  >  (disp_ShortWindow_Threshold  * ((Real)m_iShortTimeWindowLength)  * m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
+//    f5 = (m_fEstimated_Dist_MediumTimeWindow >  (disp_MediumWindow_Threshold * ((Real)m_iMediumTimeWindowLength) * m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
+//    f6 = (m_fEstimated_Dist_LongTimeWindow   >  (disp_LongWindow_Threshold   * ((Real)m_iLongTimeWindowLength)   * m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
+    /*
+     * Better to have a fixed absolute threshold instead of a fixed percentage as small percentages at large timewindows would be greatly affected by noise for the small time windows.
+     */
+    f4 = (m_fEstimated_Dist_ShortTimeWindow  >  (4.0f)) ? 1.0f: 0.0f;
+    f5 = (m_fEstimated_Dist_MediumTimeWindow >  (4.0f)) ? 1.0f: 0.0f;
+    f6 = (m_fEstimated_Dist_LongTimeWindow   >  (4.0f)) ? 1.0f: 0.0f;
+
+
+    m_pfFeatureValues[0] = f1;
+    m_pfFeatureValues[1] = f2;
+    m_pfFeatureValues[2] = f3;
+    m_pfFeatureValues[3] = f4;
+    m_pfFeatureValues[4] = f5;
+    m_pfFeatureValues[5] = f6;
+
+    assert(CProprioceptiveFeatureVector::NUMBER_OF_FEATURES == 6);
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
 unsigned CProprioceptiveFeatureVector::CountNeighbors(Real sensor_range)
 {
     unsigned count_nbrs = 0;
@@ -303,6 +429,109 @@ unsigned CProprioceptiveFeatureVector::CountNeighbors(Real sensor_range)
 
     return count_nbrs;
 
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+Real CProprioceptiveFeatureVector::TrackNeighborsInQueue(Real step, unsigned current_num_nbrs, unsigned num_nbrs_threshold,
+                                                                    unsigned queue_length, Real queue_length_threshold,
+                                                                    unsigned int& sum_nbrs, unsigned int& queue_index, unsigned int* queue_nbrs)
+{
+    Real feature_value = 0.0f;
+
+    if(step >= (Real)queue_length)
+    {
+        // decision based on the last X time-steps
+        if(sum_nbrs > (unsigned)(queue_length_threshold*((Real)queue_length)))
+           feature_value = 1.0f;
+        else
+           feature_value = 0.0f;
+
+        // removing the fist entry of the moving time window  from the sum
+        sum_nbrs  -=  queue_nbrs[queue_index];
+    }
+
+    // adding new values into the queue
+    if (current_num_nbrs >= num_nbrs_threshold)
+    {
+        queue_nbrs[queue_index] = 1;
+        sum_nbrs++;
+    }
+    else
+        queue_nbrs[queue_index] = 0;
+
+    queue_index = (queue_index + 1) % queue_length;
+
+    return feature_value;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+Real CProprioceptiveFeatureVector::TrackRobotDisplacement(Real step, std::vector<RobotRelativePosData>& displacement_vector)
+{
+    Real displacement = 0.0f;
+
+    CRadians delta_orientation = CRadians(m_sRobotData.seconds_per_iterations * ((-m_sSensoryData.f_LeftWheelSpeed_prev + m_sSensoryData.f_RightWheelSpeed_prev)
+                                                                                 / (m_sRobotData.INTERWHEEL_DISTANCE*100.0f)));
+
+    /*
+     * Computing average velocity
+     */
+    if(step < (Real)displacement_vector.size())
+    {
+        //vec_RobotRelativePosition[(unsigned)(m_sSensoryData.m_rTime - m_fTimeFirstObserved)]
+
+        for (size_t t = 0 ; t < (unsigned)(step); ++t)
+        {
+            displacement_vector[t].TimeSinceStart++;
+
+            CRadians prev_orientation = displacement_vector[t].NetRotationSinceStart;
+
+            Real rX = m_sRobotData.seconds_per_iterations *
+                    ((m_sSensoryData.f_LeftWheelSpeed_prev + m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Cos(prev_orientation + delta_orientation / (2.0f));
+            Real rY = m_sRobotData.seconds_per_iterations *
+                    ((m_sSensoryData.f_LeftWheelSpeed_prev + m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Sin(prev_orientation + delta_orientation / (2.0f));
+
+            displacement_vector[t].NetTranslationSinceStart += CVector2(rX, rY);
+            displacement_vector[t].NetRotationSinceStart    += delta_orientation;
+        }
+
+        displacement_vector[(unsigned)(step)].TimeSinceStart           = 0.0f;
+        displacement_vector[(unsigned)(step)].NetTranslationSinceStart.Set(0.0f, 0.0f);
+        displacement_vector[(unsigned)(step)].NetRotationSinceStart.SetValue(0.0f);
+    }
+    else
+    {
+        for (size_t t = 0 ; t < displacement_vector.size(); ++t)
+        {
+            displacement_vector[t].TimeSinceStart++;
+
+            CRadians prev_orientation = displacement_vector[t].NetRotationSinceStart;
+
+            Real rX = m_sRobotData.seconds_per_iterations *
+                    ((m_sSensoryData.f_LeftWheelSpeed_prev + m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Cos(prev_orientation + delta_orientation / (2.0f));
+            Real rY = m_sRobotData.seconds_per_iterations *
+                    ((m_sSensoryData.f_LeftWheelSpeed_prev + m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Sin(prev_orientation + delta_orientation / (2.0f));
+
+            displacement_vector[t].NetTranslationSinceStart += CVector2(rX, rY);
+            displacement_vector[t].NetRotationSinceStart    += delta_orientation;
+        }
+
+        size_t t = ((unsigned)(step)%displacement_vector.size());
+
+        /*
+         * Computing average displacement
+         */
+        displacement = (displacement_vector[t].NetTranslationSinceStart).Length();
+
+        displacement_vector[t].TimeSinceStart = 0.0f;
+        displacement_vector[t].NetTranslationSinceStart.Set(0.0f, 0.0f);
+        displacement_vector[t].NetRotationSinceStart.SetValue(0.0f);
+    }
+
+    return displacement;
 }
 
 /******************************************************************************/

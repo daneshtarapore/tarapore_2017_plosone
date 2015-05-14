@@ -163,6 +163,9 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 #endif
 
     UpdateState();
+
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 500)
+        PrintCRMDetails(GetIdentification());*/
 }
 
 /******************************************************************************/
