@@ -13,10 +13,10 @@
 unsigned int CProprioceptiveFeatureVector::NUMBER_OF_FEATURES        = 6;
 unsigned int CProprioceptiveFeatureVector::MAX_NUMBER_OF_FEATURES    = 15;
 unsigned int CProprioceptiveFeatureVector::NUMBER_OF_FEATURE_VECTORS = 0;
-double       CProprioceptiveFeatureVector::FEATURE_RANGE             = 15.0; //cm  // was 60 cm for the old features
+double       CProprioceptiveFeatureVector::FEATURE_RANGE             = 30.0; //cm  // was 60 cm for the old features
 
 /* Length of time windows for observing neighbours of your neighbours and the distance they travel */
-int CProprioceptiveFeatureVector::m_iShortTimeWindowLength  = 10u; //10u;
+int CProprioceptiveFeatureVector::m_iShortTimeWindowLength  = 5u; //10u;
 int CProprioceptiveFeatureVector::m_iMediumTimeWindowLength = 50u; //50u;
 int CProprioceptiveFeatureVector::m_iLongTimeWindowLength   = 100u; //100u;
 
@@ -133,8 +133,10 @@ unsigned int CProprioceptiveFeatureVector::GetLength() const
 unsigned int CProprioceptiveFeatureVector::SimulationStep()
 {
     // too small thresholded distance. robot moves very little in one control-cycle. better to intergrate distance over time and use threshold on that
-    m_fVelocityThreshold            = 0.05  * (m_sRobotData.MaxLinearSpeed); // max speed is 1 cm per control cycle
-    m_fAccelerationThreshold        = 0.05  * (m_sRobotData.MaxLinearAcceleration); // max change in speed is \[PlusMinus]1 cm per control cycle per control cycle
+    m_fVelocityThreshold            = 0.05  * (m_sRobotData.MaxLinearSpeed); // max speed is 0.5 cm per control cycle
+    //m_fAccelerationThreshold        = 0.05  * (m_sRobotData.MaxLinearAcceleration); // max change in speed is \[PlusMinus]1 cm per control cycle per control cycle
+
+    m_fAccelerationThreshold        = 2.0f; // max change in speed is \[PlusMinus]2.5 cm over 5 control cycles  per control cycle per control cycle
 
 
     // 0.032
@@ -163,13 +165,18 @@ unsigned int CProprioceptiveFeatureVector::SimulationStep()
     
     for (unsigned int i = 0; i < m_unLength; i++)
         m_unValue += (unsigned int)m_pfFeatureValues[i] * (1 << i);
+
+     /*if (m_sSensoryData.m_unRobotId == 8u)
+         std::cerr << " FV " << m_unValue << std::endl;*/
 }
 
 /******************************************************************************/
 /******************************************************************************/
 
-void CProprioceptiveFeatureVector::ComputeFeatureValues_Old()
+void CProprioceptiveFeatureVector::ComputeFeatureValues()
 {
+    CProprioceptiveFeatureVector::FEATURE_RANGE = 30.0f;
+
     unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
     unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;
 
@@ -277,19 +284,22 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues_Old()
 
 
         // decision based on distance travelled in the last 100 time-steps
-        if(m_fCumulativeDistTravelled >= m_fCumulativeDistThreshold)
-            m_pfAllFeatureValues[4] = 1.0;
-        else
-            m_pfAllFeatureValues[4] = 0.0;
-
-        /*
-        if(m_fSquaredDistTravelled >= m_fSquaredDistThreshold)
+        /*if(m_fCumulativeDistTravelled >= m_fCumulativeDistThreshold)
             m_pfAllFeatureValues[4] = 1.0;
         else
             m_pfAllFeatureValues[4] = 0.0;*/
 
 
+        /*if(m_fSquaredDistTravelled >= m_fSquaredDistThreshold)
+            m_pfAllFeatureValues[4] = 1.0;
+        else
+            m_pfAllFeatureValues[4] = 0.0;*/
     }
+
+    m_fEstimated_Dist_LongTimeWindow   = TrackRobotDisplacement(CurrentStepNumber, vec_RobPos_LongRangeTimeWindow);
+    m_pfAllFeatureValues[4] = (m_fEstimated_Dist_LongTimeWindow   >  sqrt(m_fSquaredDistThreshold)) ? 1.0f: 0.0f;
+
+
 
     //std::cout << " cumulative distance " << m_fCumulativeDistTravelled << std::endl;
     //std::cout << " LinearSpeed " <<  m_sSensoryData.LinearSpeed << " angular speed " << m_sSensoryData.AngularSpeed << std::endl;
@@ -333,7 +343,7 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues_Old()
 /******************************************************************************/
 /******************************************************************************/
 
-void CProprioceptiveFeatureVector::ComputeFeatureValues()
+void CProprioceptiveFeatureVector::ComputeFeatureValues_onlynbrsandactuators()
 {
     Real f1, f2, f3, f4, f5, f6;
     unsigned  unNbrCount = CountNeighbors(FEATURE_RANGE);
@@ -409,6 +419,116 @@ void CProprioceptiveFeatureVector::ComputeFeatureValues()
     m_pfFeatureValues[1] = f2;
     m_pfFeatureValues[2] = f3;
     m_pfFeatureValues[3] = f4;
+    m_pfFeatureValues[4] = f5;
+    m_pfFeatureValues[5] = f6;
+
+    assert(CProprioceptiveFeatureVector::NUMBER_OF_FEATURES == 6);
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+void CProprioceptiveFeatureVector::ComputeFeatureValues_NoAngularVelocityUsed()
+{
+    Real f1, f2, f5, f6;
+
+    unsigned  unNbrCount1 = CountNeighbors(5.0f);
+    unsigned  unNbrCount2 = CountNeighbors(10.0f);
+
+    /*
+     * Time since the robot was first observed
+     */
+    Real CurrentStepNumber =  m_sSensoryData.m_rTime;
+
+    // Sensors
+    //1st: set if bot has atleast one neighbor in range 0-30cm in the majority of of past X time-steps
+    //2nd: set if bot has atleast one neighbor in range 30-60cm in the majority of of past X time-steps
+    unsigned num_nbrs_threshold = 2u; Real queue_length_threshold;
+    queue_length_threshold = 0.750f;
+    f1 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount1, num_nbrs_threshold,
+                               m_iLongTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_ShortRangeTimeWindow, m_unQueueIndex_ShortRangeTimeWindow, m_punNbrs_ShortRangeTimeWindow);
+
+    queue_length_threshold = 0.750f;
+    f2 = TrackNeighborsInQueue(CurrentStepNumber, unNbrCount2-unNbrCount1, num_nbrs_threshold,
+                               m_iLongTimeWindowLength, queue_length_threshold,
+                               m_unSumTimeStepsNbrs_MediumRangeTimeWindow, m_unQueueIndex_MediumRangeTimeWindow, m_punNbrs_MediumRangeTimeWindow);
+
+
+
+
+
+    Real tmp = TrackRobotDisplacement(CurrentStepNumber, vec_RobPos_ShortRangeTimeWindow);
+    m_sSensoryData.vec_linearspeeds[m_sSensoryData.vec_linearspeeds_index] = tmp;
+    m_sSensoryData.LinearAcceleration = tmp - m_sSensoryData.vec_linearspeeds[(m_sSensoryData.vec_linearspeeds_index + 1u)%m_sSensoryData.vec_linearspeeds.size()];
+
+    m_sSensoryData.vec_linearspeeds_index = (m_sSensoryData.vec_linearspeeds_index + 1) % m_sSensoryData.vec_linearspeeds.size();
+
+
+
+    // Sensors-motor interactions
+    // Set if the occurance of the following event, atleast once in time window X
+    // 3rd: distance to nbrs 0-6 && change in angular acceleration
+    // 4th: no neighbors detected  && change in angular acceleration
+
+
+
+    bool neighbours_present = (unNbrCount2>0)?true:false;
+    if(neighbours_present &&
+            (m_sSensoryData.LinearAcceleration >=  1.5f ||
+             m_sSensoryData.LinearAcceleration <= -1.5f))
+    {
+        m_piLastOccuranceEvent[2] = CurrentStepNumber;
+    }
+
+    if(!neighbours_present &&
+            (m_sSensoryData.LinearAcceleration >=  1.5f ||
+             m_sSensoryData.LinearAcceleration <= -1.5f))
+    {
+        m_piLastOccuranceEvent[3] = CurrentStepNumber;
+    }
+
+    for(unsigned int featureindex = 2; featureindex <=3; featureindex++)
+    {
+        if ((((int)CurrentStepNumber) - m_piLastOccuranceEvent[featureindex]) <= 300u)
+        {
+            m_pfAllFeatureValues[featureindex] = 1.0;
+        }
+        else
+        {
+            m_pfAllFeatureValues[featureindex] = 0.0;
+        }
+    }
+
+    m_fEstimated_Dist_MediumTimeWindow = TrackRobotDisplacement(CurrentStepNumber, vec_RobPos_MediumRangeTimeWindow);
+    m_fEstimated_Dist_LongTimeWindow   = TrackRobotDisplacement(CurrentStepNumber, vec_RobPos_LongRangeTimeWindow);
+
+
+    /*if (m_sSensoryData.m_unRobotId == 8u)
+    {
+            std::cout << " LinearAcceleration " <<         m_sSensoryData.LinearAcceleration << std::endl;
+            std::cout << " Dist - short time window " <<   tmp  << std::endl;
+            std::cout << " Dist - medium time window " <<  m_fEstimated_Dist_MediumTimeWindow << std::endl;
+            std::cout << " Dist - long time window " <<    m_fEstimated_Dist_LongTimeWindow << std::endl;
+    }*/
+
+
+
+    // Motors
+    //5th: distance travelled by bot in past 5s and 10s. Higher than 5% of max-possible distance travelled is accepted as feature=1.
+    Real disp_MediumWindow_Threshold = 0.20f;
+    Real disp_LongWindow_Threshold   = 0.20f;
+
+    // MaxLinearSpeed in cm / control cycle
+    f5 = (m_fEstimated_Dist_MediumTimeWindow >  (disp_MediumWindow_Threshold * ((Real)m_iMediumTimeWindowLength) * m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
+    f6 = (m_fEstimated_Dist_LongTimeWindow   >  (disp_LongWindow_Threshold   * ((Real)m_iLongTimeWindowLength)   * m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
+
+
+
+    m_pfFeatureValues[0] = f1;
+    m_pfFeatureValues[1] = f2;
+    m_pfFeatureValues[2] = m_pfAllFeatureValues[2];
+    m_pfFeatureValues[3] = m_pfAllFeatureValues[3];
     m_pfFeatureValues[4] = f5;
     m_pfFeatureValues[5] = f6;
 

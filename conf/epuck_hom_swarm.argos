@@ -36,8 +36,8 @@
         <range_and_bearing implementation="medium" medium="rab" show_rays="true" noise_std_dev="0.0" />
       </sensors>
       <params>
-        <experiment_run swarm_behavior="SWARM_HOMING"
-			fault_behavior="FAULT_STOP" 
+        <experiment_run swarm_behavior="SWARM_AGGREGATION"
+			fault_behavior="FAULT_RANDOMWALK" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
       </params>
@@ -137,17 +137,19 @@
   <!-- * Visualization * -->
   <!-- ****************** -->
   <visualization>
-    <qt-opengl>
+     <qt-opengl>
       <camera>
         <placement idx="0"
                    position="0,0,2.0"
                    look_at="0,0,0"
                    lens_focal_length="15" />
       </camera>
-      <!-- <user_functions label="homswarm_qt_user_functions" /> -->
       <user_functions library="build/loop_functions/id_loop_functions/libid_loop_functions"
                       label="id_qtuser_functions" />
-    </qt-opengl>
+    </qt-opengl> 
+      <!-- <user_functions label="homswarm_qt_user_functions" /> -->
+
   </visualization>
+
 
 </argos-configuration>

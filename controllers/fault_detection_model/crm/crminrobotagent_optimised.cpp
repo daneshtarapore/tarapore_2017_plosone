@@ -3,7 +3,8 @@
 /******************************************************************************/
 /******************************************************************************/
 
-#define CELLLOWERBOUND 1.0e-3 //todo: set as percentage instead of absolute value
+#define CELLLOWERBOUND 1.0e-3 //-> could be replaced by 1.0e-4 when having a truncated affinity function and a very long integration time
+//todo: set as percentage instead of absolute value
 // note: could result in euler-huen diff at 0, for high error thresholds. In that case, lower this value
 
 #define CONJUGATION_OVERFLOW_LIMIT 1.0e-10  //todo: set as percentage instead of absolute value
@@ -64,7 +65,16 @@ CRMinRobotAgentOptimised::CRMinRobotAgentOptimised(unsigned robotId, unsigned nu
 
     m_fFVtoApcscaling         = 2.0e-3;     // linear scaling
 
-    m_fIntegrationTime        = 5.0e+7; // 5.0e+7
+    m_fIntegrationTime        = 5.0e+7; // expensive but we can optimise on this later once we know we have the right features
+    //5.0e+7; // see E[2]=7.950483e-01,R[2]=1.407800e+00 below
+    /*
+====R15 Feature Vector Distribution=====
+FV:0, Robots:1.000000 FV:2, Robots:1.000000 FV:18, Robots:1.000000 FV:19, Robots:1.000000 FV:34, Robots:1.000000 FV:35, Robots:1.000000 FV:48, Robots:4.000000 FV:49, Robots:1.000000 FV:50, Robots:11.000000 FV:51, Robots:3.000000
+==========R15 APCs list================
+APC[0]=0.002000  APC[2]=0.002000  APC[18]=0.002000  APC[19]=0.002000  APC[34]=0.002000  APC[35]=0.002000  APC[48]=0.008000  APC[49]=0.002000  APC[50]=0.022000  APC[51]=0.006000
+===========R15 T cell list==============
+E[0]=2.811005e+00,R[0]=3.679913e-01 (A=0.002000) [History=3019]  E[2]=7.950483e-01,R[2]=1.407800e+00 (A=0.002000) [History=1997]  E[19]=3.693874e-02,R[19]=1.659356e-08 (A=0.002000) [History=59]  E[35]=3.693874e-02,R[35]=1.659356e-08 (A=0.002000) [History=59]  E[48]=3.245518e-01,R[48]=8.249979e-01 (A=0.008000) [History=3019]  E[49]=2.158817e-03,R[49]=5.786987e-06 (A=0.002000) [History=263]  E[50]=2.927340e-07,R[50]=5.249171e+00 (A=0.022000) [History=3019]  E[51]=7.522006e-01,R[51]=3.103012e+00 (A=0.006000) [History=2061]  -------at end----------------
+    */
 
     m_unNumberOfReceptors = 1 << (CProprioceptiveFeatureVector::NUMBER_OF_FEATURES);
 
@@ -99,6 +109,12 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
     ptr_listFVsSensed = FVsSensed;
 
 
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 3470)
+    {
+        PrintCRMDetails(GetIdentification());
+        printf("----------at start-----------\n\n");
+    }*/
+
     // Convert the feature vectors of robot agents in the vicinity to APCs for the CRM to work with
     UpdateAPCList(); //O(m-fv + n-apc)
 #ifdef DEBUGCROSSREGULATIONMODELFLAG
@@ -113,6 +129,12 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 #ifdef DEBUGCROSSREGULATIONMODELFLAG
     PrintTcellList(PrntRobotId);
 #endif
+
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 3470)
+    {
+        PrintCRMDetails(GetIdentification());
+        printf("----------after update------\n\n");
+    }*/
 
     // allocate memory for the new soon to be conjugates (from t-cells, apcs added), and remove non-existing conjugates (from t-cells, apcs dead)
     UpdateConjugatesToAPCList(); //O(m-apc *(~n-conj + n-tcell))
@@ -164,8 +186,11 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 
     UpdateState();
 
-    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 500)
-        PrintCRMDetails(GetIdentification());*/
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 3470)
+    {
+        PrintCRMDetails(GetIdentification());
+        printf("-------at end----------------\n\n");
+    }*/
 }
 
 /******************************************************************************/
@@ -1042,6 +1067,9 @@ void CRMinRobotAgentOptimised::Derivative_ExcessTcells(TcellIntegrationPhase TK)
               (*it_apcs).fRegulatorConjugatesPerAPC -
               (*it_apcs).fTotalSites) <= CONJUGATION_OVERFLOW_LIMIT))
         {
+            /* with the truncated affinity function we can get here, as there may be no t-cells with non-zero affinity to an existing affinity sub-population.
+            */
+
             std::cout << std::endl << std::endl << " tmp_ratio " << tmp_ratio << " (*it_apcs).fTotalConjugates " << (*it_apcs).fTotalConjugates << " (*it_apcs).f_tcellsweightedaffinity_tmp " << (*it_apcs).f_tcellsweightedaffinity_tmp << std::endl<< std::endl<< std::endl;
 
             std::cout << std::endl << " m_fTCELL_UPPERLIMIT_STEPSIZE  " << m_fTCELL_UPPERLIMIT_STEPSIZE  << " m_fTCELL_LOWERLIMIT_STEPSIZE " << m_fTCELL_LOWERLIMIT_STEPSIZE << " m_fERRORALLOWED_TCELL_STEPSIZE " << m_fERRORALLOWED_TCELL_STEPSIZE << " m_fTCELL_CONVERGENCE " << m_fTCELL_CONVERGENCE << std::endl<< std::endl<< std::endl;
@@ -1232,8 +1260,8 @@ void CRMinRobotAgentOptimised::PrintCRMDetails(unsigned id)
 
     PrintAPCList(id);
     PrintTcellList(id);
-    PrintConjugatestoAPCList(id, CONJ);
-    PrintConjugatestoTcellList(id, CONJ);
+    /*PrintConjugatestoAPCList(id, CONJ);
+    PrintConjugatestoTcellList(id, CONJ);*/
 }
 
 /******************************************************************************/

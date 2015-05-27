@@ -101,10 +101,11 @@ void CHomSwarmLoopFunctions::PreStep()
 
 void CHomSwarmLoopFunctions::PostStep()
 {
-//    if(GetSpace().GetSimulationClock() <= 100.0)
-//        return;
+    if(GetSpace().GetSimulationClock() <= 450.0)
+        return;
 
-//     m_cOutput << "Clock: " << GetSpace().GetSimulationClock() << "\t";
+
+//    m_cOutput << "Clock: " << GetSpace().GetSimulationClock() << "\t";
 //    CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
 //    for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
 //    {
@@ -115,11 +116,18 @@ void CHomSwarmLoopFunctions::PostStep()
 //        unsigned observed_rob_id = cController.RobotIdStrToInt();
 //        unsigned observed_rob_fv = cController.GetRobotFeatureVector();
 
-//        m_cOutput << "Id: " << observed_rob_id << "\t"
-//                  << "FV: " << observed_rob_fv << "\t";
+//        m_cOutput << "Observer Robot Id: " << observed_rob_id << "  " << "Proprio. FV: " << observed_rob_fv << "\t" ;
+
+//        for(size_t observed_index = 0; observed_index < cController.GetObservedFeatureVectors().ObservedRobotIDs.size(); ++observed_index)
+//        {
+//            m_cOutput << "Id: " << cController.GetObservedFeatureVectors().ObservedRobotIDs[observed_index] << "  "
+//                      << "FV: " << cController.GetObservedFeatureVectors().ObservedRobotFVs[observed_index] << "\t";
+//        }
 //    }
 //    m_cOutput << std::endl;
 //    return;
+
+
 
 
 

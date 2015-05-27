@@ -335,6 +335,12 @@ public:
         return m_sExpRun;
     }
 
+    virtual CObservedFeatureVector& GetObservedFeatureVectors()
+    {
+        return m_cObservationFeatureVector;
+    }
+
+
     t_listFVsSensed&             GetListFVsSensed()         {return listFVsSensed;}
     t_listMapFVsToRobotIds&      GetMapFVsSensed()          {return listMapFVsToRobotIds;}
 

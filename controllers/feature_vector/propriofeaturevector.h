@@ -52,6 +52,8 @@ public:
        CVector2 pos; CRadians orientation;
        Real dist;
 
+        std::vector<Real> vec_linearspeeds; unsigned vec_linearspeeds_index;
+
        SensoryData()
        {
            m_rTime = 0.0f;           
@@ -60,6 +62,8 @@ public:
            pos  = CVector2(0.0, 0.0);
            dist = Real(0.0f);
            orientation.SetValue(0.0f);
+
+           vec_linearspeeds.assign(15u, 0.0f); vec_linearspeeds_index = 0;
        }
 
        void SetSensoryData(unsigned RobId, Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_LightUpdatedSensor::TReadings light, CCI_GroundSensor::TReadings ground,
@@ -75,7 +79,7 @@ public:
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
 
            EstimateCurrentSpeedAndAcceleration();
-           EstimateCurrentPosition();
+           //EstimateCurrentPosition();
        }
 
        void SetSensoryData(unsigned RobId, Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
@@ -88,7 +92,7 @@ public:
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
 
            EstimateCurrentSpeedAndAcceleration();
-           EstimateCurrentPosition();
+           //EstimateCurrentPosition();
        }
 
        void EstimateCurrentSpeedAndAcceleration()
@@ -149,8 +153,9 @@ public:
     SensoryData m_sSensoryData;
 
 protected:
-    virtual void ComputeFeatureValues_Old();
+    virtual void ComputeFeatureValues_onlynbrsandactuators();
     virtual void ComputeFeatureValues();
+    virtual void ComputeFeatureValues_NoAngularVelocityUsed();
 
     virtual unsigned CountNeighbors(Real sensor_range);
     virtual Real TrackNeighborsInQueue(Real step, unsigned current_num_nbrs, unsigned num_nbrs_threshold,
