@@ -122,7 +122,7 @@
   <!-- * Physics engines * -->
   <!-- ******************* -->
   <physics_engines>
-    <dynamics2d id="dyn2d" iterations="50" />
+    <dynamics2d id="dyn2d" iterations="10" />
   </physics_engines>
 
   <!-- ********* -->
@@ -144,8 +144,8 @@
                    look_at="0,0,0"
                    lens_focal_length="15" />
       </camera>
-      <user_functions library="build/loop_functions/id_loop_functions/libid_loop_functions"
-                      label="id_qtuser_functions" />
+      <!-- <user_functions library="build/loop_functions/id_loop_functions/libid_loop_functions"
+                      label="id_qtuser_functions" /> -->
     </qt-opengl> 
       <!-- <user_functions label="homswarm_qt_user_functions" /> -->
 

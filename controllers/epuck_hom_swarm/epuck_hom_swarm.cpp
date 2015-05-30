@@ -320,12 +320,13 @@ void CEPuckHomSwarm::ControlStep()
 
     /* Communicate your id and proprioceptively computed FV to whoever is in range, using the RAB sensor*/
     /* Also relay the id and fvs of neighbours, received by you in the previous control cycle */
-    if ((unsigned)m_fInternalRobotTimer%2u == 0)
-        SendFVsToNeighbours();
+    //if ((unsigned)m_fInternalRobotTimer%2u == 0)
+    SendFVsToNeighbours();
 
     /* Listen for robot ids + feature vectors from neighbours and then assimilate them  */
     Sense(PROBABILITY_FORGET_FV);
     /****************************************/
+
 
 
     /****************************************/
@@ -352,12 +353,14 @@ void CEPuckHomSwarm::ControlStep()
     /****************************************/
 
 
-    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u) // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
+    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u) 
+    // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
     {
         listConsensusInfoOnRobotIds.clear();
         listVoteInformationRobots.clear();
     }
-    else if(m_fInternalRobotTimer > MODELSTARTTIME) /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
+    else if(m_fInternalRobotTimer > MODELSTARTTIME) 
+    /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
     {
         /* Listen for voting packets and consensus packets from neighbours*/
         ReceiveVotesAndConsensus();
@@ -369,7 +372,8 @@ void CEPuckHomSwarm::ControlStep()
     if (b_CRM_Run && (TimeSinceCRM > CRM_RESULTS_VALIDFOR_SECONDS)) /* the results of the CRM are no longer valid */
         b_CRM_Run = false;
 
-    if((m_fInternalRobotTimer > MODELSTARTTIME) && (listFVsSensed.size() > 0)) // the robot has atleast had one FV entry in its distribution. if not the CRM will crash.
+    if((m_fInternalRobotTimer > MODELSTARTTIME) && (listFVsSensed.size() > 0)) 
+    // the robot has atleast had one FV entry in its distribution. if not the CRM will crash.
     {
         crminAgent->SimulationStepUpdatePosition(m_fInternalRobotTimer, &listFVsSensed);
         b_CRM_Run = true;
@@ -390,8 +394,8 @@ void CEPuckHomSwarm::ControlStep()
 
     if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) != 0u) /* dont send CRM results if buffer is cleared*/
     {
-        if ((m_fInternalRobotTimer > MODELSTARTTIME) && (unsigned)m_fInternalRobotTimer%2u == 1)
-            SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
+      if ((m_fInternalRobotTimer > MODELSTARTTIME)) // && (unsigned)m_fInternalRobotTimer%2u == 1)
+	SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
     }
     /*else
         SendIDToNeighbours(m_pcRABS->GetReadings()); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
@@ -444,42 +448,7 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS); /*remove entries older than 10s */
 
-
-    /*if (m_fInternalRobotTimer == 771 && RobotIdStrToInt()==19)
-    {
-        std::cerr << " Before " << std::endl;
-        for (t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
-        {
-            std::cerr << "MAP: fv " << it_map->uFV << " id " << it_map->uRobotId << std::endl;
-        }
-
-        for (t_listFVsSensed::iterator it_dist = listFVsSensed.begin(); it_dist != listFVsSensed.end(); ++it_dist)
-        {
-            std::cerr << "Dist: fv " << it_dist->uFV << " #apcs " << it_dist->fRobots <<  " state " << it_dist->uMostWantedState << std::endl;
-        }
-    }*/
-
     UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, m_fProbForget); // update listFVsSensed
-
-//    if (RobotIdStrToInt()==0)
-//    {
-//        std::cerr << " After " << std::endl;
-//        for (t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
-//        {
-//            std::cerr << "MAP: fv " << it_map->uFV << " id " << it_map->uRobotId << std::endl;
-//        }
-
-////        if(listFVsSensed.empty())
-////            std::cerr << "dist empty " << std::endl;
-
-////        for (t_listFVsSensed::iterator it_dist = listFVsSensed.begin(); it_dist != listFVsSensed.end(); ++it_dist)
-////        {
-////            std::cerr << "Dist: fv " << it_dist->uFV << " #apcs " << it_dist->fRobots <<  " state " << it_dist->uMostWantedState << std::endl;
-////        }
-//    }
-
-    /*if(m_fInternalRobotTimer == 2616 && (this->GetId().compare("ep4") == 0))
-        std::cout << "listFVsSensed.size() " << listMapFVsToRobotIds.size() << std::endl;*/
 }
 
 /****************************************/
@@ -742,7 +711,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
         else
             byte_index = 0;
 
-        byte_index++; // the message header. this is always followed by the robot id.
+        byte_index++; // the message header type. this is always followed by the robot id.
 
         robotId = tPackets[i].Data[byte_index];
         bearing = tPackets[i].HorizontalBearing;
@@ -750,21 +719,23 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
 
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-            m_pcRABA->SetData(databyte_index, END_BUFFER);
-            return;
+	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets) ";
+	    exit(-1);
         }
         m_pcRABA->SetData(databyte_index++, robotId);
 
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-            m_pcRABA->SetData(databyte_index, END_BUFFER);
-            return;
+	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets) ";
+	    exit(-1);
         }
         m_pcRABA->SetData(databyte_index++, un_bearing);
     }
 
-    if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
-        m_pcRABA->SetData(databyte_index, END_BUFFER);
+    /*if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
+      m_pcRABA->SetData(databyte_index, END_BUFFER);*/
+
+    m_pcRABA->SetData(databyte_index, END_BUFFER);
 }
 
 /****************************************/
@@ -791,22 +762,28 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
         m_pcRABA->SetData(databyte_index++, itd->uRobotId);
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-            buffer_full = true;
+	  /*buffer_full = true;
             m_pcRABA->SetData(databyte_index, END_BUFFER);
-            break;
+            break;*/
+	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) ";
+	    exit(-1);
         }
 
         m_pcRABA->SetData(databyte_index++, itd->uFV);
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-            buffer_full = true;
+	  /*buffer_full = true;
             m_pcRABA->SetData(databyte_index, END_BUFFER);
-            break;
+            break;*/
+	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) ";
+	    exit(-1);
         }
     }
 
-    if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
-        m_pcRABA->SetData(databyte_index, END_BUFFER);
+    /*if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
+      m_pcRABA->SetData(databyte_index, END_BUFFER);*/
+
+    m_pcRABA->SetData(databyte_index, END_BUFFER);
 }
 
 /****************************************/
@@ -817,11 +794,31 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
 {
     size_t databyte_index;
 
-    if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    // we not put all the different message types in the same packet - to be sent at the same cycle
+    /*if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
     else
-        databyte_index = 0;
+    databyte_index = 0;*/
+
+    bool end_buffer_found(false); 
+    for (size_t tmp_index = 0; tmp_index < m_pcRABA->GetSize(); ++tmp_index)
+    {
+      if (m_pcRABA->GetData(tmp_index) == END_BUFFER)
+      {	
+	end_buffer_found = true;
+	databyte_index = tmp_index + 1;
+	break;
+      }   	
+    }
+
+    if (end_buffer_found == false)
+    {
+      std::cerr << "end buffer not found " << " WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
+                                                 t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid) " << std::endl;
+      exit(-1);
+    }   
+
 
     m_pcRABA->SetData(databyte_index++, VOTER_PACKET);
     m_pcRABA->SetData(databyte_index++, VoterId);
@@ -876,10 +873,6 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
      */
     for (t_listFVsSensed::iterator it_fvdist = CRMResultsOnFVDist.begin(); it_fvdist != CRMResultsOnFVDist.end(); ++it_fvdist)
     {
-//        for(t_listMapFVsToRobotIds::iterator it_map = MapFVsToRobotIds.begin(); it_map != MapFVsToRobotIds.end(); ++it_map)
-//        {
-//            if(it_fvdist->uFV == it_map->uFV)
-//            {
                 m_pcRABA->SetData(databyte_index++, it_fvdist->uFV);
                 if(databyte_index == m_pcRABA->GetSize()-1)
                 {
@@ -895,10 +888,6 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
                     m_pcRABA->SetData(databyte_index, END_BUFFER);
                     break;
                 }
-
-//                break; // only one vote is cast per fv
-//            }
-//        }
 
         if(buffer_full)
         {
@@ -1003,10 +992,27 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBear
         size_t byte_index = 0;
         unsigned votertId, fv, attack_tolerate_vote, ConsensusOnRobotId, ConsensusState; unsigned tmp1, tmp2;
 
-        if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        /*if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
-            byte_index = 0;
+	    byte_index = 0;*/
+
+	bool end_buffer_found(false);
+	for (size_t tmp_index = 0; tmp_index < tPackets[i].Data.Size(); ++tmp_index)
+	{
+	    if (tPackets[i].Data[tmp_index] == END_BUFFER)
+	    {
+	        end_buffer_found = true;
+		byte_index = tmp_index + 1;
+		break;
+	    }   	
+	}
+
+        if(end_buffer_found == false)
+        {
+	  std::cerr << " end buffer not found " << " ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBearingSensor::TReadings& tPackets) " << sttd::endl;
+	  exit(-1);
+        }  
 
 
         if(tPackets[i].Data[byte_index++] != VOTER_PACKET) // this neighbour is not sending me observed FVs
