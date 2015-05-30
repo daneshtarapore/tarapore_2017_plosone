@@ -40,6 +40,8 @@ public:
         size_t   BEACON_SIGNAL_MARKER;
         size_t   OBSERVED_FVS_PACKET_MARKER;
         size_t   VOTER_PACKET_MARKER;
+
+        size_t   END_BUFFER_MARKER;
     };
 
     struct SensoryData
@@ -123,7 +125,6 @@ public:
             return m_unValue;
         }
 
-        void PrintFeatureDetails();
         void ComputeFeatureValues_Old();
         void ComputeFeatureValues();
         unsigned CountNeighbors(Real sensor_range);
@@ -132,7 +133,7 @@ public:
                                    unsigned int& sum_nbrs, unsigned int& queue_index, unsigned int* queue_nbrs);
         void EstimateOdometry();
         Real TrackRobotDisplacement(Real step, Real observed_range, CRadians observed_bearing, CRadians self_delta_orientation, std::vector<RobotRelativePosData>& displacement_vector);
-        bool GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing);
+        bool GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing, Real &observedRobotId_1_SelfBearing);
 
 
         /*
@@ -205,6 +206,7 @@ public:
     virtual unsigned SimulationStep();
 
     virtual unsigned GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
+    virtual float    GetSelfBearingFromRABPacket(size_t observer_robot_id, CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
 
 
     static RobotData m_sRobotData;

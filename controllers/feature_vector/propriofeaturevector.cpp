@@ -5,7 +5,7 @@
 /******************************************************************************/
 /******************************************************************************/
 
-#define MODELSTARTTIME 450.0 // used for your sliding window
+#define MODELSTARTTIME 300.0  //450.0 // used for your sliding window
 
 /******************************************************************************/
 /******************************************************************************/
@@ -40,7 +40,7 @@ CProprioceptiveFeatureVector::CProprioceptiveFeatureVector()
     m_pfAllFeatureValues     = new Real[NUMBER_OF_FEATURES];
 
 
-    m_iEventSelectionTimeWindow = MODELSTARTTIME; //1500;
+    m_iEventSelectionTimeWindow = MODELSTARTTIME;
 
     for(unsigned int i = 0; i < NUMBER_OF_FEATURES; i++)
     {
@@ -176,6 +176,7 @@ unsigned int CProprioceptiveFeatureVector::SimulationStep()
 void CProprioceptiveFeatureVector::ComputeFeatureValues()
 {
     CProprioceptiveFeatureVector::FEATURE_RANGE = 30.0f;
+
 
     unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
     unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;

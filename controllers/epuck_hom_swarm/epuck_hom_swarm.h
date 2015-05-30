@@ -222,7 +222,7 @@ public:
      *
      *
      */
-    virtual void SendIDToNeighbours();
+    virtual void SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets);
 
     /*
      *
@@ -235,7 +235,7 @@ public:
      *
      *
      */
-    virtual void WriteToCommunicationChannel(unsigned SelfId);
+    virtual void WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings &tPackets);
 
     /*
      *

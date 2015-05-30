@@ -23,6 +23,9 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 200;
 #define ATTACK_CONSENSUS 150
 #define TOLERATE_CONSENSUS 160
 
+#define PROPRIOCEPT_MODE 0
+#define OBSERVATION_MODE 1
+#define FV_MODE OBSERVATION_MODE
 /****************************************/
 /****************************************/
 
@@ -163,7 +166,7 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
 {
     try
     {
-        /*
+       /*
        * Initialize sensors/actuators
        */
         m_pcWheels    = GetActuator<CCI_DifferentialSteeringActuator>("differential_steering");
@@ -251,6 +254,7 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
     CObservedFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER       = BEACON_SIGNAL;
     CObservedFeatureVector::m_sRobotData.OBSERVED_FVS_PACKET_MARKER = OBSERVED_FVS_PACKET;
     CObservedFeatureVector::m_sRobotData.VOTER_PACKET_MARKER        = VOTER_PACKET;
+    CObservedFeatureVector::m_sRobotData.END_BUFFER_MARKER          = END_BUFFER;
 }
 
 /****************************************/
@@ -305,9 +309,6 @@ void CEPuckHomSwarm::ControlStep()
 
     m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
 
-    /*if (RobotIdStrToInt() == 0u)
-        std::cout << " speed " << leftSpeed << " " << rightSpeed << std::endl;*/
-
 
     /****************************************/
     /* Estimate feature-vectors - proprioceptively */
@@ -333,7 +334,7 @@ void CEPuckHomSwarm::ControlStep()
      */
 
     /*if ( ((unsigned)m_fInternalRobotTimer%2u == 0) || (m_fInternalRobotTimer <= MODELSTARTTIME))
-        SendIDToNeighbours(); // we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for
+        SendIDToNeighbours(m_pcRABS->GetReadings()); // we need to send the robot id and the bearing at which it observes its different neighbours on the rRABS all the time - as gaps in data reception are not programmed for
     m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cObservationFeatureVector.SimulationStep();
 
@@ -380,17 +381,6 @@ void CEPuckHomSwarm::ControlStep()
         // the CRM results on FVs in listFVsSensed is not outdated
         for(t_listFVsSensed::iterator it_fv = listFVsSensed.begin(); it_fv != listFVsSensed.end(); ++it_fv)
         {
-            /*for(t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
-            {
-                if (RobotIdStrToInt() == 19 && it_map->uFV == it_fv->uFV && it_map->uRobotId == 19 && it_fv->uMostWantedState==1) // why am i attacking myself...
-                {
-                    std::cout << "Clock: " << m_fInternalRobotTimer << " it_map->uFV " << it_map->uFV <<  std::endl;
-
-                    crminAgent->PrintAPCList(RobotIdStrToInt());
-                    crminAgent->PrintTcellList(RobotIdStrToInt());
-                    crminAgent->PrintTcellResponseToAPCList(RobotIdStrToInt());
-                }
-            }*/
             UpdateVoterRegistry(listVoteInformationRobots,
                                 listMapFVsToRobotIds,
                                 listConsensusInfoOnRobotIds,
@@ -398,23 +388,24 @@ void CEPuckHomSwarm::ControlStep()
         }
     }
 
-    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) != 0u) /* dont send if buffer is cleared*/
+    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) != 0u) /* dont send CRM results if buffer is cleared*/
     {
         if ((m_fInternalRobotTimer > MODELSTARTTIME) && (unsigned)m_fInternalRobotTimer%2u == 1)
             SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
     }
     /*else
-        SendIDToNeighbours();*/ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
+        SendIDToNeighbours(m_pcRABS->GetReadings()); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
 
 }
 
 /****************************************/
 /****************************************/
 
-void CEPuckHomSwarm::SendIDToNeighbours()
+void CEPuckHomSwarm::SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets)
 {
     /*Communicate your id to neighbours, so they know who they are observing*/
-    WriteToCommunicationChannel(RobotIdStrToInt());
+    /*Also communicate the bearing at which you observed the neighbours */
+    WriteToCommunicationChannel(RobotIdStrToInt(), tPackets);
 }
 
 /****************************************/
@@ -727,7 +718,7 @@ unsigned CEPuckHomSwarm::RobotIdStrToInt()
 /****************************************/
 /****************************************/
 
-void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId)
+void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets)
 {
     size_t databyte_index;
 
@@ -740,6 +731,37 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId)
 
     m_pcRABA->SetData(databyte_index++, OBSERVED_FVS_PACKET);
     m_pcRABA->SetData(databyte_index++, SelfId);
+
+
+    for(size_t i = 0; i < tPackets.size(); ++i)
+    {
+        size_t byte_index = 0; unsigned robotId, un_bearing; CRadians bearing;
+
+        if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+            byte_index = 1;
+        else
+            byte_index = 0;
+
+        byte_index++; // the message header. this is always followed by the robot id.
+
+        robotId = tPackets[i].Data[byte_index];
+        bearing = tPackets[i].HorizontalBearing;
+        un_bearing = (unsigned)(ToDegrees(bearing).UnsignedNormalize().GetValue() * 255.0f / 360.0f);
+
+        if(databyte_index == m_pcRABA->GetSize()-1)
+        {
+            m_pcRABA->SetData(databyte_index, END_BUFFER);
+            return;
+        }
+        m_pcRABA->SetData(databyte_index++, robotId);
+
+        if(databyte_index == m_pcRABA->GetSize()-1)
+        {
+            m_pcRABA->SetData(databyte_index, END_BUFFER);
+            return;
+        }
+        m_pcRABA->SetData(databyte_index++, un_bearing);
+    }
 
     if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
         m_pcRABA->SetData(databyte_index, END_BUFFER);
