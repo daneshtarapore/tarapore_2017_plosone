@@ -156,7 +156,7 @@ public:
         //Real EstimatedLinearSpeed, EstimatedAngularSpeed, EstimatedLinearAcceleration, EstimatedAngularAcceleration;
         //CRadians estimated_bearing, prev_bearing;
         CVector2 estimated_pos, prev_pos;
-        Real estimated_dist;
+        Real estimated_dist, estimated_heading, prev_estimated_heading, prev_prev_estimated_heading;
         Real average_speed, prev_average_speed, average_acceleration, m_fMeanOfAverageSpeeds, *m_pfAverageSpeedAtTimeStep; // in cm / tick and cm /tick^2
         Real prev_prev_average_speed, prev_prev_prev_average_speed;
         Real average_angularspeed, prev_average_angularspeed, average_angularacceleration; // in rad / tick and rad / tick^2

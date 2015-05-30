@@ -765,7 +765,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
 	  /*buffer_full = true;
             m_pcRABA->SetData(databyte_index, END_BUFFER);
             break;*/
-	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) ";
+	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) " << std::endl;
 	    exit(-1);
         }
 
@@ -775,7 +775,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
 	  /*buffer_full = true;
             m_pcRABA->SetData(databyte_index, END_BUFFER);
             break;*/
-	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) ";
+	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) " << std::endl;
 	    exit(-1);
         }
     }
