@@ -206,7 +206,7 @@ public:
     virtual unsigned SimulationStep();
 
     virtual unsigned GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
-    virtual float    GetSelfBearingFromRABPacket(size_t observer_robot_id, CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
+    virtual float    GetSelfBearingFromRABPacket(unsigned observer_robot_id, CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
 
 
     static RobotData m_sRobotData;
