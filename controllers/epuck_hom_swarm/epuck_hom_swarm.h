@@ -222,7 +222,7 @@ public:
      *
      *
      */
-    virtual void SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets);
+    virtual void SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
 
     /*
      *
@@ -235,7 +235,7 @@ public:
      *
      *
      */
-    virtual void WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings &tPackets);
+    virtual void WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings &tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay);
 
     /*
      *
@@ -245,8 +245,21 @@ public:
 
     /*
      *
+     *
+     */
+    virtual void WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
+                                             t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid);
+
+    /*
+     *
      */
     virtual bool ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearingSensor::TReadings& tPackets);
+
+
+    /*
+     *
+     */
+    virtual bool ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndBearingSensor::TReadings& tPackets);
 
 
     /*
@@ -276,13 +289,6 @@ public:
      *
      */
     virtual void SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_Valid);
-
-    /*
-     *
-     *
-     */
-    virtual void WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
-                                             t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid);
 
     /*
      * Execute general faults

@@ -98,7 +98,6 @@ unsigned CObservedFeatureVector::SimulationStep()
 
 
     /*
-     *
     BUT WHEN DO WE DELETE ObservedRobots_FeatureVector FROM THE LIST?
     FOR NOW WE DELETE IT IMMEDIATELY UPON NOT BEING OBSERVED
     */
@@ -123,7 +122,7 @@ unsigned CObservedFeatureVector::SimulationStep()
         }
 
         ++it_listobrob;
-     }
+    }
 
 
 
@@ -137,7 +136,7 @@ unsigned CObservedFeatureVector::SimulationStep()
          */
 
         /* if((m_sSensoryData.m_rTime - it_listobrob->m_fTimeFirstObserved) >= m_iEventSelectionTimeWindow)  - used for the ComputeFeatureValues_Old */
-        if((m_sSensoryData.m_rTime - it_listobrob->m_fTimeFirstObserved) >= m_iLongTimeWindowLength)
+        if((m_sSensoryData.m_rTime - it_listobrob->m_fTimeFirstObserved) >= m_iEventSelectionTimeWindow)
         {
             ObservedRobotIDs.push_back(it_listobrob->m_unRobotId);
             ObservedRobotFVs.push_back(it_listobrob->GetValue());
@@ -152,7 +151,7 @@ unsigned CObservedFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearingSensor::T
 {
     if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER)
     {
-        if (rab_packet[rab_packet_index].Data[1] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[1] == m_sRobotData.OBSERVED_FVS_PACKET_MARKER)
+        if (rab_packet[rab_packet_index].Data[1] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[1] == m_sRobotData.SELF_INFO_PACKET_MARKER)
         {
             return rab_packet[rab_packet_index].Data[2];
         }
@@ -163,7 +162,7 @@ unsigned CObservedFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearingSensor::T
     }
     else
     {
-        if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[0] == m_sRobotData.OBSERVED_FVS_PACKET_MARKER)
+        if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[0] == m_sRobotData.SELF_INFO_PACKET_MARKER)
         {
             return rab_packet[rab_packet_index].Data[1];
         }
@@ -188,7 +187,7 @@ float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robo
     bool message_header_found(false);
     for(size_t data_index = index_start; data_index < rab_packet[rab_packet_index].Data.Size(); ++data_index)
     {
-        if(rab_packet[rab_packet_index].Data[data_index] == m_sRobotData.OBSERVED_FVS_PACKET_MARKER)
+        if(rab_packet[rab_packet_index].Data[data_index] == m_sRobotData.SELF_INFO_PACKET_MARKER)
         {
             index_start = data_index;
             message_header_found = true;
@@ -201,7 +200,7 @@ float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robo
 
     for(size_t data_index = index_start; data_index < rab_packet[rab_packet_index].Data.Size(); ++data_index)
     {
-        if(rab_packet[rab_packet_index].Data[data_index] == m_sRobotData.END_BUFFER_MARKER)
+        if(rab_packet[rab_packet_index].Data[data_index] == m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER)
             break;
 
         if(rab_packet[rab_packet_index].Data[data_index] == observer_robot_id)
@@ -215,7 +214,7 @@ float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robo
 /******************************************************************************/
 
 CObservedFeatureVector::ObservedRobots_FeatureVector::ObservedRobots_FeatureVector(CObservedFeatureVector &owner_class, Real TimeFirstObserved, unsigned ObservedRobotId):
-                                                      owner(owner_class), m_fTimeFirstObserved(TimeFirstObserved), m_unRobotId(ObservedRobotId), m_unValue(0)
+    owner(owner_class), m_fTimeFirstObserved(TimeFirstObserved), m_unRobotId(ObservedRobotId), m_unValue(0)
 {
 
     //EstimatedLinearSpeed = 0.0f; EstimatedAngularSpeed = 0.0f; EstimatedLinearAcceleration = 0.0f; EstimatedAngularAcceleration = 0.0f;
@@ -445,8 +444,8 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_
     EstimateOdometry();
 
 
-//    // Motors
-//    //5th: distance travelled by bot in past 100 time-steps. Higher than 5% of max-possible distance travelled is accepted as feature=1.
+    //    // Motors
+    //    //5th: distance travelled by bot in past 100 time-steps. Higher than 5% of max-possible distance travelled is accepted as feature=1.
 
     m_fCumulativeDistTravelled += estimated_dist;
     m_fMeanOfAverageSpeeds     += average_speed;
@@ -539,7 +538,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_
 
     if(neighbours_present &&
             ((average_acceleration >  m_fAccelerationThreshold  ||
-             average_acceleration  < -m_fAccelerationThreshold) &&
+              average_acceleration  < -m_fAccelerationThreshold) &&
              (m_fCumulativeDistTravelled >= m_fCumulativeDistThreshold))) // we add the last condition as in some instances acceleration may be wrongly detected for a stationary robot. happens when robot velocity is reduced from non-zero to 0; even though robot is supposed to not move, it still moves a little (seen in rendere) and registers a change in the RAB sensor values. Usually the change is qquite small, but sometimes its large.
     {
         m_piLastOccuranceEvent[4] = CurrentStepNumber;
@@ -547,7 +546,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_
 
     if(!neighbours_present &&
             ((average_acceleration >  m_fAccelerationThreshold  ||
-             average_acceleration  < -m_fAccelerationThreshold) &&
+              average_acceleration  < -m_fAccelerationThreshold) &&
              (m_fCumulativeDistTravelled >= m_fCumulativeDistThreshold))) // we add the last condition as in some instances acceleration may be wrongly detected for a stationary robot. happens when robot velocity is reduced from non-zero to 0; even though robot is supposed to not move, it still moves a little (seen in rendere) and registers a change in the RAB sensor values. Usually the change is qquite small, but sometimes its large.
     {
         m_piLastOccuranceEvent[5] = CurrentStepNumber;
@@ -636,33 +635,38 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 
     EstimateOdometry();
 
-    Real m_fThreshold= 2.5f;
-    if (m_unRobotId == 1u)
+    Real m_fThreshold= 10.0f;
+    if (m_unRobotId == 15u)
     {
-            std::cout << " Average angular speed " <<  average_angularspeed << std::endl;
-            std::cout << " Average angular acceleration " <<  average_angularacceleration << std::endl;
+            /*std::cout << " Observed robot id " << m_unRobotId << std::endl;
+            std::cout << " Estimated heading " << estimated_heading << std::endl;
+            std::cout << " Average angular speed " <<  average_angularspeed << std::endl;*/
+
+            if((average_angularacceleration  >   m_fThreshold)  ||
+               (average_angularacceleration  <  -m_fThreshold))
+            {
+                std::cout << " Average angular acceleration " <<  average_angularacceleration << std::endl;
+                std::cout << prev_prev_estimated_heading << "; " << prev_estimated_heading << "; " << estimated_heading << std::endl;
+                std::cout << prev_average_angularspeed << "; " << average_angularspeed << std::endl;
+            }
     }
-
-
-
-
 
 
     if(neighbours_present &&
-       ((average_angularspeed >  m_fThreshold)  ||
-	(average_angularspeed  < -m_fThreshold)))
+            ((average_angularacceleration  >  m_fThreshold)  ||
+             (average_angularacceleration  < -m_fThreshold)))
     {
-        m_piLastOccuranceEvent[4] = CurrentStepNumber;
+        m_piLastOccuranceEvent[2] = CurrentStepNumber;
     }
 
-    if(!neighbours_present &&
-            ((average_angularspeed >  m_fThreshold)  ||
-	     (average_angularspeed  < -m_fThreshold))) 
+    if((!neighbours_present) &&
+            ((average_angularacceleration  >  m_fThreshold)  ||
+             (average_angularacceleration  < -m_fThreshold)))
     {
-        m_piLastOccuranceEvent[5] = CurrentStepNumber;
+        m_piLastOccuranceEvent[3] = CurrentStepNumber;
     }
 
-    for(unsigned int featureindex = 4; featureindex <=5; featureindex++)
+    for(unsigned int featureindex = 2; featureindex <=3; featureindex++)
     {
         if ((CurrentStepNumber - m_piLastOccuranceEvent[featureindex]) <= m_iEventSelectionTimeWindow)
         {
@@ -676,21 +680,21 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 
 
 
-    if((average_angularspeed > m_fThreshold ||
-        average_angularspeed < -m_fThreshold))
+    if((average_angularacceleration >  m_fThreshold ||
+        average_angularacceleration < -m_fThreshold))
     {
-         m_piLastOccuranceEvent[3] = CurrentStepNumber;
+        m_piLastOccuranceEvent[5] = CurrentStepNumber;
     }
 
 
     // 6th: set if the robot changed its angular speed (per control cycle) atleast once in the past time-window.
     if ((CurrentStepNumber - m_piLastOccuranceEvent[5]) <= m_iEventSelectionTimeWindow)
     {
-        m_pfAllFeatureValues[3] = 1.0;
+        m_pfAllFeatureValues[5] = 1.0;
     }
     else
     {
-        m_pfAllFeatureValues[3] = 0.0;
+        m_pfAllFeatureValues[5] = 0.0;
     }
 
 
@@ -702,7 +706,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 
     Real disp_ShortWindow_Threshold  = 0.25f;
     Real disp_MediumWindow_Threshold = 0.25f;
-    Real disp_LongWindow_Threshold   = 0.25f;
+    Real disp_LongWindow_Threshold   = 0.10f;
     // MaxLinearSpeed in cm / control cycle
     Real f4 = (m_fEstimated_Dist_ShortTimeWindow  >  (disp_ShortWindow_Threshold  * ((Real)m_iShortTimeWindowLength)  * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
     Real f5 = (m_fEstimated_Dist_MediumTimeWindow >  (disp_MediumWindow_Threshold * ((Real)m_iMediumTimeWindowLength) * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
@@ -711,9 +715,9 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 
     m_pfFeatureValues[0] = m_pfAllFeatureValues[0];
     m_pfFeatureValues[1] = m_pfAllFeatureValues[1];
-    m_pfFeatureValues[2] = f6;
+    m_pfFeatureValues[2] = m_pfAllFeatureValues[2];
     m_pfFeatureValues[3] = m_pfAllFeatureValues[3];
-    m_pfFeatureValues[4] = m_pfAllFeatureValues[4];
+    m_pfFeatureValues[4] = f6;
     m_pfFeatureValues[5] = m_pfAllFeatureValues[5];
 
     assert(CObservedFeatureVector::NUMBER_OF_FEATURES == 6);
@@ -770,8 +774,8 @@ unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Re
 /******************************************************************************/
 
 Real CObservedFeatureVector::ObservedRobots_FeatureVector::TrackNeighborsInQueue(Real step, unsigned current_num_nbrs, unsigned num_nbrs_threshold,
-                                                                                     unsigned queue_length, Real queue_length_threshold,
-                                                                                     unsigned int& sum_nbrs, unsigned int& queue_index, unsigned int* queue_nbrs)
+                                                                                 unsigned queue_length, Real queue_length_threshold,
+                                                                                 unsigned int& sum_nbrs, unsigned int& queue_index, unsigned int* queue_nbrs)
 {
     Real feature_value = 0.0f;
 
@@ -779,9 +783,9 @@ Real CObservedFeatureVector::ObservedRobots_FeatureVector::TrackNeighborsInQueue
     {
         // decision based on the last X time-steps
         if(sum_nbrs > (unsigned)(queue_length_threshold*((Real)queue_length)))
-           feature_value = 1.0f;
+            feature_value = 1.0f;
         else
-           feature_value = 0.0f;
+            feature_value = 0.0f;
 
         // removing the fist entry of the moving time window  from the sum
         sum_nbrs  -=  queue_nbrs[queue_index];
@@ -804,31 +808,56 @@ Real CObservedFeatureVector::ObservedRobots_FeatureVector::TrackNeighborsInQueue
 /******************************************************************************/
 /******************************************************************************/
 
+template <typename T> Real sgn(T val)
+{
+    /* val >= 0: return 1 else return -1  */
+    return (Real)((T(0) <= val) - (val < T(0)));
+}
+
+template <typename T> Real diff_angle(T estimated_heading, T prev_estimated_heading)
+{
+    Real arg = fmod(estimated_heading-prev_estimated_heading, 360.00f);
+    if (arg < 0.0f )  arg  = arg + 360.00f;
+    if (arg > 180.0f) arg  = arg - 360.00f;
+    return (-arg);
+}
+
+
+/******************************************************************************/
+/******************************************************************************/
+
 void CObservedFeatureVector::ObservedRobots_FeatureVector::EstimateOdometry()
 {
     Real observedRobotId_1_Range; CRadians observedRobotId_1_Bearing; Real observedRobotId_1_SelfBearing;
     assert(GetObservedRobotRangeBearing(observedRobotId_1_Range, observedRobotId_1_Bearing, observedRobotId_1_SelfBearing)); // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
-     
-      prev_prev_estimated_heading = prev_estimated_heading;  
-      prev_estimated_heading = estimated_heading;
-      estimated_heading = observedRobotId_1_SelfBearing;
-      if ((estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) && (prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) &&
-          (prev_prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL))
-      {
+
+    prev_prev_estimated_heading = prev_estimated_heading;
+    prev_estimated_heading = estimated_heading;
+    estimated_heading = observedRobotId_1_SelfBearing;
+    if ((estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) && (prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) &&
+            (prev_prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL))
+    {
         prev_average_angularspeed = average_angularspeed;
-        average_angularspeed = estimated_heading - prev_estimated_heading; 
+        average_angularspeed = diff_angle(estimated_heading, prev_estimated_heading);
         average_angularacceleration = average_angularspeed - prev_average_angularspeed;
-      }
-      else
-      {    
+
+        /*if (m_unRobotId == 0u)
+            printf("%f\n", average_angularspeed);*/
+    }
+    else
+    {
         average_angularspeed = 0.0f; average_angularacceleration = 0.0f;
-      } 
+    }
 
     /*
      * Computing angle rotated by robot in one tick
     */
     CRadians delta_orientation = CRadians(owner.m_sRobotData.seconds_per_iterations * ((-owner.m_sSensoryData.f_LeftWheelSpeed_prev + owner.m_sSensoryData.f_RightWheelSpeed_prev)
-                                                                                       / (owner.m_sRobotData.INTERWHEEL_DISTANCE*100.0f)));    
+                                                                                       / (owner.m_sRobotData.INTERWHEEL_DISTANCE*100.0f)));
+
+    /*if (owner.m_sSensoryData.m_unRobotId == 0u)
+        printf("%f\t",ToDegrees(delta_orientation).GetValue());*/
+
 
     Real step = owner.m_sSensoryData.m_rTime - m_fTimeFirstObserved;
 
@@ -869,7 +898,7 @@ Real CObservedFeatureVector::ObservedRobots_FeatureVector::TrackRobotDisplacemen
         displacement_vector[(unsigned)(step)].Range_At_Start           = observedRobotId_1_Range;
         displacement_vector[(unsigned)(step)].Bearing_At_Start         = observedRobotId_1_Bearing;
         displacement_vector[(unsigned)(step)].Pos_At_Start.Set(observedRobotId_1_Range * Cos(observedRobotId_1_Bearing),
-                                                                                                                    observedRobotId_1_Range * Sin(observedRobotId_1_Bearing));
+                                                               observedRobotId_1_Range * Sin(observedRobotId_1_Bearing));
 
         displacement_vector[(unsigned)(step)].TimeSinceStart           = 0.0f;
         displacement_vector[(unsigned)(step)].NetTranslationSinceStart.Set(0.0f, 0.0f);

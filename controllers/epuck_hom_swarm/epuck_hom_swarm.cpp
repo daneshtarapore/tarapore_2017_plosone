@@ -15,13 +15,21 @@
 
 UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 200;
 
-#define END_BUFFER 240
-#define OBSERVED_FVS_PACKET 100
+//#define END_BUFFER 240
+
+#define SELF_INFO_PACKET 100 /* used to encompass info of self, be that the proprioceptively computed FVs, the bearings at which neighbours are observed, or proprioceptively computed angular acceleration.*/
+#define SELF_INFO_PACKET_FOOTER 242
+
+#define RELAY_FVS_PACKET 110
+#define RELAY_FVS_PACKET_FOOTER 243
+
 #define VOTER_PACKET 120
 #define ATTACK_VOTE 130
 #define TOLERATE_VOTE 140
 #define ATTACK_CONSENSUS 150
 #define TOLERATE_CONSENSUS 160
+#define VOTER_PACKET_FOOTER 241
+
 
 #define PROPRIOCEPT_MODE 0
 #define OBSERVATION_MODE 1
@@ -166,7 +174,7 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
 {
     try
     {
-       /*
+        /*
        * Initialize sensors/actuators
        */
         m_pcWheels    = GetActuator<CCI_DifferentialSteeringActuator>("differential_steering");
@@ -251,10 +259,18 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
     CObservedFeatureVector::m_sRobotData.seconds_per_iterations   = robdetails.seconds_per_iterations;
     CObservedFeatureVector::m_sRobotData.WHEEL_RADIUS             = robdetails.WHEEL_RADIUS;
 
-    CObservedFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER       = BEACON_SIGNAL;
-    CObservedFeatureVector::m_sRobotData.OBSERVED_FVS_PACKET_MARKER = OBSERVED_FVS_PACKET;
-    CObservedFeatureVector::m_sRobotData.VOTER_PACKET_MARKER        = VOTER_PACKET;
-    CObservedFeatureVector::m_sRobotData.END_BUFFER_MARKER          = END_BUFFER;
+
+
+    CObservedFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+
+    CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
+    CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
+
+    CObservedFeatureVector::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
+    CObservedFeatureVector::m_sRobotData.RELAY_FVS_PACKET_FOOTER_MARKER = RELAY_FVS_PACKET_FOOTER;
+
+    CObservedFeatureVector::m_sRobotData.VOTER_PACKET_MARKER            = VOTER_PACKET;
+    CObservedFeatureVector::m_sRobotData.VOTER_PACKET_FOOTER_MARKER     = VOTER_PACKET_FOOTER;
 }
 
 /****************************************/
@@ -311,7 +327,10 @@ void CEPuckHomSwarm::ControlStep()
 
 
     /****************************************/
+#if FV_MODE == PROPRIOCEPT_MODE
+
     /* Estimate feature-vectors - proprioceptively */
+
     m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cProprioceptiveFeatureVector.SimulationStep();
 
@@ -321,49 +340,45 @@ void CEPuckHomSwarm::ControlStep()
     /* Communicate your id and proprioceptively computed FV to whoever is in range, using the RAB sensor*/
     /* Also relay the id and fvs of neighbours, received by you in the previous control cycle */
     //if ((unsigned)m_fInternalRobotTimer%2u == 0)
+
+    //printf(" SendFVsToNeighbours() \n\n\n");
     SendFVsToNeighbours();
 
     /* Listen for robot ids + feature vectors from neighbours and then assimilate them  */
+    //printf(" Sense(PROBABILITY_FORGET_FV); \n\n\n");
     Sense(PROBABILITY_FORGET_FV);
+#endif
     /****************************************/
 
 
 
     /****************************************/
-    /*
-     * Estimate feature-vectors - via observation
-     */
+#if FV_MODE == OBSERVATION_MODE
+    /* Estimate feature-vectors - via observation */
 
-    /*if ( ((unsigned)m_fInternalRobotTimer%2u == 0) || (m_fInternalRobotTimer <= MODELSTARTTIME))
-        SendIDToNeighbours(m_pcRABS->GetReadings()); // we need to send the robot id and the bearing at which it observes its different neighbours on the rRABS all the time - as gaps in data reception are not programmed for
+    //if ( ((unsigned)m_fInternalRobotTimer%2u == 0) || (m_fInternalRobotTimer <= MODELSTARTTIME))
+    SendIDToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay); // we need to send the robot id and the bearing at which it observes its different neighbours on the rRABS all the time - as gaps in data reception are not programmed for
     m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cObservationFeatureVector.SimulationStep();
 
-    for (size_t i = 0; i < m_cObservationFeatureVector.ObservedRobotIDs.size(); ++i)
-    {
-        unsigned robotId = m_cObservationFeatureVector.ObservedRobotIDs[i];
-        unsigned fv      = m_cObservationFeatureVector.ObservedRobotFVs[i];
-        std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
-        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
-    }
-    //remove entries older than 10s
-    TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
-    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, PROBABILITY_FORGET_FV); // update listFVsSensed */
-
+    Sense(PROBABILITY_FORGET_FV);
+#endif
     /****************************************/
 
 
-    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u) 
-    // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
+    if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u)
+        // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
     {
         listConsensusInfoOnRobotIds.clear();
         listVoteInformationRobots.clear();
     }
-    else if(m_fInternalRobotTimer > MODELSTARTTIME) 
-    /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
+    else if(m_fInternalRobotTimer > MODELSTARTTIME)
+        /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
     {
         /* Listen for voting packets and consensus packets from neighbours*/
+        //printf(" ReceiveVotesAndConsensus(); \n\n\n");
         ReceiveVotesAndConsensus();
+        //printf(" Finished ReceiveVotesAndConsensus(); \n\n\n");
         EstablishConsensus();
     }
 
@@ -372,8 +387,8 @@ void CEPuckHomSwarm::ControlStep()
     if (b_CRM_Run && (TimeSinceCRM > CRM_RESULTS_VALIDFOR_SECONDS)) /* the results of the CRM are no longer valid */
         b_CRM_Run = false;
 
-    if((m_fInternalRobotTimer > MODELSTARTTIME) && (listFVsSensed.size() > 0)) 
-    // the robot has atleast had one FV entry in its distribution. if not the CRM will crash.
+    if((m_fInternalRobotTimer > MODELSTARTTIME) && (listFVsSensed.size() > 0))
+        // the robot has atleast had one FV entry in its distribution. if not the CRM will crash.
     {
         crminAgent->SimulationStepUpdatePosition(m_fInternalRobotTimer, &listFVsSensed);
         b_CRM_Run = true;
@@ -394,8 +409,12 @@ void CEPuckHomSwarm::ControlStep()
 
     if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) != 0u) /* dont send CRM results if buffer is cleared*/
     {
-      if ((m_fInternalRobotTimer > MODELSTARTTIME)) // && (unsigned)m_fInternalRobotTimer%2u == 1)
-	SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
+        if ((m_fInternalRobotTimer > MODELSTARTTIME)) // && (unsigned)m_fInternalRobotTimer%2u == 1)
+        {
+            //printf(" SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); \n\n\n");
+            SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
+            //printf(" Finished SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); \n\n\n");
+        }
     }
     /*else
         SendIDToNeighbours(m_pcRABS->GetReadings()); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
@@ -405,11 +424,11 @@ void CEPuckHomSwarm::ControlStep()
 /****************************************/
 /****************************************/
 
-void CEPuckHomSwarm::SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets)
+void CEPuckHomSwarm::SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay)
 {
     /*Communicate your id to neighbours, so they know who they are observing*/
     /*Also communicate the bearing at which you observed the neighbours */
-    WriteToCommunicationChannel(RobotIdStrToInt(), tPackets);
+    WriteToCommunicationChannel(RobotIdStrToInt(), tPackets, IdToFVsMap_torelay);
 }
 
 /****************************************/
@@ -430,6 +449,8 @@ void CEPuckHomSwarm::SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_V
      * Also broadcast consensus information - add any new consensus info to your local list and send it out again */
     WriteToCommunicationChannel(RobotIdStrToInt(), listMapFVsToRobotIds,
                                 listFVsSensed, listConsensusInfoOnRobotIds, b_CRM_Results_Valid);
+
+    //printf(" finished WriteToCommunicationChannel \n\n");
 }
 
 /****************************************/
@@ -437,6 +458,7 @@ void CEPuckHomSwarm::SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_V
 
 void CEPuckHomSwarm::Sense(Real m_fProbForget)
 {
+#if FV_MODE == PROPRIOCEPT_MODE
     const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
 
     /* Listen for feature vectors from neighbours */
@@ -449,6 +471,30 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS); /*remove entries older than 10s */
 
     UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, m_fProbForget); // update listFVsSensed
+#endif
+
+#if FV_MODE == OBSERVATION_MODE
+    listMapFVsToRobotIds_relay.clear();
+    for (size_t i = 0; i < m_cObservationFeatureVector.ObservedRobotIDs.size(); ++i)
+    {
+        unsigned robotId = m_cObservationFeatureVector.ObservedRobotIDs[i];
+        unsigned fv      = m_cObservationFeatureVector.ObservedRobotFVs[i];
+
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
+
+        //if(robotId == 15)
+        //    std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
+
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+    }
+
+    const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
+    bool read_status = ReadFromCommunicationChannel_RelayedFv(tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
+
+    //remove entries older than 10s
+    TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, PROBABILITY_FORGET_FV); // update listFVsSensed
+#endif
 }
 
 /****************************************/
@@ -505,7 +551,7 @@ void CEPuckHomSwarm::EstablishConsensus()
         {
             /*bool b_OneSecondToVotConReset = (((unsigned)m_fInternalRobotTimer %
                                               (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) >= 9u);*/
-              bool b_OneSecondToVotConReset(false);
+            bool b_OneSecondToVotConReset(false);
 
 
             /* If #votes-registered > CONSENSUS_THRESHOLD, or if we are close to the expiry time of current VOTCON_RESULTS_VALIDFOR_SECONDS window (1s remaining) after which the consensus and vote vectors will be cleared */
@@ -687,7 +733,7 @@ unsigned CEPuckHomSwarm::RobotIdStrToInt()
 /****************************************/
 /****************************************/
 
-void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets)
+void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay)
 {
     size_t databyte_index;
 
@@ -698,7 +744,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
         databyte_index = 0;
 
 
-    m_pcRABA->SetData(databyte_index++, OBSERVED_FVS_PACKET);
+    m_pcRABA->SetData(databyte_index++, SELF_INFO_PACKET);
     m_pcRABA->SetData(databyte_index++, SelfId);
 
 
@@ -719,15 +765,15 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
 
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets) ";
-	    exit(-1);
+            std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets) ";
+            exit(-1);
         }
         m_pcRABA->SetData(databyte_index++, robotId);
 
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets) ";
-	    exit(-1);
+            std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets) ";
+            exit(-1);
         }
         m_pcRABA->SetData(databyte_index++, un_bearing);
     }
@@ -735,7 +781,16 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
     /*if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
       m_pcRABA->SetData(databyte_index, END_BUFFER);*/
 
-    m_pcRABA->SetData(databyte_index, END_BUFFER);
+    m_pcRABA->SetData(databyte_index++, SELF_INFO_PACKET_FOOTER);
+
+
+    m_pcRABA->SetData(databyte_index++, RELAY_FVS_PACKET);
+    for (t_listMapFVsToRobotIds::iterator it = IdToFVsMap_torelay.begin(); it != IdToFVsMap_torelay.end(); ++it)
+    {
+        m_pcRABA->SetData(databyte_index++, it->uRobotId);
+        m_pcRABA->SetData(databyte_index++, it->uFV);
+    }
+    m_pcRABA->SetData(databyte_index, RELAY_FVS_PACKET_FOOTER);
 }
 
 /****************************************/
@@ -752,38 +807,41 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
         databyte_index = 0;
 
 
-    m_pcRABA->SetData(databyte_index++, OBSERVED_FVS_PACKET);
+    m_pcRABA->SetData(databyte_index++, SELF_INFO_PACKET);
     m_pcRABA->SetData(databyte_index++, SelfId);
     m_pcRABA->SetData(databyte_index++, SelfFV);
+    m_pcRABA->SetData(databyte_index++, SELF_INFO_PACKET_FOOTER);
 
+
+    m_pcRABA->SetData(databyte_index++, RELAY_FVS_PACKET);
     bool buffer_full(false);
     for(t_listMapFVsToRobotIds::iterator itd = IdToFVsMap_torelay.begin(); itd != IdToFVsMap_torelay.end(); ++itd)
     {
         m_pcRABA->SetData(databyte_index++, itd->uRobotId);
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-	  /*buffer_full = true;
+            /*buffer_full = true;
             m_pcRABA->SetData(databyte_index, END_BUFFER);
             break;*/
-	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) " << std::endl;
-	    exit(-1);
+            std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) " << std::endl;
+            exit(-1);
         }
 
         m_pcRABA->SetData(databyte_index++, itd->uFV);
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
-	  /*buffer_full = true;
+            /*buffer_full = true;
             m_pcRABA->SetData(databyte_index, END_BUFFER);
             break;*/
-	    std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) " << std::endl;
-	    exit(-1);
+            std::cerr << " buffer_full " << " WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay) " << std::endl;
+            exit(-1);
         }
     }
 
     /*if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
       m_pcRABA->SetData(databyte_index, END_BUFFER);*/
 
-    m_pcRABA->SetData(databyte_index, END_BUFFER);
+    m_pcRABA->SetData(databyte_index, RELAY_FVS_PACKET_FOOTER);
 }
 
 /****************************************/
@@ -792,6 +850,8 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
 void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
                                                  t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid)
 {
+    //printf("WriteToCommunicationChannel \n\n");
+
     size_t databyte_index;
 
     // we not put all the different message types in the same packet - to be sent at the same cycle
@@ -801,31 +861,46 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
     else
     databyte_index = 0;*/
 
-    bool end_buffer_found(false); 
+    bool end_buffer_found(false);
     for (size_t tmp_index = 0; tmp_index < m_pcRABA->GetSize(); ++tmp_index)
     {
-      if (m_pcRABA->GetData(tmp_index) == END_BUFFER)
-      {	
-	end_buffer_found = true;
-	databyte_index = tmp_index + 1;
-	break;
-      }   	
+        if (m_pcRABA->GetData(tmp_index) == RELAY_FVS_PACKET_FOOTER)
+        {
+            end_buffer_found = true;
+            databyte_index = tmp_index + 1;
+            break;
+        }
     }
 
     if (end_buffer_found == false)
     {
-      std::cerr << " end buffer not found  " << " WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds, t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid) " << std::endl;
-      exit(-1);
-    }   
+        std::cerr << " RELAY_FVS_PACKET_FOOTER not found  " << " WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds, t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid) " << std::endl;
+        exit(-1);
+    }
 
 
+    if(databyte_index == (m_pcRABA->GetSize()-1))
+    {
+        std::cerr << " buffer full. no place to write voter packet header type " << std::endl;
+        exit(-1);
+    }
     m_pcRABA->SetData(databyte_index++, VOTER_PACKET);
+    if(databyte_index == (m_pcRABA->GetSize()-1))
+    {
+        std::cerr << " buffer full. no place to write voter id " << std::endl;
+        exit(-1);
+    }
     m_pcRABA->SetData(databyte_index++, VoterId);
 
 
     if(CRMResultsOnFVDist.size() == 0 && ConsensusLst.size() == 0) // nothing to be written
     {
-        m_pcRABA->SetData(databyte_index, END_BUFFER);
+        if(databyte_index == (m_pcRABA->GetSize()))
+        {
+            std::cerr << " buffer full. no place to write end buffer " << std::endl;
+            exit(-1);
+        }
+        m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
         return;
     }
 
@@ -835,11 +910,18 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
      */
     for (t_listConsensusInfoOnRobotIds::iterator it_cons = ConsensusLst.begin(); it_cons != ConsensusLst.end(); ++it_cons)
     {
+        if(databyte_index == m_pcRABA->GetSize()-1)
+        {
+            buffer_full = true;
+            m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
+            break;
+        }
+
         m_pcRABA->SetData(databyte_index++, it_cons->uRobotId);
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
             buffer_full = true;
-            m_pcRABA->SetData(databyte_index, END_BUFFER);
+            m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
             break;
         }
 
@@ -847,7 +929,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
             buffer_full = true;
-            m_pcRABA->SetData(databyte_index, END_BUFFER);
+            m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
             break;
         }
     }
@@ -856,12 +938,17 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
     {
         std::cerr << " Written consensus. But buffer full now. No longer able to write the vote packet. complain by exiting" << std::endl;
         std::cerr << " CRMResultsOnFVDist.size() " << CRMResultsOnFVDist.size() << " ConsensusLst.size() " << ConsensusLst.size() << std::endl;
-        assert(-1);
+        exit(-1);
     }
 
     if(!b_CRM_Results_Valid) /* the crm results on the FVs in CRMResultsOnFVDist is no longer valid */
     {
-        m_pcRABA->SetData(databyte_index, END_BUFFER);
+        if(databyte_index == (m_pcRABA->GetSize()))
+        {
+            std::cerr << " buffer full. no place to write end buffer " << std::endl;
+            exit(-1);
+        }
+        m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
         return;
     }
 
@@ -870,34 +957,42 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
      * We dont write the results of all the FVs in the listFVsSensed as they may be some very old FVs no longer present in the swarm.
      * Update: Your FV-ID map may be old too. Other robots may have a better map. Don't curtail information from them.
      */
+    buffer_full = false;
     for (t_listFVsSensed::iterator it_fvdist = CRMResultsOnFVDist.begin(); it_fvdist != CRMResultsOnFVDist.end(); ++it_fvdist)
     {
-                m_pcRABA->SetData(databyte_index++, it_fvdist->uFV);
-                if(databyte_index == m_pcRABA->GetSize()-1)
-                {
-                    buffer_full = true;
-                    m_pcRABA->SetData(databyte_index, END_BUFFER);
-                    break;
-                }
-
-                m_pcRABA->SetData(databyte_index++, (it_fvdist->uMostWantedState==1)?ATTACK_VOTE:TOLERATE_VOTE);
-                if(databyte_index == m_pcRABA->GetSize()-1)
-                {
-                    buffer_full = true;
-                    m_pcRABA->SetData(databyte_index, END_BUFFER);
-                    break;
-                }
-
-        if(buffer_full)
+        if(databyte_index == m_pcRABA->GetSize()-1)
         {
-            std::cerr << " No longer able to write the vote packet. complain by exiting" << std::endl;
-            std::cerr << " CRMResultsOnFVDist.size() " << CRMResultsOnFVDist.size() << " ConsensusLst.size() " << ConsensusLst.size() << std::endl;
-            assert(-1);
+            buffer_full = true;
+            m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
+            break;
+        }
+
+        m_pcRABA->SetData(databyte_index++, it_fvdist->uFV);
+        if(databyte_index == m_pcRABA->GetSize()-1)
+        {
+            buffer_full = true;
+            m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
+            break;
+        }
+
+        m_pcRABA->SetData(databyte_index++, (it_fvdist->uMostWantedState==1)?ATTACK_VOTE:TOLERATE_VOTE);
+        if(databyte_index == m_pcRABA->GetSize()-1)
+        {
+            buffer_full = true;
+            m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
+            break;
         }
     }
 
+    if(buffer_full)
+    {
+        std::cerr << " No longer able to write the vote packet. complain by exiting" << std::endl;
+        std::cerr << " CRMResultsOnFVDist.size() " << CRMResultsOnFVDist.size() << " ConsensusLst.size() " << ConsensusLst.size() << std::endl;
+        exit(-1);
+    }
+
     if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
-        m_pcRABA->SetData(databyte_index, END_BUFFER);
+        m_pcRABA->SetData(databyte_index, VOTER_PACKET_FOOTER);
 }
 
 /****************************************/
@@ -917,7 +1012,7 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearin
 
     //std::sort(tPackets.begin(), tPackets.end(), func_SortPacketsOnRange); // used if you want to read only the 10 nearest observations
 
-     // Adding the most recent observations into listMapFVsToRobotIds and marked for relay in listMapFVsToRobotIds_relay
+    // Adding the most recent observations into listMapFVsToRobotIds and marked for relay in listMapFVsToRobotIds_relay
     listMapFVsToRobotIds_relay.clear();
     for(size_t i = 0; i < tPackets.size(); ++i)
     {
@@ -929,28 +1024,83 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearin
             byte_index = 0;
 
 
-        if(tPackets[i].Data[byte_index++] != OBSERVED_FVS_PACKET) // this neighbour is not sending me observed FVs
+        if(tPackets[i].Data[byte_index++] == SELF_INFO_PACKET) // this neighbour is not sending me its FVs
+        {
+            robotId = tPackets[i].Data[byte_index++];
+            fv      = tPackets[i].Data[byte_index++];
+            read_successful = true;
+            byte_index++; // SELF_INFO_PACKET_FOOTER
+
+            listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
+            UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+        }
+
+
+        if(tPackets[i].Data[byte_index++] == RELAY_FVS_PACKET) // this neighbour is not sending me its FVs
+            for(unsigned byteindex1 = byte_index; byteindex1 < tPackets[i].Data.Size(); byteindex1+=2)
+            {
+                if(tPackets[i].Data[byteindex1] == RELAY_FVS_PACKET_FOOTER)
+                    break;
+
+                robotId = tPackets[i].Data[byteindex1];
+
+                if(tPackets[i].Data[byteindex1+1] == RELAY_FVS_PACKET_FOOTER)
+                    break;
+
+                fv      = tPackets[i].Data[byteindex1+1];
+
+                UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1); // old information
+            }
+
+    }
+
+    return read_successful;
+}
+
+/****************************************/
+/****************************************/
+
+bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndBearingSensor::TReadings& tPackets)
+{
+    /* Only read the the id and fvs relayed by your neighbours, timstamped to behavior at the previous control cycle. Read from communication channel and stored in listMapFVsToRobotIds */
+
+    bool read_successful(false); // successfully read id and fvs from at least one neighbour
+
+    //std::sort(tPackets.begin(), tPackets.end(), func_SortPacketsOnRange); // used if you want to read only the 10 nearest observations
+
+
+    for(size_t i = 0; i < tPackets.size(); ++i)
+    {
+        size_t byte_index = 0;  unsigned robotId, fv;
+
+        bool RELAY_FVS_PACKET_FOUND(false);
+        for(byte_index = 0; byte_index < tPackets[i].Data.Size(); ++byte_index)
+        {
+            if(tPackets[i].Data[byte_index] == RELAY_FVS_PACKET)
+            {
+                RELAY_FVS_PACKET_FOUND = true;
+                byte_index++;
+                break;
+            }
+        }
+
+        if(RELAY_FVS_PACKET_FOUND == false)
             continue;
-
-        robotId = tPackets[i].Data[byte_index++];
-        fv      = tPackets[i].Data[byte_index++];
-        read_successful = true;
-
-        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
-        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
 
 
         for(unsigned byteindex1 = byte_index; byteindex1 < tPackets[i].Data.Size(); byteindex1+=2)
         {
-            if(tPackets[i].Data[byteindex1] == END_BUFFER)
+            if(tPackets[i].Data[byteindex1] == RELAY_FVS_PACKET_FOOTER)
                 break;
 
             robotId = tPackets[i].Data[byteindex1];
 
-            if(tPackets[i].Data[byteindex1+1] == END_BUFFER)
+            if(tPackets[i].Data[byteindex1+1] == RELAY_FVS_PACKET_FOOTER)
                 break;
 
             fv      = tPackets[i].Data[byteindex1+1];
+
+            read_successful = true;
 
             UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1); // old information
         }
@@ -994,39 +1144,35 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBear
         /*if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
-	    byte_index = 0;*/
+        byte_index = 0;*/
 
-	bool end_buffer_found(false);
-	for (size_t tmp_index = 0; tmp_index < tPackets[i].Data.Size(); ++tmp_index)
-	{
-	    if (tPackets[i].Data[tmp_index] == END_BUFFER)
-	    {
-	        end_buffer_found = true;
-		byte_index = tmp_index + 1;
-		break;
-	    }   	
-	}
-
-        if(end_buffer_found == false)
+        bool voter_packet_found(false);
+        for (size_t tmp_index = 0; tmp_index < tPackets[i].Data.Size(); ++tmp_index)
         {
-	  std::cerr << " end buffer not found " << " ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBearingSensor::TReadings& tPackets) " << std::endl;
-	  exit(-1);
-        }  
+            if (tPackets[i].Data[tmp_index] == VOTER_PACKET)
+            {
+                voter_packet_found = true;
+                byte_index = tmp_index + 1;
+                break;
+            }
+        }
 
-
-        if(tPackets[i].Data[byte_index++] != VOTER_PACKET) // this neighbour is not sending me observed FVs
+        if(voter_packet_found == false) // this neighbour is not sending me any votes or consensus
             continue;
+
 
         votertId = tPackets[i].Data[byte_index++];
 
         for(unsigned byteindex1 = byte_index; byteindex1 < tPackets[i].Data.Size(); byteindex1+=2)
         {
-            if(tPackets[i].Data[byteindex1] == END_BUFFER)
+            //printf("\npacket index %d; byteindex1=%d \n",i,byteindex1);
+
+            if(tPackets[i].Data[byteindex1] == VOTER_PACKET_FOOTER)
                 break;
 
             tmp1 = tPackets[i].Data[byteindex1];
 
-            if(tPackets[i].Data[byteindex1+1] == END_BUFFER)
+            if(tPackets[i].Data[byteindex1+1] == VOTER_PACKET_FOOTER)
                 break;
 
             tmp2 = tPackets[i].Data[byteindex1+1];

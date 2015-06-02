@@ -38,10 +38,15 @@ public:
         Real     WHEEL_RADIUS;
 
         size_t   BEACON_SIGNAL_MARKER;
-        size_t   OBSERVED_FVS_PACKET_MARKER;
-        size_t   VOTER_PACKET_MARKER;
 
-        size_t   END_BUFFER_MARKER;
+        size_t   SELF_INFO_PACKET_MARKER;
+        size_t   SELF_INFO_PACKET_FOOTER_MARKER;
+
+        size_t   RELAY_FVS_PACKET_MARKER;
+        size_t   RELAY_FVS_PACKET_FOOTER_MARKER;
+
+        size_t   VOTER_PACKET_MARKER;
+        size_t   VOTER_PACKET_FOOTER_MARKER;
     };
 
     struct SensoryData
