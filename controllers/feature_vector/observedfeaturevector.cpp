@@ -176,11 +176,18 @@ unsigned CObservedFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearingSensor::T
 /******************************************************************************/
 /******************************************************************************/
 
-float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robot_id, CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index)
+float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robot_id, CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index, unsigned observerd_robot_id)
 {
     size_t index_start = 0;
     if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER)
         index_start = 1;
+
+
+    if (rab_packet[rab_packet_index].Data[index_start] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[index_start] == m_sRobotData.SELF_INFO_PACKET_MARKER)
+    {
+        unsigned chk_observerd_robot_id = rab_packet[rab_packet_index].Data[index_start+1]; // the id comes after the message header.
+        assert(chk_observerd_robot_id == observerd_robot_id);
+    }
 
     // search for the appropriate message header. once found read until the end of this message header until you find observer_robot_id. once you find
 
@@ -198,13 +205,18 @@ float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robo
     if(message_header_found == false)
         return ROBOTSELFBEARING_NOT_IN_SIGNAL;
 
-    for(size_t data_index = index_start; data_index < rab_packet[rab_packet_index].Data.Size(); ++data_index)
+    for(size_t data_index = index_start; data_index < rab_packet[rab_packet_index].Data.Size(); data_index+=2)
     {
-        if(rab_packet[rab_packet_index].Data[data_index] == m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER)
+        if((rab_packet[rab_packet_index].Data[data_index] == m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER) ||
+           (rab_packet[rab_packet_index].Data[data_index+1] == m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER))
             break;
 
         if(rab_packet[rab_packet_index].Data[data_index] == observer_robot_id)
-            return rab_packet[rab_packet_index].Data[data_index+1] * 360.0f / 255.0f;
+        {
+            /*if(observerd_robot_id == 15 && observer_robot_id == 17)
+                std::cout << "R " << rab_packet[rab_packet_index].Data[data_index+1] << " " << rab_packet[rab_packet_index].Data[data_index+1] * 360.0f / m_sRobotData.DATA_BYTE_BOUND_MARKER <<std::endl;*/
+            return rab_packet[rab_packet_index].Data[data_index+1] * 360.0f / m_sRobotData.DATA_BYTE_BOUND_MARKER;
+        }
     }
 
     return ROBOTSELFBEARING_NOT_IN_SIGNAL;
@@ -645,9 +657,11 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
             if((average_angularacceleration  >   m_fThreshold)  ||
                (average_angularacceleration  <  -m_fThreshold))
             {
-                std::cout << " Average angular acceleration " <<  average_angularacceleration << std::endl;
+               /* std::cout << owner.m_sSensoryData.m_unRobotId << std::endl;
+                std::cout << average_angularacceleration << std::endl;
                 std::cout << prev_prev_estimated_heading << "; " << prev_estimated_heading << "; " << estimated_heading << std::endl;
-                std::cout << prev_average_angularspeed << "; " << average_angularspeed << std::endl;
+                std::cout << prev_average_angularspeed << "; " << average_angularspeed << std::endl;*/
+
             }
     }
 
@@ -835,9 +849,9 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::EstimateOdometry()
     prev_estimated_heading = estimated_heading;
     estimated_heading = observedRobotId_1_SelfBearing;
     if ((estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) && (prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) &&
-            (prev_prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL))
+        (prev_prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL))
     {
-        prev_average_angularspeed = average_angularspeed;
+        prev_average_angularspeed = diff_angle(prev_estimated_heading, prev_prev_estimated_heading);;
         average_angularspeed = diff_angle(estimated_heading, prev_estimated_heading);
         average_angularacceleration = average_angularspeed - prev_average_angularspeed;
 
@@ -961,7 +975,7 @@ bool CObservedFeatureVector::ObservedRobots_FeatureVector::GetObservedRobotRange
             observedRobotFound = true;
 
             // go through the packet of data received from this robot. search for the bearing at which this robot observed robot owner.m_sSensoryData.m_unRobotId
-            observedRobotId_1_SelfBearing = owner.GetSelfBearingFromRABPacket(owner.m_sSensoryData.m_unRobotId, owner.m_sSensoryData.m_RABSensorData, i);
+            observedRobotId_1_SelfBearing = owner.GetSelfBearingFromRABPacket(owner.m_sSensoryData.m_unRobotId, owner.m_sSensoryData.m_RABSensorData, i, m_unRobotId);
             break;
         }
     }

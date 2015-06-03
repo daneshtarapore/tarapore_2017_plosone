@@ -222,7 +222,7 @@ public:
      *
      *
      */
-    virtual void SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
+    virtual void SendIdSelfBearingAndObsFVsToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
 
     /*
      *

@@ -21,6 +21,8 @@
 
 using namespace argos;
 
+template <typename T> Real diff_angle(T estimated_heading, T prev_estimated_heading);
+
 class CObservedFeatureVector
 {
 public:
@@ -47,6 +49,8 @@ public:
 
         size_t   VOTER_PACKET_MARKER;
         size_t   VOTER_PACKET_FOOTER_MARKER;
+
+        size_t DATA_BYTE_BOUND_MARKER;
     };
 
     struct SensoryData
@@ -211,7 +215,7 @@ public:
     virtual unsigned SimulationStep();
 
     virtual unsigned GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
-    virtual float    GetSelfBearingFromRABPacket(unsigned observer_robot_id, CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
+    virtual float    GetSelfBearingFromRABPacket(unsigned observer_robot_id, CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index, unsigned observerd_robot_id);
 
 
     static RobotData m_sRobotData;

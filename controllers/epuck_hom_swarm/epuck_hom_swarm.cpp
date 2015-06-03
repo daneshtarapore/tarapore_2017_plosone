@@ -13,22 +13,23 @@
 /****************************************/
 /****************************************/
 
-UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 200;
+#define DATA_BYTE_BOUND 240.0f
+UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 
 //#define END_BUFFER 240
 
-#define SELF_INFO_PACKET 100 /* used to encompass info of self, be that the proprioceptively computed FVs, the bearings at which neighbours are observed, or proprioceptively computed angular acceleration.*/
-#define SELF_INFO_PACKET_FOOTER 242
+#define SELF_INFO_PACKET 242 /* used to encompass info of self, be that the proprioceptively computed FVs, the bearings at which neighbours are observed, or proprioceptively computed angular acceleration.*/
+#define SELF_INFO_PACKET_FOOTER 243
 
-#define RELAY_FVS_PACKET 110
-#define RELAY_FVS_PACKET_FOOTER 243
+#define RELAY_FVS_PACKET 244
+#define RELAY_FVS_PACKET_FOOTER 245
 
-#define VOTER_PACKET 120
-#define ATTACK_VOTE 130
-#define TOLERATE_VOTE 140
-#define ATTACK_CONSENSUS 150
-#define TOLERATE_CONSENSUS 160
-#define VOTER_PACKET_FOOTER 241
+#define VOTER_PACKET 246
+#define ATTACK_VOTE 247
+#define TOLERATE_VOTE 248
+#define ATTACK_CONSENSUS 249
+#define TOLERATE_CONSENSUS 250
+#define VOTER_PACKET_FOOTER 251
 
 
 #define PROPRIOCEPT_MODE 0
@@ -271,6 +272,8 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
 
     CObservedFeatureVector::m_sRobotData.VOTER_PACKET_MARKER            = VOTER_PACKET;
     CObservedFeatureVector::m_sRobotData.VOTER_PACKET_FOOTER_MARKER     = VOTER_PACKET_FOOTER;
+
+    CObservedFeatureVector::m_sRobotData.DATA_BYTE_BOUND_MARKER         = DATA_BYTE_BOUND;
 }
 
 /****************************************/
@@ -356,12 +359,16 @@ void CEPuckHomSwarm::ControlStep()
 #if FV_MODE == OBSERVATION_MODE
     /* Estimate feature-vectors - via observation */
 
-    //if ( ((unsigned)m_fInternalRobotTimer%2u == 0) || (m_fInternalRobotTimer <= MODELSTARTTIME))
-    SendIDToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay); // we need to send the robot id and the bearing at which it observes its different neighbours on the rRABS all the time - as gaps in data reception are not programmed for
     m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cObservationFeatureVector.SimulationStep();
 
     Sense(PROBABILITY_FORGET_FV);
+
+    //if ( ((unsigned)m_fInternalRobotTimer%2u == 0) || (m_fInternalRobotTimer <= MODELSTARTTIME))
+    /*
+     * Send the robot id and the bearing at which it observes its different neighbours. Also relay the observed FVs
+     */
+    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
 
@@ -417,17 +424,18 @@ void CEPuckHomSwarm::ControlStep()
         }
     }
     /*else
-        SendIDToNeighbours(m_pcRABS->GetReadings()); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
+        SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings()); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
 
 }
 
 /****************************************/
 /****************************************/
 
-void CEPuckHomSwarm::SendIDToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay)
+void CEPuckHomSwarm::SendIdSelfBearingAndObsFVsToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay)
 {
     /*Communicate your id to neighbours, so they know who they are observing*/
     /*Also communicate the bearing at which you observed the neighbours */
+    /*Also communicate the FVs you have observed */
     WriteToCommunicationChannel(RobotIdStrToInt(), tPackets, IdToFVsMap_torelay);
 }
 
@@ -493,7 +501,7 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 
     //remove entries older than 10s
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
-    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, PROBABILITY_FORGET_FV); // update listFVsSensed
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, m_fProbForget); // update listFVsSensed
 #endif
 }
 
@@ -626,8 +634,8 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
         if(this->GetId().compare("ep0") == 0)
         {
             // ep0 is the beacon robot
-            /* Sends out data '200' with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
-            // 200 is way above the maximum 6-bit FV of range [0,63] and the possible ids of robots (max 20 in swarm). Also within 1 byte [0-255] of RAB sensor data [4 or 10 1 byte array depending on epuck or footbot]
+            /* Sends out data 'BEACON_SIGNAL' with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
+            // BEACON_SIGNAL is way above the DATA_BYTE_BOUND
             m_pcRABA->SetData(0, BEACON_SIGNAL);
             m_pcLEDs->SetAllColors(CColor::YELLOW);
         }
@@ -761,7 +769,13 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
 
         robotId = tPackets[i].Data[byte_index];
         bearing = tPackets[i].HorizontalBearing;
-        un_bearing = (unsigned)(ToDegrees(bearing).UnsignedNormalize().GetValue() * 255.0f / 360.0f);
+        un_bearing = (unsigned)(ToDegrees(bearing).UnsignedNormalize().GetValue() * DATA_BYTE_BOUND / 360.0f);
+
+        /*if (SelfId == 15 && robotId == 17)
+        {
+            std::cerr << ToDegrees(bearing).UnsignedNormalize() << " " << ToDegrees(bearing).UnsignedNormalize().GetValue() << std::endl;
+            std::cerr << ToDegrees(bearing).UnsignedNormalize().GetValue() * (DATA_BYTE_BOUND / 360.0f) << " " << (un_bearing * 360.0f / DATA_BYTE_BOUND) << std::endl;
+        }*/
 
         if(databyte_index == m_pcRABA->GetSize()-1)
         {
