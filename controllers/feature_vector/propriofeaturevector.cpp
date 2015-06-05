@@ -134,7 +134,7 @@ unsigned int CProprioceptiveFeatureVector::SimulationStep()
 {
     // too small thresholded distance. robot moves very little in one control-cycle. better to intergrate distance over time and use threshold on that
     m_fVelocityThreshold            = 0.05  * (m_sRobotData.MaxLinearSpeed); // max speed is 0.5 cm per control cycle
-    //m_fAccelerationThreshold        = 0.05  * (m_sRobotData.MaxLinearAcceleration); // max change in speed is \[PlusMinus]1 cm per control cycle per control cycle
+    //m_fAccelerationThreshold      = 0.05  * (m_sRobotData.MaxLinearAcceleration); // max change in speed is \[PlusMinus]1 cm per control cycle per control cycle
 
     m_fAccelerationThreshold        = 2.0f; // max change in speed is \[PlusMinus]2.5 cm over 5 control cycles  per control cycle per control cycle
 

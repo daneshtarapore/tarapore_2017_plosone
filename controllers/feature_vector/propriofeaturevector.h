@@ -52,7 +52,7 @@ public:
        CVector2 pos; CRadians orientation;
        Real dist;
 
-        std::vector<Real> vec_linearspeeds; unsigned vec_linearspeeds_index;
+       std::vector<Real> vec_linearspeeds; unsigned vec_linearspeeds_index;
 
        SensoryData()
        {
@@ -120,6 +120,15 @@ public:
            pos.Set(rX, rY);
 
            dist = m_sRobotData.seconds_per_iterations * ((f_LeftWheelSpeed + f_RightWheelSpeed) / 2.0f);
+       }
+
+       Real GetNormalisedAngularAcceleration()
+       {
+           /*normalises to range [-1 to 1] */
+           if ((AngularAcceleration / m_sRobotData.MaxAngularAcceleration) >= 0.0f)
+               return std::min(AngularAcceleration / m_sRobotData.MaxAngularAcceleration,   1.0);
+           else
+                return std::max(AngularAcceleration / m_sRobotData.MaxAngularAcceleration, -1.0);
        }
     };
 

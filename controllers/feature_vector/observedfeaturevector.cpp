@@ -41,7 +41,7 @@ int CObservedFeatureVector::m_iLongTimeWindowLength   = 0u;
 /******************************************************************************/
 #define ROBOTID_NOT_IN_SIGNAL          999
 #define ROBOTSELFBEARING_NOT_IN_SIGNAL 999.0f
-
+#define ROBOTSELFACCELERATION_NOT_IN_SIGNAL 999.0f
 /******************************************************************************/
 /******************************************************************************/
 
@@ -220,6 +220,26 @@ float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robo
     }
 
     return ROBOTSELFBEARING_NOT_IN_SIGNAL;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+float CObservedFeatureVector::GetAnguAccelerFromRABPacket(CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index, unsigned observerd_robot_id)
+{
+    size_t index_start = 0;
+    if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER)
+        index_start = 1;
+
+
+    if (rab_packet[rab_packet_index].Data[index_start] == m_sRobotData.SELF_INFO_PACKET_MARKER)
+    {
+        unsigned chk_observerd_robot_id = rab_packet[rab_packet_index].Data[index_start+1]; // the id comes after the message header.
+        assert(chk_observerd_robot_id == observerd_robot_id);
+        return ((rab_packet[rab_packet_index].Data[index_start+2] / m_sRobotData.DATA_BYTE_BOUND_MARKER) * 2.0f) - 1.0f; // return [-1, +1]
+    }
+
+    return ROBOTSELFACCELERATION_NOT_IN_SIGNAL;
 }
 
 /******************************************************************************/
@@ -647,7 +667,12 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 
     EstimateOdometry();
 
-    Real m_fThreshold= 10.0f;
+    Real m_fThreshold;
+    if (m_sRobotData.OBSERVATION_MODE_TYPE == 1) // pure observation mode
+        m_fThreshold = 10.0f; // in degrees
+    else if (m_sRobotData.OBSERVATION_MODE_TYPE == 2) // combined proprioceptive +  observation mode
+        m_fThreshold = 0.15f;  // proportion
+
     if (m_unRobotId == 15u)
     {
             /*std::cout << " Observed robot id " << m_unRobotId << std::endl;
@@ -712,12 +737,6 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     }
 
 
-
-
-
-
-
-
     Real disp_ShortWindow_Threshold  = 0.25f;
     Real disp_MediumWindow_Threshold = 0.25f;
     Real disp_LongWindow_Threshold   = 0.10f;
@@ -727,12 +746,30 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     Real f6 = (m_fEstimated_Dist_LongTimeWindow   >  (disp_LongWindow_Threshold   * ((Real)m_iLongTimeWindowLength)   * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
 
 
-    m_pfFeatureValues[0] = m_pfAllFeatureValues[0];
-    m_pfFeatureValues[1] = m_pfAllFeatureValues[1];
-    m_pfFeatureValues[2] = m_pfAllFeatureValues[2];
-    m_pfFeatureValues[3] = m_pfAllFeatureValues[3];
-    m_pfFeatureValues[4] = f6;
-    m_pfFeatureValues[5] = m_pfAllFeatureValues[5];
+    if (m_unRobotId == 7)
+    {
+        // std::cout << "Observer " << owner.m_sSensoryData.m_unRobotId << " distance " << m_fEstimated_Dist_LongTimeWindow << std::endl;
+    }
+
+
+    if (m_sRobotData.OBSERVATION_MODE_TYPE == 1) // pure observation mode
+    {
+        m_pfFeatureValues[0] = m_pfAllFeatureValues[0];
+        m_pfFeatureValues[1] = m_pfAllFeatureValues[1];
+        m_pfFeatureValues[2] = m_pfAllFeatureValues[2];
+        m_pfFeatureValues[3] = m_pfAllFeatureValues[3];
+        m_pfFeatureValues[4] = f6;
+        m_pfFeatureValues[5] = m_pfAllFeatureValues[5];
+    }
+    else if (m_sRobotData.OBSERVATION_MODE_TYPE == 2) // pure observation mode
+    {
+        m_pfFeatureValues[0] = m_pfAllFeatureValues[0];
+        m_pfFeatureValues[1] = m_pfAllFeatureValues[1];
+        m_pfFeatureValues[2] = m_pfAllFeatureValues[2] && f6;
+        m_pfFeatureValues[3] = m_pfAllFeatureValues[3] && f6;
+        m_pfFeatureValues[4] = f6;
+        m_pfFeatureValues[5] = m_pfAllFeatureValues[5] && f6;
+    }
 
     assert(CObservedFeatureVector::NUMBER_OF_FEATURES == 6);
 
@@ -752,8 +789,8 @@ unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Re
      * counting the number of neighbours to observedRobotId_1
      */
     unsigned observedRobotId_1 = m_unRobotId;
-    Real observedRobotId_1_Range; CRadians observedRobotId_1_Bearing; Real observedRobotId_1_SelfBearing;
-    assert(GetObservedRobotRangeBearing(observedRobotId_1_Range, observedRobotId_1_Bearing, observedRobotId_1_SelfBearing)); // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
+    Real observedRobotId_1_Range; CRadians observedRobotId_1_Bearing; Real observedRobotId_1_SelfBearingOrAngularAcceleration;
+    assert(GetObservedRobotRangeBearing(observedRobotId_1_Range, observedRobotId_1_Bearing, observedRobotId_1_SelfBearingOrAngularAcceleration)); // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
 
 
     for(size_t i = 0; i <  owner.m_sSensoryData.m_RABSensorData.size(); ++i)
@@ -842,25 +879,40 @@ template <typename T> Real diff_angle(T estimated_heading, T prev_estimated_head
 
 void CObservedFeatureVector::ObservedRobots_FeatureVector::EstimateOdometry()
 {
-    Real observedRobotId_1_Range; CRadians observedRobotId_1_Bearing; Real observedRobotId_1_SelfBearing;
-    assert(GetObservedRobotRangeBearing(observedRobotId_1_Range, observedRobotId_1_Bearing, observedRobotId_1_SelfBearing)); // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
+    Real observedRobotId_1_Range; CRadians observedRobotId_1_Bearing; Real observedRobotId_1_SelfBearingOrAngularAcceleration;
+    assert(GetObservedRobotRangeBearing(observedRobotId_1_Range, observedRobotId_1_Bearing, observedRobotId_1_SelfBearingOrAngularAcceleration)); // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
 
-    prev_prev_estimated_heading = prev_estimated_heading;
-    prev_estimated_heading = estimated_heading;
-    estimated_heading = observedRobotId_1_SelfBearing;
-    if ((estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) && (prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) &&
-        (prev_prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL))
+    if (m_sRobotData.OBSERVATION_MODE_TYPE == 1)
     {
-        prev_average_angularspeed = diff_angle(prev_estimated_heading, prev_prev_estimated_heading);;
-        average_angularspeed = diff_angle(estimated_heading, prev_estimated_heading);
-        average_angularacceleration = average_angularspeed - prev_average_angularspeed;
+        prev_prev_estimated_heading = prev_estimated_heading;
+        prev_estimated_heading = estimated_heading;
+        estimated_heading = observedRobotId_1_SelfBearingOrAngularAcceleration;
+        if ((estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) && (prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL) &&
+            (prev_prev_estimated_heading != ROBOTSELFBEARING_NOT_IN_SIGNAL))
+        {
+            prev_average_angularspeed = diff_angle(prev_estimated_heading, prev_prev_estimated_heading);;
+            average_angularspeed = diff_angle(estimated_heading, prev_estimated_heading);
+            average_angularacceleration = average_angularspeed - prev_average_angularspeed;
 
-        /*if (m_unRobotId == 0u)
-            printf("%f\n", average_angularspeed);*/
+            /*if (m_unRobotId == 0u)
+                printf("%f\n", average_angularspeed);*/
+        }
+        else
+        {
+            average_angularspeed = 0.0f; average_angularacceleration = 0.0f;
+        }
+    }
+    else if (m_sRobotData.OBSERVATION_MODE_TYPE == 2)
+    {
+        if(observedRobotId_1_SelfBearingOrAngularAcceleration == ROBOTSELFACCELERATION_NOT_IN_SIGNAL)
+            average_angularacceleration = 0.0f;
+        else
+            average_angularacceleration = observedRobotId_1_SelfBearingOrAngularAcceleration;
     }
     else
     {
-        average_angularspeed = 0.0f; average_angularacceleration = 0.0f;
+        std::cerr << "Observation modes can be of one of two types";
+        exit(-1);
     }
 
     /*
@@ -963,7 +1015,8 @@ Real CObservedFeatureVector::ObservedRobots_FeatureVector::TrackRobotDisplacemen
 /******************************************************************************/
 /******************************************************************************/
 
-bool CObservedFeatureVector::ObservedRobots_FeatureVector::GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing, Real&  observedRobotId_1_SelfBearing)
+bool CObservedFeatureVector::ObservedRobots_FeatureVector::GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing,
+                                                                                        Real&  observedRobotId_1_SelfBearingORAngularAcceleration)
 {
     bool observedRobotFound(false);
     for(size_t i = 0; i <  owner.m_sSensoryData.m_RABSensorData.size(); ++i)
@@ -974,8 +1027,20 @@ bool CObservedFeatureVector::ObservedRobots_FeatureVector::GetObservedRobotRange
             observedRobotId_1_Bearing = owner.m_sSensoryData.m_RABSensorData[i].HorizontalBearing;
             observedRobotFound = true;
 
-            // go through the packet of data received from this robot. search for the bearing at which this robot observed robot owner.m_sSensoryData.m_unRobotId
-            observedRobotId_1_SelfBearing = owner.GetSelfBearingFromRABPacket(owner.m_sSensoryData.m_unRobotId, owner.m_sSensoryData.m_RABSensorData, i, m_unRobotId);
+
+            if (m_sRobotData.OBSERVATION_MODE_TYPE == 1)
+                // go through the packet of data received from this robot. search for the bearing at which this robot observed robot owner.m_sSensoryData.m_unRobotId
+                observedRobotId_1_SelfBearingORAngularAcceleration = owner.GetSelfBearingFromRABPacket(owner.m_sSensoryData.m_unRobotId,
+                                                                                                       owner.m_sSensoryData.m_RABSensorData, i, m_unRobotId);
+            else if (m_sRobotData.OBSERVATION_MODE_TYPE == 2)
+                observedRobotId_1_SelfBearingORAngularAcceleration = owner.GetAnguAccelerFromRABPacket(owner.m_sSensoryData.m_RABSensorData, i, m_unRobotId);
+
+            else
+            {
+                std::cerr << "Observation modes can be of one of two types";
+                exit(-1);
+            }
+
             break;
         }
     }

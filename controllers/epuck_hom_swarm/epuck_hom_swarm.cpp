@@ -34,7 +34,8 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 
 #define PROPRIOCEPT_MODE 0
 #define OBSERVATION_MODE 1
-#define FV_MODE OBSERVATION_MODE
+#define COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE 2
+#define FV_MODE COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
 /****************************************/
 /****************************************/
 
@@ -142,6 +143,7 @@ CEPuckHomSwarm::CEPuckHomSwarm() :
     m_pcRABS(NULL),
     m_pcProximity(NULL),
     m_pcRNG(NULL),
+    m_pcRNG_FVs(NULL),
     b_damagedrobot(false)
 {
     m_fInternalRobotTimer=0.0f;
@@ -200,7 +202,8 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
     */
     /* Create a random number generator. We use the 'argos' category so
       that creation, reset, seeding and cleanup are managed by ARGoS. */
-    m_pcRNG = CRandom::CreateRNG("argos");
+    m_pcRNG     = CRandom::CreateRNG("argos");
+    m_pcRNG_FVs = CRandom::CreateRNG("argos");
 
     Reset();
 
@@ -274,6 +277,8 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
     CObservedFeatureVector::m_sRobotData.VOTER_PACKET_FOOTER_MARKER     = VOTER_PACKET_FOOTER;
 
     CObservedFeatureVector::m_sRobotData.DATA_BYTE_BOUND_MARKER         = DATA_BYTE_BOUND;
+
+    CObservedFeatureVector::m_sRobotData.OBSERVATION_MODE_TYPE          = FV_MODE;
 }
 
 /****************************************/
@@ -356,8 +361,15 @@ void CEPuckHomSwarm::ControlStep()
 
 
     /****************************************/
-#if FV_MODE == OBSERVATION_MODE
+#if FV_MODE == OBSERVATION_MODE || FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
+
+    /* Estimating FVs proprioceptively - to be used for the simplifying fault detection */
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
+    m_cProprioceptiveFeatureVector.SimulationStep();
+    m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
+
     /* Estimate feature-vectors - via observation */
+    m_uRobotId = RobotIdStrToInt();
 
     m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
     m_cObservationFeatureVector.SimulationStep();
@@ -368,6 +380,7 @@ void CEPuckHomSwarm::ControlStep()
     /*
      * Send the robot id and the bearing at which it observes its different neighbours. Also relay the observed FVs
      */
+
     SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
@@ -478,10 +491,10 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS); /*remove entries older than 10s */
 
-    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, m_fProbForget); // update listFVsSensed
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
 #endif
 
-#if FV_MODE == OBSERVATION_MODE
+#if FV_MODE == OBSERVATION_MODE || FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
     listMapFVsToRobotIds_relay.clear();
     for (size_t i = 0; i < m_cObservationFeatureVector.ObservedRobotIDs.size(); ++i)
     {
@@ -491,7 +504,7 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
         listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
 
         //if(robotId == 15)
-        //    std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
+        //  std::cout << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
 
         UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
     }
@@ -501,7 +514,7 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 
     //remove entries older than 10s
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
-    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG, m_fProbForget); // update listFVsSensed
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
 #endif
 }
 
@@ -755,7 +768,13 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
     m_pcRABA->SetData(databyte_index++, SELF_INFO_PACKET);
     m_pcRABA->SetData(databyte_index++, SelfId);
 
+#if FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
 
+    // angular acceleration [-1, +1] to [0, DATA_BYTE_BOUND]
+    unsigned un_angularacceleration = (unsigned)(((m_cProprioceptiveFeatureVector.m_sSensoryData.GetNormalisedAngularAcceleration() + 1.0) / 2.0) * DATA_BYTE_BOUND);
+    m_pcRABA->SetData(databyte_index++, un_angularacceleration);
+
+#elif FV_MODE == OBSERVATION_MODE
     for(size_t i = 0; i < tPackets.size(); ++i)
     {
         size_t byte_index = 0; unsigned robotId, un_bearing; CRadians bearing;
@@ -791,6 +810,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
         }
         m_pcRABA->SetData(databyte_index++, un_bearing);
     }
+#endif
 
     /*if(databyte_index != m_pcRABA->GetSize()-1) // END_BUFFER has not yet been placed
       m_pcRABA->SetData(databyte_index, END_BUFFER);*/
@@ -1085,7 +1105,22 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
     for(size_t i = 0; i < tPackets.size(); ++i)
     {
-        size_t byte_index = 0;  unsigned robotId, fv;
+        size_t byte_index = 0;  unsigned robotId, fv, observerId = 999u;
+
+        bool SELF_INFO_PACKET_FOUND(false);
+        for(byte_index = 0; byte_index < tPackets[i].Data.Size(); ++byte_index)
+        {
+            if(tPackets[i].Data[byte_index] == SELF_INFO_PACKET)
+            {
+                SELF_INFO_PACKET_FOUND = true;
+                byte_index++;
+                break;
+            }
+        }
+
+        if(SELF_INFO_PACKET_FOUND == true)
+            observerId = tPackets[i].Data[byte_index];
+
 
         bool RELAY_FVS_PACKET_FOUND(false);
         for(byte_index = 0; byte_index < tPackets[i].Data.Size(); ++byte_index)
@@ -1114,11 +1149,22 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
             fv      = tPackets[i].Data[byteindex1+1];
 
+
+            /*if(m_uRobotId == robotId)
+            {
+                std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+            }*/
+
+            /*if(observerId == 15)
+            {
+                std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+            }*/
+
+
             read_successful = true;
 
             UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1); // old information
         }
-
     }
 
     return read_successful;

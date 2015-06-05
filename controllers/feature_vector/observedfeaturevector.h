@@ -50,7 +50,9 @@ public:
         size_t   VOTER_PACKET_MARKER;
         size_t   VOTER_PACKET_FOOTER_MARKER;
 
-        size_t DATA_BYTE_BOUND_MARKER;
+        size_t   DATA_BYTE_BOUND_MARKER;
+
+        size_t   OBSERVATION_MODE_TYPE;
     };
 
     struct SensoryData
@@ -142,7 +144,7 @@ public:
                                    unsigned int& sum_nbrs, unsigned int& queue_index, unsigned int* queue_nbrs);
         void EstimateOdometry();
         Real TrackRobotDisplacement(Real step, Real observed_range, CRadians observed_bearing, CRadians self_delta_orientation, std::vector<RobotRelativePosData>& displacement_vector);
-        bool GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing, Real &observedRobotId_1_SelfBearing);
+        bool GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing, Real &observedRobotId_1_SelfBearingORAngularAcceleration);
 
 
         /*
@@ -216,6 +218,7 @@ public:
 
     virtual unsigned GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
     virtual float    GetSelfBearingFromRABPacket(unsigned observer_robot_id, CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index, unsigned observerd_robot_id);
+    virtual float    GetAnguAccelerFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index, unsigned observerd_robot_id);
 
 
     static RobotData m_sRobotData;

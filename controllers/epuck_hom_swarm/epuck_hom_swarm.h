@@ -391,6 +391,7 @@ private:
 
     /* The random number generator */
     CRandom::CRNG* m_pcRNG;
+    CRandom::CRNG* m_pcRNG_FVs; // we have a separate RNG for forgetting FVs. This way the actual behaviors based on random walk are independent from the running of the CRM.
 
 
     /*Information on the experiment to run - the swarm behavior and the faulty behavior*/
