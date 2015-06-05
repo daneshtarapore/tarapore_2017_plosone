@@ -122,7 +122,7 @@
   <!-- * Physics engines * -->
   <!-- ******************* -->
   <physics_engines>
-    <dynamics2d id="dyn2d" iterations="10" />
+    <dynamics2d id="dyn2d" iterations="50" />
   </physics_engines>
 
   <!-- ********* -->
