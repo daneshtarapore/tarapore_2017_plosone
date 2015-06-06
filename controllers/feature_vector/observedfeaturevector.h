@@ -6,7 +6,7 @@
 /******************************************************************************/
 #include <string>
 #include <list>
-
+#include <numeric>
 /******************************************************************************/
 /******************************************************************************/
 #include <argos3/core/utility/math/vector2.h>
@@ -201,6 +201,7 @@ public:
             Real m_fEstimated_Dist_ShortTimeWindow, m_fEstimated_Dist_MediumTimeWindow, m_fEstimated_Dist_LongTimeWindow;
 
             std::vector<RobotRelativePosData> vec_RobPos_ShortRangeTimeWindow, vec_RobPos_MediumRangeTimeWindow, vec_RobPos_LongRangeTimeWindow;
+            std::list<Real>                   list_Dist_ShortRangeTimeWindow,  list_Dist_MediumRangeTimeWindow,  list_Dist_LongRangeTimeWindow;
             /************************************************************************************/
 
 

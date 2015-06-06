@@ -36,8 +36,8 @@
         <range_and_bearing implementation="medium" medium="rab" show_rays="true" noise_std_dev="0.0" />
       </sensors>
       <params>
-        <experiment_run swarm_behavior="SWARM_DISPERSION"
-			fault_behavior="FAULT_NONE" 
+        <experiment_run swarm_behavior="SWARM_AGGREGATION"
+			fault_behavior="FAULT_STRAIGHTLINE" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
       </params>

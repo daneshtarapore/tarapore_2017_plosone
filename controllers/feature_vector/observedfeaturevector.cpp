@@ -236,7 +236,7 @@ float CObservedFeatureVector::GetAnguAccelerFromRABPacket(CCI_RangeAndBearingSen
     {
         unsigned chk_observerd_robot_id = rab_packet[rab_packet_index].Data[index_start+1]; // the id comes after the message header.
         assert(chk_observerd_robot_id == observerd_robot_id);
-        return ((rab_packet[rab_packet_index].Data[index_start+2] / m_sRobotData.DATA_BYTE_BOUND_MARKER) * 2.0f) - 1.0f; // return [-1, +1]
+        return (((Real)(rab_packet[rab_packet_index].Data[index_start+2]) / m_sRobotData.DATA_BYTE_BOUND_MARKER) * 2.0f) - 1.0f; // return [-1, +1]
     }
 
     return ROBOTSELFACCELERATION_NOT_IN_SIGNAL;
@@ -618,7 +618,10 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
     unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;
 
-    bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0u) ? true : false;
+    unsigned  uNbrCount            = CountNeighbors(10.0f);
+
+    //bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0u) ? true : false;
+    bool neighbours_present = (uNbrCount > 0u) ? true : false;
 
     /*
      * Time since the robot was first observed
@@ -705,17 +708,18 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
         m_piLastOccuranceEvent[3] = CurrentStepNumber;
     }
 
-    for(unsigned int featureindex = 2; featureindex <=3; featureindex++)
-    {
-        if ((CurrentStepNumber - m_piLastOccuranceEvent[featureindex]) <= m_iEventSelectionTimeWindow)
+    if(CurrentStepNumber >= m_iEventSelectionTimeWindow)
+        for(unsigned int featureindex = 2; featureindex <=3; featureindex++)
         {
-            m_pfAllFeatureValues[featureindex] = 1.0;
+            if ((CurrentStepNumber - m_piLastOccuranceEvent[featureindex]) <= m_iEventSelectionTimeWindow)
+            {
+                m_pfAllFeatureValues[featureindex] = 1.0;
+            }
+            else
+            {
+                m_pfAllFeatureValues[featureindex] = 0.0;
+            }
         }
-        else
-        {
-            m_pfAllFeatureValues[featureindex] = 0.0;
-        }
-    }
 
 
 
@@ -727,23 +731,57 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 
 
     // 6th: set if the robot changed its angular speed (per control cycle) atleast once in the past time-window.
-    if ((CurrentStepNumber - m_piLastOccuranceEvent[5]) <= m_iEventSelectionTimeWindow)
-    {
-        m_pfAllFeatureValues[5] = 1.0;
-    }
-    else
-    {
-        m_pfAllFeatureValues[5] = 0.0;
-    }
+    if(CurrentStepNumber >= m_iEventSelectionTimeWindow)
+        if ((CurrentStepNumber - m_piLastOccuranceEvent[5]) <= m_iEventSelectionTimeWindow)
+        {
+            m_pfAllFeatureValues[5] = 1.0;
+        }
+        else
+        {
+            m_pfAllFeatureValues[5] = 0.0;
+        }
 
+
+    list_Dist_ShortRangeTimeWindow.push_back(m_fEstimated_Dist_ShortTimeWindow);
+    if(list_Dist_ShortRangeTimeWindow.size() >= 100u)
+        list_Dist_ShortRangeTimeWindow.pop_front();
+
+    list_Dist_MediumRangeTimeWindow.push_back(m_fEstimated_Dist_MediumTimeWindow);
+    if(list_Dist_MediumRangeTimeWindow.size() >= 100u)
+        list_Dist_MediumRangeTimeWindow.pop_front();
+
+    list_Dist_LongRangeTimeWindow.push_back(m_fEstimated_Dist_LongTimeWindow);
+    if(list_Dist_LongRangeTimeWindow.size() >= 100u)
+        list_Dist_LongRangeTimeWindow.pop_front();
+
+
+    Real meandist_shorttimewindow, meandist_mediumtimewindow, meandist_longtimewindow;
+    meandist_shorttimewindow  = std::accumulate(list_Dist_ShortRangeTimeWindow.begin(), list_Dist_ShortRangeTimeWindow.end(), 0.0) / list_Dist_ShortRangeTimeWindow.size();
+    meandist_mediumtimewindow = std::accumulate(list_Dist_MediumRangeTimeWindow.begin(), list_Dist_MediumRangeTimeWindow.end(), 0.0) / list_Dist_MediumRangeTimeWindow.size();
+    meandist_longtimewindow   = std::accumulate(list_Dist_LongRangeTimeWindow.begin(), list_Dist_LongRangeTimeWindow.end(), 0.0) / list_Dist_LongRangeTimeWindow.size();
 
     Real disp_ShortWindow_Threshold  = 0.25f;
-    Real disp_MediumWindow_Threshold = 0.25f;
-    Real disp_LongWindow_Threshold   = 0.10f;
+    /*Real disp_MediumWindow_Threshold = 0.25f;
+    Real disp_LongWindow_Threshold   = 0.10f;*/
     // MaxLinearSpeed in cm / control cycle
-    Real f4 = (m_fEstimated_Dist_ShortTimeWindow  >  (disp_ShortWindow_Threshold  * ((Real)m_iShortTimeWindowLength)  * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
-    Real f5 = (m_fEstimated_Dist_MediumTimeWindow >  (disp_MediumWindow_Threshold * ((Real)m_iMediumTimeWindowLength) * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
-    Real f6 = (m_fEstimated_Dist_LongTimeWindow   >  (disp_LongWindow_Threshold   * ((Real)m_iLongTimeWindowLength)   * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
+    Real f4 = (meandist_shorttimewindow  >  (disp_ShortWindow_Threshold  * ((Real)m_iShortTimeWindowLength)  * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
+    Real f5 = (meandist_mediumtimewindow >  2.5f) ? 1.0f: 0.0f;
+    Real f6 = (meandist_longtimewindow   >  5.0f) ? 1.0f: 0.0f;
+
+    if(CurrentStepNumber >= m_iLongTimeWindowLength)
+        if (m_unRobotId == 15u) //7
+        {
+            //std::cout << " average_angularacceleration " << average_angularacceleration << " " << f6 << std::endl;
+            if ((f5 == 0.0f) && ((average_angularacceleration >  m_fThreshold ||
+                                  average_angularacceleration < -m_fThreshold)) )
+            {
+             //   std::cerr  << " sw " << meandist_shorttimewindow <<  " mw " << meandist_mediumtimewindow << " lw " << meandist_longtimewindow << std::endl;
+            }
+        }
+
+    /*if(CurrentStepNumber >= m_iLongTimeWindowLength)
+        if (m_unRobotId == 15)
+            printf("%f %f %f \n\n", m_fEstimated_Dist_ShortTimeWindow,m_fEstimated_Dist_MediumTimeWindow,m_fEstimated_Dist_LongTimeWindow);*/
 
 
     if (m_unRobotId == 7)
@@ -765,10 +803,10 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     {
         m_pfFeatureValues[0] = m_pfAllFeatureValues[0];
         m_pfFeatureValues[1] = m_pfAllFeatureValues[1];
-        m_pfFeatureValues[2] = m_pfAllFeatureValues[2] && f6;
-        m_pfFeatureValues[3] = m_pfAllFeatureValues[3] && f6;
+        m_pfFeatureValues[2] = m_pfAllFeatureValues[2] && f5;
+        m_pfFeatureValues[3] = m_pfAllFeatureValues[3] && f5;
         m_pfFeatureValues[4] = f6;
-        m_pfFeatureValues[5] = m_pfAllFeatureValues[5] && f6;
+        m_pfFeatureValues[5] = m_pfAllFeatureValues[5] && f5;
     }
 
     assert(CObservedFeatureVector::NUMBER_OF_FEATURES == 6);
@@ -904,10 +942,8 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::EstimateOdometry()
     }
     else if (m_sRobotData.OBSERVATION_MODE_TYPE == 2)
     {
-        if(observedRobotId_1_SelfBearingOrAngularAcceleration == ROBOTSELFACCELERATION_NOT_IN_SIGNAL)
-            average_angularacceleration = 0.0f;
-        else
-            average_angularacceleration = observedRobotId_1_SelfBearingOrAngularAcceleration;
+        assert(observedRobotId_1_SelfBearingOrAngularAcceleration != ROBOTSELFACCELERATION_NOT_IN_SIGNAL);
+        average_angularacceleration = observedRobotId_1_SelfBearingOrAngularAcceleration;
     }
     else
     {
