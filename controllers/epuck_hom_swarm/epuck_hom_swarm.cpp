@@ -180,11 +180,12 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
         /*
        * Initialize sensors/actuators
        */
-        m_pcWheels    = GetActuator<CCI_DifferentialSteeringActuator>("differential_steering");
-        m_pcLEDs      = GetActuator<CCI_LEDsActuator                >("leds"                 );
-        m_pcRABA      = GetActuator<CCI_RangeAndBearingActuator     >("range_and_bearing"    );
-        m_pcRABS      = GetSensor  <CCI_RangeAndBearingSensor       >("range_and_bearing"    );
-        m_pcProximity = GetSensor  <CCI_EPuckProximitySensor        >("epuck_proximity"    );
+        m_pcWheels        = GetActuator<CCI_DifferentialSteeringActuator>("differential_steering");
+        m_pcLEDs          = GetActuator<CCI_LEDsActuator                >("leds"                 );
+        m_pcRABA          = GetActuator<CCI_RangeAndBearingActuator     >("range_and_bearing"    );
+        m_pcRABS          = GetSensor  <CCI_RangeAndBearingSensor       >("range_and_bearing"    );
+        m_pcProximity     = GetSensor  <CCI_EPuckProximitySensor        >("epuck_proximity"    );
+        m_pcWheelsEncoder = GetSensor  <CCI_DifferentialSteeringSensor  >("differential_steering");
 
         /*
        * Parse XML parameters
@@ -339,7 +340,8 @@ void CEPuckHomSwarm::ControlStep()
 
     /* Estimate feature-vectors - proprioceptively */
 
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                                 m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cProprioceptiveFeatureVector.SimulationStep();
 
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue(); // to debug
@@ -363,15 +365,21 @@ void CEPuckHomSwarm::ControlStep()
     /****************************************/
 #if FV_MODE == OBSERVATION_MODE || FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
 
+
+    /*std::cerr << "L " << RobotIdStrToInt() << " "  << m_pcWheelsEncoder->GetReading().VelocityLeftWheel  << " " << m_pcWheelsEncoder->GetReading().CoveredDistanceLeftWheel   << std::endl;
+    std::cerr << "R " << RobotIdStrToInt() << " " << m_pcWheelsEncoder->GetReading().VelocityRightWheel << " " << m_pcWheelsEncoder->GetReading().CoveredDistanceRightWheel  << std::endl;*/
+
     /* Estimating FVs proprioceptively - to be used for the simplifying fault detection */
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                                 m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cProprioceptiveFeatureVector.SimulationStep();
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
 
     /* Estimate feature-vectors - via observation */
     m_uRobotId = RobotIdStrToInt();
 
-    m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(), leftSpeed, rightSpeed);
+    m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                              m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cObservationFeatureVector.SimulationStep();
 
     Sense(PROBABILITY_FORGET_FV);
@@ -1155,10 +1163,12 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
                 std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }*/
 
-            /*if(observerId == 15)
+            if(robotId == 15)
             {
+                std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+            }
+            else
                 std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
-            }*/
 
 
             read_successful = true;

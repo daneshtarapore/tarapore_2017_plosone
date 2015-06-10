@@ -105,6 +105,8 @@ CRMinRobotAgentOptimised::~CRMinRobotAgentOptimised()
 
 void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed* FVsSensed)
 {
+    return;
+
     m_fInternalRobotTimer = InternalRobotTimer;
     ptr_listFVsSensed = FVsSensed;
 
@@ -186,7 +188,7 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 
     UpdateState();
 
-    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 3470)
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 1603)
     {
         PrintCRMDetails(GetIdentification());
         printf("-------at end----------------\n\n");

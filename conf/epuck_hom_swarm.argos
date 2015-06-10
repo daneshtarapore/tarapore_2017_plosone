@@ -16,7 +16,7 @@
     <system threads="0" />
     <experiment length="500"
                 ticks_per_second="10"
-                random_seed="222" />
+                random_seed="555" />
   </framework>
 
   <!-- *************** -->
@@ -34,10 +34,11 @@
       <sensors>
         <epuck_proximity implementation="default" show_rays="false" />
         <range_and_bearing implementation="medium" medium="rab" show_rays="true" noise_std_dev="0.0" />
+        <differential_steering implementation="default" vel_noise_range="-0.0:0.0"  dist_noise_range="-0.0:0.0" />
       </sensors>
       <params>
-        <experiment_run swarm_behavior="SWARM_AGGREGATION"
-			fault_behavior="FAULT_STRAIGHTLINE" 
+        <experiment_run swarm_behavior="SWARM_HOMING"
+			fault_behavior="FAULT_RANDOMWALK" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
       </params>

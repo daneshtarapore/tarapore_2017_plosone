@@ -32,6 +32,9 @@
 /* Definition of the differential steering actuator */
 #include <argos3/plugins/robots/generic/control_interface/ci_differential_steering_actuator.h>
 
+/* Definition of the differential steering wheel encoder */
+#include <argos3/plugins/robots/generic/control_interface/ci_differential_steering_sensor.h>
+
 /* Definition of the LEDs actuator */
 #include <argos3/plugins/robots/generic/control_interface/ci_leds_actuator.h>
 
@@ -41,7 +44,7 @@
 /* Definition of the range and bearing sensor */
 #include <argos3/plugins/robots/generic/control_interface/ci_range_and_bearing_sensor.h>
 
-/* Definition of the foot-bot proximity sensor */
+/* Definition of the e-puck proximity sensor */
 #include <argos3/plugins/robots/e-puck/control_interface/ci_epuck_proximity_sensor.h>
 
 /* Definitions for random number generation */
@@ -380,6 +383,9 @@ private:
 
     /* Pointer to the differential steering actuator */
     CCI_DifferentialSteeringActuator* m_pcWheels;
+
+    /* Pointer to the differential steering encoder */
+    CCI_DifferentialSteeringSensor* m_pcWheelsEncoder;
     /* Pointer to the LEDs actuator */
     CCI_LEDsActuator* m_pcLEDs;
     /* Pointer to the range and bearing actuator */

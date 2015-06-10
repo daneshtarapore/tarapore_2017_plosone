@@ -768,14 +768,14 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     Real f5 = (meandist_mediumtimewindow >  2.5f) ? 1.0f: 0.0f;
     Real f6 = (meandist_longtimewindow   >  5.0f) ? 1.0f: 0.0f;
 
-    if(CurrentStepNumber >= m_iLongTimeWindowLength)
+    if(CurrentStepNumber >= m_iEventSelectionTimeWindow)
         if (m_unRobotId == 15u) //7
         {
             //std::cout << " average_angularacceleration " << average_angularacceleration << " " << f6 << std::endl;
-            if ((f5 == 0.0f) && ((average_angularacceleration >  m_fThreshold ||
+            if ((f5 == 1.0f) && ((average_angularacceleration >  m_fThreshold ||
                                   average_angularacceleration < -m_fThreshold)) )
             {
-             //   std::cerr  << " sw " << meandist_shorttimewindow <<  " mw " << meandist_mediumtimewindow << " lw " << meandist_longtimewindow << std::endl;
+                //std::cerr  << " sw " << meandist_shorttimewindow <<  " mw " << meandist_mediumtimewindow << " lw " << meandist_longtimewindow << std::endl;
             }
         }
 
