@@ -29,6 +29,12 @@ void CBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 /******************************************************************************/
 /******************************************************************************/
 
+void CBehavior::PrintBehaviorIdentity()
+{}
+
+/******************************************************************************/
+/******************************************************************************/
+
 void CBehavior::WheelSpeedsFromHeadingVector(CVector2 &m_cHeadingVector, Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 {
     /* Get the heading angle */

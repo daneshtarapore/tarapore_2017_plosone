@@ -60,3 +60,11 @@ void CHomingToFoodBeaconBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWhee
 
 /******************************************************************************/
 /******************************************************************************/
+
+void CHomingToFoodBeaconBehavior::PrintBehaviorIdentity()
+{
+    std::cout << "Homing behavior taking over" << std::endl;
+}
+
+/******************************************************************************/
+/******************************************************************************/

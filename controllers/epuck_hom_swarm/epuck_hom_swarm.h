@@ -368,6 +368,8 @@ private:
     TBehaviorVector             m_vecBehaviors;
     bool                        b_damagedrobot;     // true if robot is damaged
 
+    unsigned                    u_num_consequtivecollisions;
+
     CProprioceptiveFeatureVector  m_cProprioceptiveFeatureVector;
     CObservedFeatureVector        m_cObservationFeatureVector;
 

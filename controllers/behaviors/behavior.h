@@ -52,6 +52,8 @@ public:
     virtual void Suppress();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
+    virtual void PrintBehaviorIdentity();
+
     virtual void WheelSpeedsFromHeadingVector(CVector2 &m_cHeadingVector, Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
     struct RobotData

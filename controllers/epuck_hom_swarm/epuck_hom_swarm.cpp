@@ -144,7 +144,8 @@ CEPuckHomSwarm::CEPuckHomSwarm() :
     m_pcProximity(NULL),
     m_pcRNG(NULL),
     m_pcRNG_FVs(NULL),
-    b_damagedrobot(false)
+    b_damagedrobot(false),
+    u_num_consequtivecollisions(0)
 {
     m_fInternalRobotTimer=0.0f;
     listFVsSensed.clear();
@@ -326,13 +327,56 @@ void CEPuckHomSwarm::ControlStep()
             bControlTaken = (*i)->TakeControl();
             if (bControlTaken)
             {
+                /* (*i)->PrintBehaviorIdentity(); */
                 (*i)->Action(leftSpeed, rightSpeed);
             }
         } else
             (*i)->Suppress();
     }
 
-    m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+    //!TODO
+    /*If robot is contantly colliding against a wall, half the speed at which the wheels rotate - to make the robot movement closer to reality. We use the IR sensors to detect this scenario and we can do this even when there is a sensor fault as in reality the speed would reduce on its own when the robot is stuck to a wall*/
+    /*Using the noiseless variant of the IR sensors for this detection*/
+
+    /*if(b_damagedrobot)
+    std::cout << "IR0 " << m_pcProximity->GetReadings_Noiseless()[0].Value <<
+                 "   IR1 " << m_pcProximity->GetReadings_Noiseless()[1].Value <<
+                 "   IR2 " << m_pcProximity->GetReadings_Noiseless()[2].Value <<
+                 "   IR3 " << m_pcProximity->GetReadings_Noiseless()[3].Value <<
+                 "   IR4 " << m_pcProximity->GetReadings_Noiseless()[4].Value <<
+                 "   IR5 " << m_pcProximity->GetReadings_Noiseless()[5].Value <<
+                 "   IR6 " << m_pcProximity->GetReadings_Noiseless()[6].Value <<
+                 "   IR7 " << m_pcProximity->GetReadings_Noiseless()[7].Value << std::endl;
+
+    if(!b_damagedrobot)
+    std::cerr << "IR0 " << m_pcProximity->GetReadings_Noiseless()[0].Value <<
+                 "   IR1 " << m_pcProximity->GetReadings_Noiseless()[1].Value <<
+                 "   IR2 " << m_pcProximity->GetReadings_Noiseless()[2].Value <<
+                 "   IR3 " << m_pcProximity->GetReadings_Noiseless()[3].Value <<
+                 "   IR4 " << m_pcProximity->GetReadings_Noiseless()[4].Value <<
+                 "   IR5 " << m_pcProximity->GetReadings_Noiseless()[5].Value <<
+                 "   IR6 " << m_pcProximity->GetReadings_Noiseless()[6].Value <<
+                 "   IR7 " << m_pcProximity->GetReadings_Noiseless()[7].Value << std::endl;*/
+
+    if(m_pcProximity->GetReadings_Noiseless()[0].Value > 0.4f ||
+       m_pcProximity->GetReadings_Noiseless()[1].Value > 0.4f ||
+       m_pcProximity->GetReadings_Noiseless()[2].Value > 0.4f ||
+       m_pcProximity->GetReadings_Noiseless()[3].Value > 0.4f ||
+       m_pcProximity->GetReadings_Noiseless()[4].Value > 0.4f ||
+       m_pcProximity->GetReadings_Noiseless()[5].Value > 0.4f ||
+       m_pcProximity->GetReadings_Noiseless()[6].Value > 0.4f ||
+       m_pcProximity->GetReadings_Noiseless()[7].Value > 0.4f)
+        u_num_consequtivecollisions++;
+    else
+        u_num_consequtivecollisions = 0u;
+
+
+    // if the robot is colliding with the wall other robot for more than 1s, we reduce its speed by half
+    /* this will be harder to detect when we add noise on the IR sensors. Be wary of that. So using the noiseless variant of the IR sensors for this detection*/
+    if((Real)u_num_consequtivecollisions > (m_sRobotDetails.iterations_per_second * 1.0f))
+        m_pcWheels->SetLinearVelocity(leftSpeed/2.0f, rightSpeed/2.0f); // in cm/s
+    else
+        m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
 
 
     /****************************************/
@@ -365,19 +409,32 @@ void CEPuckHomSwarm::ControlStep()
     /****************************************/
 #if FV_MODE == OBSERVATION_MODE || FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
 
+    /*if(RobotIdStrToInt() == 0)
+    {
+        std::cerr << "L " << RobotIdStrToInt() << "enc "  << m_pcWheelsEncoder->GetReading().VelocityLeftWheel  << " controller " << leftSpeed   << std::endl;
+        std::cerr << "R " << RobotIdStrToInt() << "enc " << m_pcWheelsEncoder->GetReading().VelocityRightWheel << " controller " <<  rightSpeed  << std::endl;
+    }*/
 
-    /*std::cerr << "L " << RobotIdStrToInt() << " "  << m_pcWheelsEncoder->GetReading().VelocityLeftWheel  << " " << m_pcWheelsEncoder->GetReading().CoveredDistanceLeftWheel   << std::endl;
-    std::cerr << "R " << RobotIdStrToInt() << " " << m_pcWheelsEncoder->GetReading().VelocityRightWheel << " " << m_pcWheelsEncoder->GetReading().CoveredDistanceRightWheel  << std::endl;*/
+
 
     /* Estimating FVs proprioceptively - to be used for the simplifying fault detection */
+    /*m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                                 leftSpeed, rightSpeed);*/
+    /*encoders give you the speed at the previous tick not current tick */
     m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
+
+
     m_cProprioceptiveFeatureVector.SimulationStep();
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
 
     /* Estimate feature-vectors - via observation */
     m_uRobotId = RobotIdStrToInt();
 
+
+    /*m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                              leftSpeed, rightSpeed);*/
+    /*encoders give you the speed at the previous tick not current tick */
     m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
                                                               m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cObservationFeatureVector.SimulationStep();

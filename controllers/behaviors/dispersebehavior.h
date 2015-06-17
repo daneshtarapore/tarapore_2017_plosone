@@ -20,6 +20,9 @@ public:
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
+    virtual void PrintBehaviorIdentity();
+
+
 protected:
     Real           m_fProximitySensorThreshold;
     CRadians       m_cGoStraightAngleThreshold;

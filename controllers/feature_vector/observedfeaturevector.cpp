@@ -416,8 +416,9 @@ CObservedFeatureVector::ObservedRobots_FeatureVector::~ObservedRobots_FeatureVec
 
 void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_Old()
 {
-    unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
-    unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;
+    Real DistToNearestNbr;
+    unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f, DistToNearestNbr);
+    unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE, DistToNearestNbr) - unCloseRangeNbrCount;
 
     bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0u) ? true : false;
 
@@ -614,11 +615,18 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_
 void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues()
 {
     FEATURE_RANGE = 30.0f; // cm
+    Real DistToNearestNbr;
 
-    unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f);
-    unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE) - unCloseRangeNbrCount;
+    unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f, DistToNearestNbr);
+    unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE, DistToNearestNbr) - unCloseRangeNbrCount;
 
-    unsigned  uNbrCount            = CountNeighbors(10.0f);
+
+
+
+    unsigned  uNbrCount            = CountNeighbors(10.0f, DistToNearestNbr); // 30 or 10 cm???
+
+
+
 
     //bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0u) ? true : false;
     bool neighbours_present = (uNbrCount > 0u) ? true : false;
@@ -779,12 +787,19 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
             }
         }
 
+    CountNeighbors(30.0f, DistToNearestNbr);
+
+    if(CurrentStepNumber > m_iLongTimeWindowLength)
+    printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
+                                                                        m_fEstimated_Dist_MediumTimeWindow,
+                                                                        m_fEstimated_Dist_LongTimeWindow, average_angularacceleration,DistToNearestNbr);
+
     /*if(CurrentStepNumber >= m_iLongTimeWindowLength)
         if (m_unRobotId == 15)
             printf("%f %f %f \n\n", m_fEstimated_Dist_ShortTimeWindow,m_fEstimated_Dist_MediumTimeWindow,m_fEstimated_Dist_LongTimeWindow);*/
 
 
-    if (m_unRobotId == 7)
+    if (m_unRobotId == 1)
     {
         // std::cout << "Observer " << owner.m_sSensoryData.m_unRobotId << " distance " << m_fEstimated_Dist_LongTimeWindow << std::endl;
     }
@@ -819,9 +834,11 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 /******************************************************************************/
 /******************************************************************************/
 
-unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Real sensor_range)
+unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Real sensor_range, Real& dist_nearest_nbr)
 {
     unsigned count_nbrs = 0;
+
+    dist_nearest_nbr = 1000000u;
 
     /*
      * counting the number of neighbours to observedRobotId_1
@@ -849,12 +866,21 @@ unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Re
 
         if(Dist_ObsRobId1_ObsRobId2 <= sensor_range)
             count_nbrs++;
+
+        if(Dist_ObsRobId1_ObsRobId2 < dist_nearest_nbr)
+            dist_nearest_nbr = Dist_ObsRobId1_ObsRobId2;
     }
 
 
     // dont forget to add youself as neighbour of observedRobotId_1
     if(observedRobotId_1_Range <= sensor_range)  // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
         count_nbrs++;
+
+    if(observedRobotId_1_Range < dist_nearest_nbr)
+        dist_nearest_nbr = observedRobotId_1_Range;
+
+    if(dist_nearest_nbr == 1000000u)
+        dist_nearest_nbr = sensor_range;
 
     return count_nbrs;
 }
@@ -954,7 +980,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::EstimateOdometry()
     /*
      * Computing angle rotated by robot in one tick
     */
-    CRadians delta_orientation = CRadians(owner.m_sRobotData.seconds_per_iterations * ((-owner.m_sSensoryData.f_LeftWheelSpeed_prev + owner.m_sSensoryData.f_RightWheelSpeed_prev)
+    CRadians delta_orientation = CRadians(owner.m_sRobotData.seconds_per_iterations * ((-owner.m_sSensoryData.f_LeftWheelSpeed + owner.m_sSensoryData.f_RightWheelSpeed)
                                                                                        / (owner.m_sRobotData.INTERWHEEL_DISTANCE*100.0f)));
 
     /*if (owner.m_sSensoryData.m_unRobotId == 0u)
@@ -989,9 +1015,9 @@ Real CObservedFeatureVector::ObservedRobots_FeatureVector::TrackRobotDisplacemen
             CRadians prev_orientation = displacement_vector[t].NetRotationSinceStart;
 
             Real rX = owner.m_sRobotData.seconds_per_iterations *
-                    ((owner.m_sSensoryData.f_LeftWheelSpeed_prev + owner.m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Cos(prev_orientation + delta_orientation / (2.0f));
+                    ((owner.m_sSensoryData.f_LeftWheelSpeed + owner.m_sSensoryData.f_RightWheelSpeed) / 2.0f) * Cos(prev_orientation + delta_orientation / (2.0f));
             Real rY = owner.m_sRobotData.seconds_per_iterations *
-                    ((owner.m_sSensoryData.f_LeftWheelSpeed_prev + owner.m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Sin(prev_orientation + delta_orientation / (2.0f));
+                    ((owner.m_sSensoryData.f_LeftWheelSpeed + owner.m_sSensoryData.f_RightWheelSpeed) / 2.0f) * Sin(prev_orientation + delta_orientation / (2.0f));
 
             displacement_vector[t].NetTranslationSinceStart += CVector2(rX, rY);
             displacement_vector[t].NetRotationSinceStart    += delta_orientation;
@@ -1015,9 +1041,9 @@ Real CObservedFeatureVector::ObservedRobots_FeatureVector::TrackRobotDisplacemen
             CRadians prev_orientation = displacement_vector[t].NetRotationSinceStart;
 
             Real rX = owner.m_sRobotData.seconds_per_iterations *
-                    ((owner.m_sSensoryData.f_LeftWheelSpeed_prev + owner.m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Cos(prev_orientation + delta_orientation / (2.0f));
+                    ((owner.m_sSensoryData.f_LeftWheelSpeed + owner.m_sSensoryData.f_RightWheelSpeed) / 2.0f) * Cos(prev_orientation + delta_orientation / (2.0f));
             Real rY = owner.m_sRobotData.seconds_per_iterations *
-                    ((owner.m_sSensoryData.f_LeftWheelSpeed_prev + owner.m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Sin(prev_orientation + delta_orientation / (2.0f));
+                    ((owner.m_sSensoryData.f_LeftWheelSpeed + owner.m_sSensoryData.f_RightWheelSpeed_prev) / 2.0f) * Sin(prev_orientation + delta_orientation / (2.0f));
 
             displacement_vector[t].NetTranslationSinceStart += CVector2(rX, rY);
             displacement_vector[t].NetRotationSinceStart    += delta_orientation;

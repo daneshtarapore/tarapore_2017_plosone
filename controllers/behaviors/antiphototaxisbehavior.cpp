@@ -49,3 +49,11 @@ void CAntiPhototaxisBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpe
 
 /******************************************************************************/
 /******************************************************************************/
+
+void CAntiPhototaxisBehavior::PrintBehaviorIdentity()
+{
+    std::cout << "CAntiPhototaxisBehavior taking over";
+}
+
+/******************************************************************************/
+/******************************************************************************/

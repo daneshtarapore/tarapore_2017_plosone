@@ -12,7 +12,7 @@ CDisperseBehavior::CDisperseBehavior(Real m_fProximitySensorThreshold, CRadians 
 
 /******************************************************************************/
 /******************************************************************************/
-    
+
 bool CDisperseBehavior::TakeControl() 
 {
 
@@ -25,15 +25,22 @@ bool CDisperseBehavior::TakeControl()
     }
     m_cDiffusionVector /= m_sSensoryData.m_ProximitySensorData.size();
 
+
     /* If the angle of the vector is small enough and the closest obstacle
       is far enough, ignore the vector and go straight, otherwise return
       it */
-    if(m_cDiffusionVector.Angle().GetAbsoluteValue() < m_cGoStraightAngleThreshold.GetValue()     &&
-       m_cDiffusionVector.Length() < m_fProximitySensorThreshold)
+    if(m_cDiffusionVector.Angle().GetAbsoluteValue() < m_cGoStraightAngleThreshold.GetValue() && m_cDiffusionVector.Length() < m_fProximitySensorThreshold)
+    {
         return false;
+    }
     else
     {
-        //std::cout << " Disperse behavior taking control " << std::endl;
+        if(m_cDiffusionVector.Length() < 0.05) /* because of noise, we can have very small non-zero sensor readings. but we don't want to responmd to them*/
+            return false;
+
+        //std::cout << " m_cDiffusionVector length " << m_cDiffusionVector.Length() << " and threshold " << m_fProximitySensorThreshold << std::endl;
+        //std::cout << " m_cDiffusionVector angle " <<  m_cDiffusionVector.Angle().GetAbsoluteValue() << " and threshold " << m_cGoStraightAngleThreshold.GetValue() << std::endl;
+
         return true;
     }
 }
@@ -44,13 +51,13 @@ bool CDisperseBehavior::TakeControl()
 // Move in the opposite direction of CoM
 void CDisperseBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 {
-     CVector2 m_cHeadingVector = -m_cDiffusionVector.Normalize() * m_sRobotData.MaxSpeed;
+    CVector2 m_cHeadingVector = -m_cDiffusionVector.Normalize() * m_sRobotData.MaxSpeed;
 
-     WheelSpeedsFromHeadingVector(m_cHeadingVector, fLeftWheelSpeed, fRightWheelSpeed);
+    WheelSpeedsFromHeadingVector(m_cHeadingVector, fLeftWheelSpeed, fRightWheelSpeed);
 
 
-     // Another way to get wheel speeds from heading
-     /*if(m_cHeadingVector.Angle().GetAbsoluteValue() <= ToRadians(CDegrees(35.0f)).GetValue()) // obstacle behind robot // move straight ahead.
+    // Another way to get wheel speeds from heading
+    /*if(m_cHeadingVector.Angle().GetAbsoluteValue() <= ToRadians(CDegrees(35.0f)).GetValue()) // obstacle behind robot // move straight ahead.
      {
          fLeftWheelSpeed  = m_sRobotData.MaxSpeed;
          fRightWheelSpeed = m_sRobotData.MaxSpeed;
@@ -81,7 +88,7 @@ void CDisperseBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
      }*/
 
 
-     // A third way to get wheel speeds from heading - but distance from sensor reading table needed
+    // A third way to get wheel speeds from heading - but distance from sensor reading table needed
     /*{
         CRadians angle = m_cHeadingVector.Angle();
 
@@ -115,3 +122,12 @@ void CDisperseBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 
 /******************************************************************************/
 /******************************************************************************/
+
+void CDisperseBehavior::PrintBehaviorIdentity()
+{
+    std::cout << "Disperse taking over" << std::endl;
+}
+
+/******************************************************************************/
+/******************************************************************************/
+

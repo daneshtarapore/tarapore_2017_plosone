@@ -20,6 +20,8 @@ public:
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
+    virtual void PrintBehaviorIdentity();
+
 protected:
     Real           m_fRangeAndBearing_RangeThreshold;
     CVector2       m_cAggregationVector;
