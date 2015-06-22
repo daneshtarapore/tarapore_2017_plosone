@@ -35,7 +35,8 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 #define PROPRIOCEPT_MODE 0
 #define OBSERVATION_MODE 1
 #define COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE 2
-#define FV_MODE COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
+#define BAYESIANINFERENCE_MODE 3
+#define FV_MODE BAYESIANINFERENCE_MODE
 /****************************************/
 /****************************************/
 
@@ -68,6 +69,8 @@ CBehavior::RobotData CBehavior::m_sRobotData;
 CProprioceptiveFeatureVector::RobotData CProprioceptiveFeatureVector::m_sRobotData;
 
 CObservedFeatureVector::RobotData CObservedFeatureVector::m_sRobotData;
+
+CBayesianInferenceFeatureVector::RobotData CBayesianInferenceFeatureVector::m_sRobotData;
 
 /****************************************/
 /****************************************/
@@ -239,13 +242,10 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
 
     CProprioceptiveFeatureVector::m_sRobotData.MaxLinearSpeed           = robdetails.MaxLinearSpeed; //cm/controlcycle
     CProprioceptiveFeatureVector::m_sRobotData.MaxLinearAcceleration    = robdetails.MaxLinearAcceleration; //cm/controlcycle/controlcycle
-
     CProprioceptiveFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = robdetails.HALF_INTERWHEEL_DISTANCE; // m
     CProprioceptiveFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = robdetails.INTERWHEEL_DISTANCE; // m
-
     CProprioceptiveFeatureVector::m_sRobotData.MaxAngularSpeed          = robdetails.MaxAngularSpeed; // rad/controlcycle
     CProprioceptiveFeatureVector::m_sRobotData.MaxAngularAcceleration   = robdetails.MaxAngularAcceleration; // rad/controlcycle/controlcycle
-
     CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second    = robdetails.iterations_per_second;
     CProprioceptiveFeatureVector::m_sRobotData.seconds_per_iterations   = robdetails.seconds_per_iterations;
     CProprioceptiveFeatureVector::m_sRobotData.WHEEL_RADIUS             = robdetails.WHEEL_RADIUS;
@@ -254,13 +254,10 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
 
     CObservedFeatureVector::m_sRobotData.MaxLinearSpeed           = robdetails.MaxLinearSpeed; //cm/controlcycle
     CObservedFeatureVector::m_sRobotData.MaxLinearAcceleration    = robdetails.MaxLinearAcceleration; //cm/controlcycle/controlcycle
-
     CObservedFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = robdetails.HALF_INTERWHEEL_DISTANCE; // m
     CObservedFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = robdetails.INTERWHEEL_DISTANCE; // m
-
     CObservedFeatureVector::m_sRobotData.MaxAngularSpeed          = robdetails.MaxAngularSpeed; // rad/controlcycle
     CObservedFeatureVector::m_sRobotData.MaxAngularAcceleration   = robdetails.MaxAngularAcceleration; // rad/controlcycle/controlcycle
-
     CObservedFeatureVector::m_sRobotData.iterations_per_second    = robdetails.iterations_per_second;
     CObservedFeatureVector::m_sRobotData.seconds_per_iterations   = robdetails.seconds_per_iterations;
     CObservedFeatureVector::m_sRobotData.WHEEL_RADIUS             = robdetails.WHEEL_RADIUS;
@@ -268,19 +265,39 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
 
 
     CObservedFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
-
     CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
     CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
-
     CObservedFeatureVector::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
     CObservedFeatureVector::m_sRobotData.RELAY_FVS_PACKET_FOOTER_MARKER = RELAY_FVS_PACKET_FOOTER;
-
     CObservedFeatureVector::m_sRobotData.VOTER_PACKET_MARKER            = VOTER_PACKET;
     CObservedFeatureVector::m_sRobotData.VOTER_PACKET_FOOTER_MARKER     = VOTER_PACKET_FOOTER;
-
     CObservedFeatureVector::m_sRobotData.DATA_BYTE_BOUND_MARKER         = DATA_BYTE_BOUND;
-
     CObservedFeatureVector::m_sRobotData.OBSERVATION_MODE_TYPE          = FV_MODE;
+
+
+
+
+    CBayesianInferenceFeatureVector::m_sRobotData.MaxLinearSpeed           = robdetails.MaxLinearSpeed; //cm/controlcycle
+    CBayesianInferenceFeatureVector::m_sRobotData.MaxLinearAcceleration    = robdetails.MaxLinearAcceleration; //cm/controlcycle/controlcycle
+    CBayesianInferenceFeatureVector::m_sRobotData.HALF_INTERWHEEL_DISTANCE = robdetails.HALF_INTERWHEEL_DISTANCE; // m
+    CBayesianInferenceFeatureVector::m_sRobotData.INTERWHEEL_DISTANCE      = robdetails.INTERWHEEL_DISTANCE; // m
+    CBayesianInferenceFeatureVector::m_sRobotData.MaxAngularSpeed          = robdetails.MaxAngularSpeed; // rad/controlcycle
+    CBayesianInferenceFeatureVector::m_sRobotData.MaxAngularAcceleration   = robdetails.MaxAngularAcceleration; // rad/controlcycle/controlcycle
+    CBayesianInferenceFeatureVector::m_sRobotData.iterations_per_second    = robdetails.iterations_per_second;
+    CBayesianInferenceFeatureVector::m_sRobotData.seconds_per_iterations   = robdetails.seconds_per_iterations;
+    CBayesianInferenceFeatureVector::m_sRobotData.WHEEL_RADIUS             = robdetails.WHEEL_RADIUS;
+
+    CBayesianInferenceFeatureVector::m_sRobotData.SetLengthOdometryTimeWindows();
+
+    CBayesianInferenceFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CBayesianInferenceFeatureVector::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
+    CBayesianInferenceFeatureVector::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
+    CBayesianInferenceFeatureVector::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
+    CBayesianInferenceFeatureVector::m_sRobotData.RELAY_FVS_PACKET_FOOTER_MARKER = RELAY_FVS_PACKET_FOOTER;
+    CBayesianInferenceFeatureVector::m_sRobotData.VOTER_PACKET_MARKER            = VOTER_PACKET;
+    CBayesianInferenceFeatureVector::m_sRobotData.VOTER_PACKET_FOOTER_MARKER     = VOTER_PACKET_FOOTER;
+    CBayesianInferenceFeatureVector::m_sRobotData.DATA_BYTE_BOUND_MARKER         = DATA_BYTE_BOUND;
+    CBayesianInferenceFeatureVector::m_sRobotData.OBSERVATION_MODE_TYPE          = FV_MODE;
 }
 
 /****************************************/
@@ -417,7 +434,7 @@ void CEPuckHomSwarm::ControlStep()
 
 
 
-    /* Estimating FVs proprioceptively - to be used for the simplifying fault detection */
+    /* Estimating FVs proprioceptively - to be used for the simplifying fault detection and to compute angular acceleration for the COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE */
     /*m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
                                                                  leftSpeed, rightSpeed);*/
     /*encoders give you the speed at the previous tick not current tick */
@@ -449,6 +466,35 @@ void CEPuckHomSwarm::ControlStep()
     SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
+
+    /****************************************/
+#if FV_MODE == BAYESIANINFERENCE_MODE
+
+    /*encoders give you the speed at the previous tick not current tick */
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                                 m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
+
+
+    m_cProprioceptiveFeatureVector.SimulationStep();
+    m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
+
+    /* Estimate feature-vectors - via observation */
+    m_uRobotId = RobotIdStrToInt();
+
+
+    /*m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                              leftSpeed, rightSpeed);*/
+    /*encoders give you the speed at the previous tick not current tick */
+    m_cBayesianInferredFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+                                                              m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
+    m_cBayesianInferredFeatureVector.SimulationStep();
+
+    Sense(PROBABILITY_FORGET_FV);
+
+    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay);
+#endif
+    /****************************************/
+
 
 
     if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u)
@@ -565,6 +611,29 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
     {
         unsigned robotId = m_cObservationFeatureVector.ObservedRobotIDs[i];
         unsigned fv      = m_cObservationFeatureVector.ObservedRobotFVs[i];
+
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
+
+        //if(robotId == 15)
+        //  std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
+
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+    }
+
+    const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
+    bool read_status = ReadFromCommunicationChannel_RelayedFv(tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
+
+    //remove entries older than 10s
+    TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
+#endif
+
+#if FV_MODE == BAYESIANINFERENCE_MODE
+    listMapFVsToRobotIds_relay.clear();
+    for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
+    {
+        unsigned robotId = m_cBayesianInferredFeatureVector.ObservedRobotIDs[i];
+        unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
 
         listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
 
@@ -833,7 +902,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
     m_pcRABA->SetData(databyte_index++, SELF_INFO_PACKET);
     m_pcRABA->SetData(databyte_index++, SelfId);
 
-#if FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
+#if FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE || FV_MODE == BAYESIANINFERENCE_MODE
 
     // angular acceleration [-1, +1] to [0, DATA_BYTE_BOUND]
     unsigned un_angularacceleration = (unsigned)(((m_cProprioceptiveFeatureVector.m_sSensoryData.GetNormalisedAngularAcceleration() + 1.0) / 2.0) * DATA_BYTE_BOUND);
@@ -1222,10 +1291,10 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
             if(robotId == 15)
             {
-                std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                 std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
             else
-                std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                 std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
 
 
             read_successful = true;

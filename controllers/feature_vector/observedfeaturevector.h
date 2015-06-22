@@ -138,7 +138,7 @@ public:
 
         void ComputeFeatureValues_Old();
         void ComputeFeatureValues();
-        unsigned CountNeighbors(Real sensor_range, Real &dist_nearest_nbr);
+        Real CountNeighbors(Real lb_sensor_range, Real hb_sensor_range, Real &dist_nearest_nbr, Real& CoM_nbrs);
         Real TrackNeighborsInQueue(Real step, unsigned current_num_nbrs, unsigned num_nbrs_threshold,
                                    unsigned queue_length, Real queue_length_threshold,
                                    unsigned int& sum_nbrs, unsigned int& queue_index, unsigned int* queue_nbrs);

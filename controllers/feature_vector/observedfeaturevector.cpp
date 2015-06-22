@@ -416,11 +416,13 @@ CObservedFeatureVector::ObservedRobots_FeatureVector::~ObservedRobots_FeatureVec
 
 void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_Old()
 {
-    Real DistToNearestNbr;
-    unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f, DistToNearestNbr);
-    unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE, DistToNearestNbr) - unCloseRangeNbrCount;
+    Real DistToNearestNbr, CoM_nbrs;
+    Real  unCloseRangeNbrCount = CountNeighbors(0.0, FEATURE_RANGE/2.0f, DistToNearestNbr, CoM_nbrs);
+    Real  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE/2.0f, FEATURE_RANGE, DistToNearestNbr, CoM_nbrs);
 
-    bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0u) ? true : false;
+    assert(unCloseRangeNbrCount != -1.0f); assert(unFarRangeNbrCount != -1.0f);
+
+    bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0.0f) ? true : false;
 
     /*
      * Time since the robot was first observed
@@ -453,7 +455,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_
     }
 
     // adding new values into the queue
-    if (unCloseRangeNbrCount > 0)
+    if (unCloseRangeNbrCount > 0.0f)
     {
         m_punNbrsRange0to30AtTimeStep[m_unNbrsCurrQueueIndex] = 1;
         m_unSumTimeStepsNbrsRange0to30++;
@@ -461,7 +463,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_
     else
         m_punNbrsRange0to30AtTimeStep[m_unNbrsCurrQueueIndex] = 0;
 
-    if (unFarRangeNbrCount > 0)
+    if (unFarRangeNbrCount > 0.0f)
     {
         m_punNbrsRange30to60AtTimeStep[m_unNbrsCurrQueueIndex] = 1;
         m_unSumTimeStepsNbrsRange30to60++;
@@ -615,21 +617,21 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues_
 void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues()
 {
     FEATURE_RANGE = 30.0f; // cm
-    Real DistToNearestNbr;
+    Real DistToNearestNbr, CoM_nbrs, CoM_closerangenbrs = 0.0f, CoM_farrangenbrs = 0.0f;
 
-    unsigned  unCloseRangeNbrCount = CountNeighbors(FEATURE_RANGE/2.0f, DistToNearestNbr);
-    unsigned  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE, DistToNearestNbr) - unCloseRangeNbrCount;
+    Real  unCloseRangeNbrCount = CountNeighbors(0.0f, FEATURE_RANGE/2.0f, DistToNearestNbr, CoM_closerangenbrs);
+    Real  unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE/2.0f, FEATURE_RANGE, DistToNearestNbr, CoM_farrangenbrs);
+
+    assert(unCloseRangeNbrCount != -1.0f); assert(unFarRangeNbrCount != -1.0f);
 
 
-
-
-    unsigned  uNbrCount            = CountNeighbors(10.0f, DistToNearestNbr); // 30 or 10 cm???
-
+    Real   uNbrCount           = CountNeighbors(0.0f, 30.0f, DistToNearestNbr, CoM_nbrs); // 30 or 10 cm???
+    assert(uNbrCount != -1.0f);
 
 
 
     //bool neighbours_present = ((unCloseRangeNbrCount + unFarRangeNbrCount) > 0u) ? true : false;
-    bool neighbours_present = (uNbrCount > 0u) ? true : false;
+    bool neighbours_present = (uNbrCount > 0.0f) ? true : false;
 
     /*
      * Time since the robot was first observed
@@ -658,7 +660,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     }
 
     // adding new values into the queue
-    if (unCloseRangeNbrCount > 0)
+    if (unCloseRangeNbrCount > 0.0f)
     {
         m_punNbrsRange0to30AtTimeStep[m_unNbrsCurrQueueIndex] = 1;
         m_unSumTimeStepsNbrsRange0to30++;
@@ -666,7 +668,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     else
         m_punNbrsRange0to30AtTimeStep[m_unNbrsCurrQueueIndex] = 0;
 
-    if (unFarRangeNbrCount > 0)
+    if (unFarRangeNbrCount > 0.0f)
     {
         m_punNbrsRange30to60AtTimeStep[m_unNbrsCurrQueueIndex] = 1;
         m_unSumTimeStepsNbrsRange30to60++;
@@ -677,6 +679,24 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     m_unNbrsCurrQueueIndex = (m_unNbrsCurrQueueIndex + 1) % m_iEventSelectionTimeWindow;
 
     EstimateOdometry();
+    list_Dist_ShortRangeTimeWindow.push_back(m_fEstimated_Dist_ShortTimeWindow);
+    if(list_Dist_ShortRangeTimeWindow.size() >= 100u)
+        list_Dist_ShortRangeTimeWindow.pop_front();
+
+    list_Dist_MediumRangeTimeWindow.push_back(m_fEstimated_Dist_MediumTimeWindow);
+    if(list_Dist_MediumRangeTimeWindow.size() >= 100u)
+        list_Dist_MediumRangeTimeWindow.pop_front();
+
+    list_Dist_LongRangeTimeWindow.push_back(m_fEstimated_Dist_LongTimeWindow);
+    if(list_Dist_LongRangeTimeWindow.size() >= 100u)
+        list_Dist_LongRangeTimeWindow.pop_front();
+
+
+    Real meandist_shorttimewindow, meandist_mediumtimewindow, meandist_longtimewindow;
+    meandist_shorttimewindow  = std::accumulate(list_Dist_ShortRangeTimeWindow.begin(), list_Dist_ShortRangeTimeWindow.end(), 0.0) / list_Dist_ShortRangeTimeWindow.size();
+    meandist_mediumtimewindow = std::accumulate(list_Dist_MediumRangeTimeWindow.begin(), list_Dist_MediumRangeTimeWindow.end(), 0.0) / list_Dist_MediumRangeTimeWindow.size();
+    meandist_longtimewindow   = std::accumulate(list_Dist_LongRangeTimeWindow.begin(), list_Dist_LongRangeTimeWindow.end(), 0.0) / list_Dist_LongRangeTimeWindow.size();
+
 
     Real m_fThreshold;
     if (m_sRobotData.OBSERVATION_MODE_TYPE == 1) // pure observation mode
@@ -701,17 +721,18 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
             }
     }
 
+    Real f_MotorOutput      = fabs(average_angularacceleration) * (meandist_mediumtimewindow / (m_iMediumTimeWindowLength * m_sRobotData.MaxLinearSpeed));
 
-    if(neighbours_present &&
-            ((average_angularacceleration  >  m_fThreshold)  ||
-             (average_angularacceleration  < -m_fThreshold)))
+    /* we need to discretise the data. we assume that a motor interaction occurs if f_MotorOutput exceeds 10% of max motor output */
+    bool un_MotorOutput      = (f_MotorOutput > 0.10f)? 1u : 0u;
+
+
+    if(neighbours_present && un_MotorOutput)
     {
         m_piLastOccuranceEvent[2] = CurrentStepNumber;
     }
 
-    if((!neighbours_present) &&
-            ((average_angularacceleration  >  m_fThreshold)  ||
-             (average_angularacceleration  < -m_fThreshold)))
+    if((!neighbours_present) && un_MotorOutput)
     {
         m_piLastOccuranceEvent[3] = CurrentStepNumber;
     }
@@ -731,8 +752,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 
 
 
-    if((average_angularacceleration >  m_fThreshold ||
-        average_angularacceleration < -m_fThreshold))
+    if(un_MotorOutput)
     {
         m_piLastOccuranceEvent[5] = CurrentStepNumber;
     }
@@ -750,49 +770,33 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
         }
 
 
-    list_Dist_ShortRangeTimeWindow.push_back(m_fEstimated_Dist_ShortTimeWindow);
-    if(list_Dist_ShortRangeTimeWindow.size() >= 100u)
-        list_Dist_ShortRangeTimeWindow.pop_front();
-
-    list_Dist_MediumRangeTimeWindow.push_back(m_fEstimated_Dist_MediumTimeWindow);
-    if(list_Dist_MediumRangeTimeWindow.size() >= 100u)
-        list_Dist_MediumRangeTimeWindow.pop_front();
-
-    list_Dist_LongRangeTimeWindow.push_back(m_fEstimated_Dist_LongTimeWindow);
-    if(list_Dist_LongRangeTimeWindow.size() >= 100u)
-        list_Dist_LongRangeTimeWindow.pop_front();
 
 
-    Real meandist_shorttimewindow, meandist_mediumtimewindow, meandist_longtimewindow;
-    meandist_shorttimewindow  = std::accumulate(list_Dist_ShortRangeTimeWindow.begin(), list_Dist_ShortRangeTimeWindow.end(), 0.0) / list_Dist_ShortRangeTimeWindow.size();
-    meandist_mediumtimewindow = std::accumulate(list_Dist_MediumRangeTimeWindow.begin(), list_Dist_MediumRangeTimeWindow.end(), 0.0) / list_Dist_MediumRangeTimeWindow.size();
-    meandist_longtimewindow   = std::accumulate(list_Dist_LongRangeTimeWindow.begin(), list_Dist_LongRangeTimeWindow.end(), 0.0) / list_Dist_LongRangeTimeWindow.size();
-
-    Real disp_ShortWindow_Threshold  = 0.25f;
+    //Real disp_ShortWindow_Threshold  = 0.25f;
     /*Real disp_MediumWindow_Threshold = 0.25f;
     Real disp_LongWindow_Threshold   = 0.10f;*/
     // MaxLinearSpeed in cm / control cycle
-    Real f4 = (meandist_shorttimewindow  >  (disp_ShortWindow_Threshold  * ((Real)m_iShortTimeWindowLength)  * owner.m_sRobotData.MaxLinearSpeed)) ? 1.0f: 0.0f;
-    Real f5 = (meandist_mediumtimewindow >  2.5f) ? 1.0f: 0.0f;
+    //Real f5 = (meandist_mediumtimewindow >  2.5f) ? 1.0f: 0.0f;
     Real f6 = (meandist_longtimewindow   >  5.0f) ? 1.0f: 0.0f;
 
     if(CurrentStepNumber >= m_iEventSelectionTimeWindow)
         if (m_unRobotId == 15u) //7
         {
-            //std::cout << " average_angularacceleration " << average_angularacceleration << " " << f6 << std::endl;
-            if ((f5 == 1.0f) && ((average_angularacceleration >  m_fThreshold ||
-                                  average_angularacceleration < -m_fThreshold)) )
-            {
-                //std::cerr  << " sw " << meandist_shorttimewindow <<  " mw " << meandist_mediumtimewindow << " lw " << meandist_longtimewindow << std::endl;
-            }
+//            //std::cout << " average_angularacceleration " << average_angularacceleration << " " << f6 << std::endl;
+//            if ((f5 == 1.0f) && ((average_angularacceleration >  m_fThreshold ||
+//                                  average_angularacceleration < -m_fThreshold)) )
+//            {
+//                //std::cerr  << " sw " << meandist_shorttimewindow <<  " mw " << meandist_mediumtimewindow << " lw " << meandist_longtimewindow << std::endl;
         }
 
-    CountNeighbors(30.0f, DistToNearestNbr);
+
+    CountNeighbors(0.0, 30.0f, DistToNearestNbr, CoM_nbrs);
 
     if(CurrentStepNumber > m_iLongTimeWindowLength)
-    printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
+    printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
                                                                         m_fEstimated_Dist_MediumTimeWindow,
-                                                                        m_fEstimated_Dist_LongTimeWindow, average_angularacceleration,DistToNearestNbr);
+                                                                        m_fEstimated_Dist_LongTimeWindow, average_angularacceleration, DistToNearestNbr,
+                                                                        CoM_closerangenbrs, CoM_farrangenbrs, unCloseRangeNbrCount, unFarRangeNbrCount);
 
     /*if(CurrentStepNumber >= m_iLongTimeWindowLength)
         if (m_unRobotId == 15)
@@ -818,10 +822,10 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     {
         m_pfFeatureValues[0] = m_pfAllFeatureValues[0];
         m_pfFeatureValues[1] = m_pfAllFeatureValues[1];
-        m_pfFeatureValues[2] = m_pfAllFeatureValues[2] && f5;
-        m_pfFeatureValues[3] = m_pfAllFeatureValues[3] && f5;
+        m_pfFeatureValues[2] = m_pfAllFeatureValues[2];
+        m_pfFeatureValues[3] = m_pfAllFeatureValues[3];
         m_pfFeatureValues[4] = f6;
-        m_pfFeatureValues[5] = m_pfAllFeatureValues[5] && f5;
+        m_pfFeatureValues[5] = m_pfAllFeatureValues[5];
     }
 
     assert(CObservedFeatureVector::NUMBER_OF_FEATURES == 6);
@@ -834,18 +838,25 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
 /******************************************************************************/
 /******************************************************************************/
 
-unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Real sensor_range, Real& dist_nearest_nbr)
+Real CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Real lb_sensor_range, Real hb_sensor_range, Real& dist_nearest_nbr, Real& CoM_nbrs)
 {
-    unsigned count_nbrs = 0;
+    Real count_nbrs = 0.0f; // Use Real instead of unsigned so that we can return -1 if the robot is not observed at the current time-step.
+    CoM_nbrs   = 0.0f;
 
     dist_nearest_nbr = 1000000u;
+
+
 
     /*
      * counting the number of neighbours to observedRobotId_1
      */
     unsigned observedRobotId_1 = m_unRobotId;
     Real observedRobotId_1_Range; CRadians observedRobotId_1_Bearing; Real observedRobotId_1_SelfBearingOrAngularAcceleration;
-    assert(GetObservedRobotRangeBearing(observedRobotId_1_Range, observedRobotId_1_Bearing, observedRobotId_1_SelfBearingOrAngularAcceleration)); // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
+
+    bool b_DataAvailable = GetObservedRobotRangeBearing(observedRobotId_1_Range, observedRobotId_1_Bearing, observedRobotId_1_SelfBearingOrAngularAcceleration);
+    // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
+    if(!b_DataAvailable)
+        return -1.0f;
 
 
     for(size_t i = 0; i <  owner.m_sSensoryData.m_RABSensorData.size(); ++i)
@@ -864,8 +875,11 @@ unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Re
                                              observedRobotId_2_Range * observedRobotId_2_Range -
                                              2.0f * observedRobotId_1_Range * observedRobotId_2_Range * Cos(diffBearing));
 
-        if(Dist_ObsRobId1_ObsRobId2 <= sensor_range)
-            count_nbrs++;
+        if((Dist_ObsRobId1_ObsRobId2 > lb_sensor_range) && (Dist_ObsRobId1_ObsRobId2 <= hb_sensor_range))
+        {
+            count_nbrs+=1.0f;
+            CoM_nbrs += Dist_ObsRobId1_ObsRobId2;
+        }
 
         if(Dist_ObsRobId1_ObsRobId2 < dist_nearest_nbr)
             dist_nearest_nbr = Dist_ObsRobId1_ObsRobId2;
@@ -873,14 +887,22 @@ unsigned CObservedFeatureVector::ObservedRobots_FeatureVector::CountNeighbors(Re
 
 
     // dont forget to add youself as neighbour of observedRobotId_1
-    if(observedRobotId_1_Range <= sensor_range)  // WHAT IF THE ROBOT IS NOT OBSERVED AT THE CURRENT TIME-STEP
-        count_nbrs++;
+    if((observedRobotId_1_Range > lb_sensor_range) && (observedRobotId_1_Range <= hb_sensor_range))
+    {
+        count_nbrs+=1.0f;
+        CoM_nbrs  += observedRobotId_1_Range;
+
+    }
 
     if(observedRobotId_1_Range < dist_nearest_nbr)
         dist_nearest_nbr = observedRobotId_1_Range;
 
     if(dist_nearest_nbr == 1000000u)
-        dist_nearest_nbr = sensor_range;
+        dist_nearest_nbr = hb_sensor_range;
+
+
+    if (count_nbrs > 0.0f)
+        CoM_nbrs = CoM_nbrs / count_nbrs;
 
     return count_nbrs;
 }

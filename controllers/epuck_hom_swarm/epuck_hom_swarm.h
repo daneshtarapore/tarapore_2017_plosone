@@ -69,6 +69,7 @@
 
 #include "propriofeaturevector.h"
 #include "observedfeaturevector.h"
+#include "bayesianinferencefeaturevector.h"
 
 /****************************************/
 /****************************************/
@@ -370,8 +371,9 @@ private:
 
     unsigned                    u_num_consequtivecollisions;
 
-    CProprioceptiveFeatureVector  m_cProprioceptiveFeatureVector;
-    CObservedFeatureVector        m_cObservationFeatureVector;
+    CProprioceptiveFeatureVector       m_cProprioceptiveFeatureVector;
+    CObservedFeatureVector             m_cObservationFeatureVector;
+    CBayesianInferenceFeatureVector    m_cBayesianInferredFeatureVector;
 
     t_listFVsSensed               listFVsSensed;
     t_listMapFVsToRobotIds        listMapFVsToRobotIds; // ids and fvs of observed neighbours, including ids and fvs the neighbours have relayed to you
