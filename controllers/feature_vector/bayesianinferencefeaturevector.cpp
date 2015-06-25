@@ -205,8 +205,6 @@ CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::Ba
     /************************************************************************************/
     m_fEstimated_Dist_ShortTimeWindow = 0.0f; m_fEstimated_Dist_MediumTimeWindow = 0.0f; m_fEstimated_Dist_LongTimeWindow = 0.0f;
 
-    std::cout << "m_iShortTimeWindowLength " << m_iShortTimeWindowLength << std::endl;
-
     vec_RobPos_ShortRangeTimeWindow.resize(owner.m_iShortTimeWindowLength);
     vec_RobPos_MediumRangeTimeWindow.resize(owner.m_iMediumTimeWindowLength);
     vec_RobPos_LongRangeTimeWindow.resize(owner.m_iLongTimeWindowLength);
@@ -255,8 +253,6 @@ CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::Ba
 
 CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::~BayesInference_ObservedRobots_FeatureVector()
 {
-    std::cout << "deleting " << std::endl;
-
     delete m_pfFeatureValues;
     delete m_pfAllFeatureValues;
 
@@ -531,15 +527,12 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     assert(step >= 0.0f);
 
 
-    std::cout << " vec_RobPos_ShortRangeTimeWindow.size() " << vec_RobPos_ShortRangeTimeWindow.size() << " vec_RobPos_MediumRangeTimeWindow.size() " << vec_RobPos_MediumRangeTimeWindow.size() << " vec_RobPos_LongRangeTimeWindow.size() " << vec_RobPos_LongRangeTimeWindow.size() << std::endl;
-
-
-    /*TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
+    TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
                            vec_RobPos_ShortRangeTimeWindow, b_DataAvailable);
     TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
                             vec_RobPos_MediumRangeTimeWindow, b_DataAvailable);
     TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
-                            vec_RobPos_LongRangeTimeWindow, b_DataAvailable);*/
+                            vec_RobPos_LongRangeTimeWindow, b_DataAvailable);
 }
 
 /******************************************************************************/
