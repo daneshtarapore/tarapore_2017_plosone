@@ -78,6 +78,13 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
         if((it_listobrob->u_TimeSinceLastRefresh) > RefreshPriorsThreshold)
             it_listobrob->RefreshPriors();
 
+        /*
+         * Gets observation of average_angularacceleration and of distance travelled by robot in last 1s, 5s, and 10s
+           Robots that are not observed in the current time-step are merely marked as such instead of clearing the entire window if even one observation is missed
+        */
+        it_listobrob->EstimateOdometry();
+
+
         /*unsigned RobotId = it_listobrob->m_unRobotId;
         bool b_ObservedRobotFound(false);
         for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
@@ -98,8 +105,6 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
     }
 
 
-    //printf("m_pcListObservedRobots.size() %d \n\n\n", m_pcListObservedRobots.size());
-
     ObservedRobotIDs.clear(); ObservedRobotFVs.clear();
     for (it_listobrob = m_pcListObservedRobots.begin(); it_listobrob != m_pcListObservedRobots.end(); ++it_listobrob)
     {
@@ -110,7 +115,6 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
             unsigned u_ObservedRobotId = GetIdFromRABPacket(m_sSensoryData.m_RABSensorData, i);
             if(u_ObservedRobotId == (it_listobrob->m_unRobotId))
             {
-                //printf("it_listobrob->m_unRobotId %d \n\n\n", it_listobrob->m_unRobotId);
 
                 assert(u_ObservedRobotId != ROBOTID_NOT_IN_SIGNAL);
                 it_listobrob->ComputeFeatureValues();
@@ -123,7 +127,7 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
                  */
 
                 // if((m_sSensoryData.m_rTime - it_listobrob->m_fTimeFirstObserved) >= MODELSTARTTIME)
-                if(it_listobrob->max_posterior_variance < 0.1f)
+                if(it_listobrob->max_posterior_variance < 1.0f)
                 {
                     ObservedRobotIDs.push_back(it_listobrob->m_unRobotId);
                     ObservedRobotFVs.push_back(it_listobrob->GetValue());
@@ -212,6 +216,8 @@ CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::Ba
 
      /* Lets initialise the priors */
      RefreshPriors();
+
+     u_TimeSinceLastObserved = 0u; u_TimeSinceLastObserved_DistMeasure = 0u;
 }
 
 /******************************************************************************/
@@ -246,6 +252,8 @@ CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::Ba
 
     /* Lets initialise the priors */
     RefreshPriors();
+
+    u_TimeSinceLastObserved = 0u; u_TimeSinceLastObserved_DistMeasure = 0u;
 }
 
 /******************************************************************************/
@@ -269,8 +277,6 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     // We are updating the priors now. Increment the time since we last refreshed the priors.
     u_TimeSinceLastRefresh++;
 
-    EstimateOdometry(); // gets observation of average_angularacceleration and of distance travelled by robot in last 1s, 5s, and 10s
-
     FEATURE_RANGE = 30.0f; // cm
     Real DistToNearestNbr, CoM_closerangenbrs = 0.0f, CoM_farrangenbrs = 0.0f;
 
@@ -291,24 +297,51 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
         /*Update priors*/
 
         /* presence of neighbours in close range - is the robot part of a small aggregate */
-        CoM_closerangenbrs /= (FEATURE_RANGE/2.0f); // normalise to [0, 1]
-        sensclosePrior_Gaussian_mu = ((sensclosePrior_Gaussian_mu / sensclosePrior_Gaussian_variance) + (CoM_closerangenbrs / f_likelihood_variance)) /
+        //CoM_closerangenbrs /= (FEATURE_RANGE/2.0f); // normalise to [0, 1]
+        /*sensclosePrior_Gaussian_mu = ((sensclosePrior_Gaussian_mu / sensclosePrior_Gaussian_variance) + (CoM_closerangenbrs / f_likelihood_variance)) /
                                       (1.0f/sensclosePrior_Gaussian_variance + 1.0f/f_likelihood_variance);
-        sensclosePrior_Gaussian_variance = 1.0f / (1.0f/sensclosePrior_Gaussian_variance + 1.0f/f_likelihood_variance);
+        sensclosePrior_Gaussian_variance = 1.0f / (1.0f/sensclosePrior_Gaussian_variance + 1.0f/f_likelihood_variance);*/
 
 
+        assert((owner.m_sSensoryData.m_rTime - (Real)(u_TimeSinceLastObserved)) >= 0.0f); /*time since the robot was last observed */
+
+        Real f_ProcessNoiseVariance_TemporalConstant = 0.1f; Real f_MeasurementNoiseVariance = 10.0f;
+
+        /* Prediction */
+        Real sensclosePredicted_Gaussian_mu       = sensclosePrior_Gaussian_mu;
+        Real sensclosePredicted_Gaussian_variance = sensclosePrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved)) *
+                                                    f_ProcessNoiseVariance_TemporalConstant;
+
+        /* Correction */
+        sensclosePrior_Gaussian_mu = ((sensclosePredicted_Gaussian_mu / sensclosePredicted_Gaussian_variance) + (CoM_closerangenbrs / f_MeasurementNoiseVariance)) /
+                                      (1.0f/sensclosePredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+        sensclosePrior_Gaussian_variance = 1.0f / (1.0f/sensclosePredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+
+        number_featureobservations_0 += 1.0f;
 
 
 
 
         /* presence of neighbours in long range - is the robot part of a large aggregate */
-        CoM_farrangenbrs /= (FEATURE_RANGE); // normalise to [0, 1]
-        sensfarPrior_Gaussian_mu = ((sensfarPrior_Gaussian_mu / sensfarPrior_Gaussian_variance) + (CoM_farrangenbrs / f_likelihood_variance)) /
+        //CoM_farrangenbrs /= (FEATURE_RANGE); // normalise to [0, 1]
+        /* sensfarPrior_Gaussian_mu = ((sensfarPrior_Gaussian_mu / sensfarPrior_Gaussian_variance) + (CoM_farrangenbrs / f_likelihood_variance)) /
                                     (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
-        sensfarPrior_Gaussian_variance = 1.0f / (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
+        sensfarPrior_Gaussian_variance = 1.0f / (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance); */
+
+        /* Prediction */
+        Real sensfarPredicted_Gaussian_mu       = sensfarPrior_Gaussian_mu;
+        Real sensfarPredicted_Gaussian_variance = sensfarPrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved)) *
+                                                    f_ProcessNoiseVariance_TemporalConstant;
+
+        /* Correction */
+        sensfarPrior_Gaussian_mu = ((sensfarPredicted_Gaussian_mu / sensfarPredicted_Gaussian_variance) + (CoM_farrangenbrs / f_MeasurementNoiseVariance)) /
+                                      (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+        sensfarPrior_Gaussian_variance = 1.0f / (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
 
 
         max_posterior_variance = std::max(sensclosePrior_Gaussian_variance, sensfarPrior_Gaussian_variance);
+
+        number_featureobservations_1 += 1.0f;
     }
 
 
@@ -319,13 +352,39 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     {
         /*Update priors*/
         /* distance moved by robot in past 10s. is the robot moving a lot */
+        assert((owner.m_sSensoryData.m_rTime - (Real)u_TimeSinceLastObserved_DistMeasure) >= 0.0f); /*time since the robot was last observed */
 
-        m_fEstimated_Dist_LongTimeWindow /=  (m_iMediumTimeWindowLength * m_sRobotData.MaxLinearSpeed); // normalise to [0, 1]
-        motPrior_Gaussian_mu = ((motPrior_Gaussian_mu / motPrior_Gaussian_variance) + (m_fEstimated_Dist_LongTimeWindow / f_likelihood_variance)) /
+
+        //m_fEstimated_Dist_LongTimeWindow /=  (m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed); // normalise to [0, 1]
+        /*motPrior_Gaussian_mu = ((motPrior_Gaussian_mu / motPrior_Gaussian_variance) + (m_fEstimated_Dist_LongTimeWindow / f_likelihood_variance)) /
                                 (1.0f / motPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
-        motPrior_Gaussian_variance = 1.0f / (1.0f / motPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
+        motPrior_Gaussian_variance = 1.0f / (1.0f / motPrior_Gaussian_variance + 1.0f / f_likelihood_variance);*/
+
+
+
+        Real f_ProcessNoiseVariance_TemporalConstant = 0.1f; Real f_MeasurementNoiseVariance = 10.0f;
+
+        /* Prediction */
+        Real motPredicted_Gaussian_mu       = motPrior_Gaussian_mu;
+        Real motPredicted_Gaussian_variance = motPrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved_DistMeasure)) *
+                                              f_ProcessNoiseVariance_TemporalConstant;
+
+        /* Correction */
+        motPrior_Gaussian_mu = ((motPredicted_Gaussian_mu / motPredicted_Gaussian_variance) + (m_fEstimated_Dist_LongTimeWindow / f_MeasurementNoiseVariance)) /
+                                      (1.0f/motPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+        motPrior_Gaussian_variance = 1.0f / (1.0f/motPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+
 
         max_posterior_variance = std::max(max_posterior_variance, motPrior_Gaussian_variance);
+
+        /*For the Kalman filter - distance moved */
+        u_TimeSinceLastObserved_DistMeasure = owner.m_sSensoryData.m_rTime;
+
+        number_featureobservations_5 += 1.0f;
+
+//        printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
+//                                                                            m_fEstimated_Dist_MediumTimeWindow,
+//                                                                            m_fEstimated_Dist_LongTimeWindow, average_angularacceleration);
     }
 
 
@@ -339,7 +398,7 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
         Real f_MotorOutput      = fabs(average_angularacceleration) * (m_fEstimated_Dist_MediumTimeWindow / (m_iMediumTimeWindowLength * m_sRobotData.MaxLinearSpeed));
 
         /* we need to discretise the data. we assume that a motor interaction occurs if f_MotorOutput exceeds 10% of max motor output */
-        bool un_MotorOutput      = (f_MotorOutput > 0.10f)? 1u : 0u;
+        unsigned un_MotorOutput = (f_MotorOutput >= 0.10f)? 1u : 0u;
 
         /*Update priors*/
         /* Motor interactions in the presence of sensors */
@@ -353,6 +412,8 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                                ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
                                                (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
                                                (sensmotPrior_Beta_a + sensmotPrior_Beta_b + 1u))) );
+
+            number_featureobservations_2 += 1.0f;
         }
 
         /* Motor interactions in the absence of sensors */
@@ -366,6 +427,8 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                               ((Real)((nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
                                                (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
                                                (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b + 1u))) );
+
+            number_featureobservations_3 += 1.0f;
         }
 
         irrespsensmotPrior_Beta_a = irrespsensmotPrior_Beta_a + un_MotorOutput;
@@ -376,6 +439,8 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                           ((Real)((irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
                                            (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
                                            (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) );
+
+        number_featureobservations_4 += 1.0f;
     }
 
 
@@ -385,12 +450,14 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                                                         m_fEstimated_Dist_MediumTimeWindow,
                                                                         m_fEstimated_Dist_LongTimeWindow, average_angularacceleration,DistToNearestNbr); */
 
-    m_pfFeatureValues[0] = sensclosePrior_Gaussian_mu > 0.50f ? 1.0f : 0.0f;
-    m_pfFeatureValues[1] = sensfarPrior_Gaussian_mu   > 0.50f ? 1.0f : 0.0f;
-    m_pfFeatureValues[2] = (sensmotPrior_Beta_a       / (sensmotPrior_Beta_a       + sensmotPrior_Beta_b))       > 0.05f ? 1.0f : 0.0f;
-    m_pfFeatureValues[3] = (nosensmotPrior_Beta_a     / (nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b))     > 0.05f ? 1.0f : 0.0f;
-    m_pfFeatureValues[4] = (irrespsensmotPrior_Beta_a / (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)) > 0.05f ? 1.0f : 0.0f;
-    m_pfFeatureValues[5] = sensfarPrior_Gaussian_mu > 0.15f ? 1.0f : 0.0f;
+
+    m_pfFeatureValues[0] = sensclosePrior_Gaussian_mu >= 7.50f ? 1.0f : 0.0f;
+    assert(FEATURE_RANGE/2.0f == 15.0f);
+    m_pfFeatureValues[1] = sensfarPrior_Gaussian_mu   >= 15.0f ? 1.0f : 0.0f;
+    m_pfFeatureValues[2] = (((Real)sensmotPrior_Beta_a)       / ((Real)(sensmotPrior_Beta_a       + sensmotPrior_Beta_b)))       > 0.05f ? 1.0f : 0.0f;
+    m_pfFeatureValues[3] = (((Real)nosensmotPrior_Beta_a)     / ((Real)(nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b)))     > 0.05f ? 1.0f : 0.0f;
+    m_pfFeatureValues[4] = (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b))) > 0.05f ? 1.0f : 0.0f;
+    m_pfFeatureValues[5] = motPrior_Gaussian_mu >= (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed)) ? 1.0f : 0.0f;
 
 
 
@@ -399,6 +466,20 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     m_unValue = 0;
     for (unsigned int i = 0; i < CBayesianInferenceFeatureVector::NUMBER_OF_FEATURES; i++)
         m_unValue += (unsigned)m_pfFeatureValues[i] * (1 << i);
+
+    if(m_unRobotId != 15)
+        std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  m_pfFeatureValues[5]  << " with number_featureobservations_5 " << number_featureobservations_5 << " and posterior variance " << motPrior_Gaussian_variance << std::endl;
+    else
+        std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_pfFeatureValues[5]  << " with number_featureobservations_5 " << number_featureobservations_5 << " and posterior variance " << motPrior_Gaussian_variance <<  std::endl;
+
+    /*For the Kalman filter - distance to neighbours (CoM) */
+    u_TimeSinceLastObserved = owner.m_sSensoryData.m_rTime;
+
+
+    /* used to establish consensus on FVs. if choice between many fv for robot id, use the fv with the highest min_number_featureobservations */
+    min_number_featureobservations = std::min(std::min(std::min(number_featureobservations_0, number_featureobservations_1),
+                                                       std::min(number_featureobservations_2, number_featureobservations_3)),
+                                              std::min(number_featureobservations_4, number_featureobservations_5));
 }
 
 /******************************************************************************/
@@ -519,20 +600,15 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     Real step = owner.m_sSensoryData.m_rTime - m_fTimeFirstObserved;
 
 
-
-    if(step < 0.0f)
-    {
-        printf( " owner.m_sSensoryData.m_rTime %f  m_fTimeFirstObserved %f \n\n", owner.m_sSensoryData.m_rTime, m_fTimeFirstObserved );
-    }
     assert(step >= 0.0f);
 
 
-    TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
-                           vec_RobPos_ShortRangeTimeWindow, b_DataAvailable);
-    TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
-                            vec_RobPos_MediumRangeTimeWindow, b_DataAvailable);
-    TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
-                            vec_RobPos_LongRangeTimeWindow, b_DataAvailable);
+    m_fEstimated_Dist_ShortTimeWindow  = TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
+                                                                vec_RobPos_ShortRangeTimeWindow, b_DataAvailable);
+    m_fEstimated_Dist_MediumTimeWindow = TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
+                                                                vec_RobPos_MediumRangeTimeWindow, b_DataAvailable);
+    m_fEstimated_Dist_LongTimeWindow   = TrackRobotDisplacement(step, observedRobotId_1_Range, observedRobotId_1_Bearing, delta_orientation,
+                                                                vec_RobPos_LongRangeTimeWindow, b_DataAvailable);
 }
 
 /******************************************************************************/
@@ -540,7 +616,14 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
 Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::TrackRobotDisplacement(Real step, Real observedRobotId_1_Range, CRadians observedRobotId_1_Bearing, CRadians delta_orientation, std::vector<RobotRelativePosData>& displacement_vector, bool b_DataAvailable)
 {
-    Real displacement = 0.0f;
+    Real displacement = -1.0f; /* if step is < displacement_vector.size, we return -1 as not enough time has elapsed to make an observation */
+
+    assert(step >= 0.0f);
+
+    if(m_unRobotId == 16 && owner.m_sSensoryData.m_unRobotId ==19 && displacement_vector.size() == 100)
+    {
+        printf("step %f, b_DataAvailable %d, observedRobotId_1_Range %f, observedRobotId_1_Bearing %f, delta_orientation %f, l_speed %f r_speed %f\n\n",step, b_DataAvailable,observedRobotId_1_Range, observedRobotId_1_Bearing.GetValue(), delta_orientation.GetValue(), owner.m_sSensoryData.f_LeftWheelSpeed, owner.m_sSensoryData.f_RightWheelSpeed);
+    }
 
     /*
      * Returns magnitude of displacement vector of the robot in the pre-specified time interval. If the robot is unobservable at the end of the pre-specified time interval, the function returns -1.
@@ -602,9 +685,11 @@ Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
 
         size_t t = ((unsigned)(step)%displacement_vector.size());
+        assert(t < displacement_vector.size());
 
 
-        if(b_DataAvailable)
+
+        if(displacement_vector[(unsigned)(t)].b_DataAvailable && b_DataAvailable)
         {
             CVector2 tmp_pos           = CVector2(observedRobotId_1_Range * Cos(observedRobotId_1_Bearing), observedRobotId_1_Range * Sin(observedRobotId_1_Bearing));
             CVector2 tmp_pos_rot       = tmp_pos.Rotate(displacement_vector[t].NetRotationSinceStart);
@@ -625,11 +710,17 @@ Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
             displacement              = -1.0f;
         }
 
+        if(m_unRobotId == 16 && owner.m_sSensoryData.m_unRobotId ==19 && displacement_vector.size() == 100)
+        {
+            printf("displacement %f \n", displacement);
+        }
+
+
 
 
         /* Preparing the start recorded data to be used at the end of the pre-specified time interval */
-        displacement_vector[(unsigned)(step)].b_DataAvailable = b_DataAvailable;
-        if (displacement_vector[(unsigned)(step)].b_DataAvailable)
+        displacement_vector[(unsigned)(t)].b_DataAvailable = b_DataAvailable;
+        if (displacement_vector[(unsigned)(t)].b_DataAvailable)
         {
             displacement_vector[t].Range_At_Start           = observedRobotId_1_Range;
             displacement_vector[t].Bearing_At_Start         = observedRobotId_1_Bearing;
@@ -645,6 +736,7 @@ Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
         displacement_vector[t].NetTranslationSinceStart.Set(0.0f, 0.0f);
         displacement_vector[t].NetRotationSinceStart.SetValue(0.0f);
     }
+
 
     return displacement;
 }

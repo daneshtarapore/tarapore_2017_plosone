@@ -146,6 +146,8 @@ public:
 
         void RefreshPriors()
         {
+            std::cerr << "REFRESHING PRIORS   " << std::endl;
+
             /* Cleaning the slate */
             u_TimeSinceLastRefresh = 0u;
 
@@ -166,11 +168,13 @@ public:
             sensfarPrior_Gaussian_mu   = 0.5f; sensfarPrior_Gaussian_variance   = 4.0f;
 
 
-            max_posterior_variance = 10.0f;
+            max_posterior_variance         = 10.0f;
+            number_featureobservations_0  = 0.0f; number_featureobservations_1  = 0.0f; number_featureobservations_2  = 0.0f;
+            number_featureobservations_3  = 0.0f; number_featureobservations_4  = 0.0f; number_featureobservations_5  = 0.0f;
         }
 
 
-        unsigned u_TimeSinceLastRefresh;
+        unsigned u_TimeSinceLastRefresh, u_TimeSinceLastObserved, u_TimeSinceLastObserved_DistMeasure;
 
         Real f_likelihood_variance;
 
@@ -189,7 +193,9 @@ public:
         Real sensfarPrior_Gaussian_mu, sensfarPrior_Gaussian_variance;
 
 
-        Real max_posterior_variance;
+        Real max_posterior_variance, min_number_featureobservations;
+        Real number_featureobservations_0, number_featureobservations_1, number_featureobservations_2;
+        Real number_featureobservations_3, number_featureobservations_4, number_featureobservations_5;
 
 
 
