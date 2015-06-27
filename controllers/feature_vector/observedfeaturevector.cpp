@@ -777,7 +777,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     Real disp_LongWindow_Threshold   = 0.10f;*/
     // MaxLinearSpeed in cm / control cycle
     //Real f5 = (meandist_mediumtimewindow >  2.5f) ? 1.0f: 0.0f;
-    Real f6 = (meandist_longtimewindow   >  5.0f) ? 1.0f: 0.0f;
+    Real f6 = (meandist_longtimewindow   >  (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed))) ? 1.0f: 0.0f;
 
     if(CurrentStepNumber >= m_iEventSelectionTimeWindow)
         if (m_unRobotId == 15u) //7
@@ -790,13 +790,13 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
         }
 
 
-    CountNeighbors(0.0, 30.0f, DistToNearestNbr, CoM_nbrs);
+    /* CountNeighbors(0.0, 30.0f, DistToNearestNbr, CoM_nbrs); */
 
-    if(CurrentStepNumber > m_iLongTimeWindowLength)
+    /*if(CurrentStepNumber > m_iLongTimeWindowLength)
     printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
                                                                         m_fEstimated_Dist_MediumTimeWindow,
                                                                         m_fEstimated_Dist_LongTimeWindow, average_angularacceleration, DistToNearestNbr,
-                                                                        CoM_closerangenbrs, CoM_farrangenbrs, unCloseRangeNbrCount, unFarRangeNbrCount);
+                                                                        CoM_closerangenbrs, CoM_farrangenbrs, unCloseRangeNbrCount, unFarRangeNbrCount);*/
 
     /*if(CurrentStepNumber >= m_iLongTimeWindowLength)
         if (m_unRobotId == 15)

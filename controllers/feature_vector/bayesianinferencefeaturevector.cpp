@@ -105,7 +105,7 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
     }
 
 
-    ObservedRobotIDs.clear(); ObservedRobotFVs.clear();
+    ObservedRobotIDs.clear(); ObservedRobotFVs.clear(); ObservedRobotFVs_Min_Number_Featureobservations.clear();
     for (it_listobrob = m_pcListObservedRobots.begin(); it_listobrob != m_pcListObservedRobots.end(); ++it_listobrob)
     {
 
@@ -127,10 +127,11 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
                  */
 
                 // if((m_sSensoryData.m_rTime - it_listobrob->m_fTimeFirstObserved) >= MODELSTARTTIME)
-                if(it_listobrob->max_posterior_variance < 1.0f)
+                if(it_listobrob->max_posterior_variance < 0.2f && it_listobrob->min_number_featureobservations > 25.0f) // the variance of the Beta distribution is already very low even when no observations have been made on sensor-motor interactions so we also add the condition that min_number_featureobservations > some threshold
                 {
                     ObservedRobotIDs.push_back(it_listobrob->m_unRobotId);
                     ObservedRobotFVs.push_back(it_listobrob->GetValue());
+                    ObservedRobotFVs_Min_Number_Featureobservations.push_back((unsigned) (it_listobrob->min_number_featureobservations));
                 }
             }
         }
@@ -277,6 +278,7 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     // We are updating the priors now. Increment the time since we last refreshed the priors.
     u_TimeSinceLastRefresh++;
 
+
     FEATURE_RANGE = 30.0f; // cm
     Real DistToNearestNbr, CoM_closerangenbrs = 0.0f, CoM_farrangenbrs = 0.0f;
 
@@ -305,7 +307,8 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
         assert((owner.m_sSensoryData.m_rTime - (Real)(u_TimeSinceLastObserved)) >= 0.0f); /*time since the robot was last observed */
 
-        Real f_ProcessNoiseVariance_TemporalConstant = 0.1f; Real f_MeasurementNoiseVariance = 10.0f;
+        Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed;
+        Real f_MeasurementNoiseVariance = FEATURE_RANGE/2.0f - 0.0f;
 
         /* Prediction */
         Real sensclosePredicted_Gaussian_mu       = sensclosePrior_Gaussian_mu;
@@ -328,6 +331,9 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                     (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
         sensfarPrior_Gaussian_variance = 1.0f / (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance); */
 
+
+        assert(f_MeasurementNoiseVariance == (FEATURE_RANGE - FEATURE_RANGE/2.0f));
+
         /* Prediction */
         Real sensfarPredicted_Gaussian_mu       = sensfarPrior_Gaussian_mu;
         Real sensfarPredicted_Gaussian_variance = sensfarPrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved)) *
@@ -338,8 +344,6 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                       (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
         sensfarPrior_Gaussian_variance = 1.0f / (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
 
-
-        max_posterior_variance = std::max(sensclosePrior_Gaussian_variance, sensfarPrior_Gaussian_variance);
 
         number_featureobservations_1 += 1.0f;
     }
@@ -362,7 +366,8 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
 
 
-        Real f_ProcessNoiseVariance_TemporalConstant = 0.1f; Real f_MeasurementNoiseVariance = 10.0f;
+        Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed;
+        Real f_MeasurementNoiseVariance = m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed;
 
         /* Prediction */
         Real motPredicted_Gaussian_mu       = motPrior_Gaussian_mu;
@@ -375,7 +380,6 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
         motPrior_Gaussian_variance = 1.0f / (1.0f/motPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
 
 
-        max_posterior_variance = std::max(max_posterior_variance, motPrior_Gaussian_variance);
 
         /*For the Kalman filter - distance moved */
         u_TimeSinceLastObserved_DistMeasure = owner.m_sSensoryData.m_rTime;
@@ -407,11 +411,6 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
             sensmotPrior_Beta_a = sensmotPrior_Beta_a + un_MotorOutput;
             sensmotPrior_Beta_b = sensmotPrior_Beta_b + 1u - un_MotorOutput;
 
-            max_posterior_variance = std::max(max_posterior_variance,
-                                               ((Real)(sensmotPrior_Beta_a * sensmotPrior_Beta_b)) /
-                                               ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
-                                               (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
-                                               (sensmotPrior_Beta_a + sensmotPrior_Beta_b + 1u))) );
 
             number_featureobservations_2 += 1.0f;
         }
@@ -422,28 +421,46 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
             nosensmotPrior_Beta_a = nosensmotPrior_Beta_a + un_MotorOutput;
             nosensmotPrior_Beta_b = nosensmotPrior_Beta_b + 1u - un_MotorOutput;
 
-            max_posterior_variance = std::max(max_posterior_variance,
-                                              ((Real)(nosensmotPrior_Beta_a * nosensmotPrior_Beta_b)) /
-                                              ((Real)((nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
-                                               (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
-                                               (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b + 1u))) );
-
             number_featureobservations_3 += 1.0f;
         }
 
         irrespsensmotPrior_Beta_a = irrespsensmotPrior_Beta_a + un_MotorOutput;
         irrespsensmotPrior_Beta_b = irrespsensmotPrior_Beta_b + 1u - un_MotorOutput;
 
-        max_posterior_variance = std::max(max_posterior_variance,
-                                          ((Real)(irrespsensmotPrior_Beta_a * irrespsensmotPrior_Beta_b)) /
-                                          ((Real)((irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
-                                           (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
-                                           (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) );
-
         number_featureobservations_4 += 1.0f;
     }
 
 
+    /* used to establish consensus on FVs. if choice between many fv for robot id, use the fv with the highest min_number_featureobservations */
+    min_number_featureobservations = std::min(std::min(std::min(number_featureobservations_0, number_featureobservations_1),
+                                                       std::min(number_featureobservations_2, number_featureobservations_3)),
+                                              std::min(number_featureobservations_4, number_featureobservations_5));
+
+
+
+    max_posterior_variance = std::max(sensclosePrior_Gaussian_variance / (FEATURE_RANGE - 0.0f), sensfarPrior_Gaussian_variance / (FEATURE_RANGE - FEATURE_RANGE/2.0f));
+    max_posterior_variance = std::max(max_posterior_variance, motPrior_Gaussian_variance / (m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed));
+
+    /*the normalised max_posterior variance [0, 1] is going to be very much larger than the variance of the Beta distribution, */
+    max_posterior_variance = std::max(max_posterior_variance,
+                                       ((Real)(sensmotPrior_Beta_a * sensmotPrior_Beta_b)) /
+                                       ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+                                       (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+                                       (sensmotPrior_Beta_a + sensmotPrior_Beta_b + 1u))) );
+
+    /*the normalised max_posterior variance [0, 1] is going to be very much larger than the variance of the Beta distribution, */
+    max_posterior_variance = std::max(max_posterior_variance,
+                                      ((Real)(nosensmotPrior_Beta_a * nosensmotPrior_Beta_b)) /
+                                      ((Real)((nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+                                       (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+                                       (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b + 1u))) );
+
+    /*the normalised max_posterior variance [0, 1] is going to be very much larger than the variance of the Beta distribution, */
+    max_posterior_variance = std::max(max_posterior_variance,
+                                      ((Real)(irrespsensmotPrior_Beta_a * irrespsensmotPrior_Beta_b)) /
+                                      ((Real)((irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+                                       (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+                                       (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) );
 
     /*if(CurrentStepNumber > m_iLongTimeWindowLength)
     printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
@@ -467,19 +484,21 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     for (unsigned int i = 0; i < CBayesianInferenceFeatureVector::NUMBER_OF_FEATURES; i++)
         m_unValue += (unsigned)m_pfFeatureValues[i] * (1 << i);
 
-    if(m_unRobotId != 15)
-        std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  m_pfFeatureValues[5]  << " with number_featureobservations_5 " << number_featureobservations_5 << " and posterior variance " << motPrior_Gaussian_variance << std::endl;
-    else
-        std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_pfFeatureValues[5]  << " with number_featureobservations_5 " << number_featureobservations_5 << " and posterior variance " << motPrior_Gaussian_variance <<  std::endl;
+    if(m_unRobotId == 0)
+        std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance << std::endl;
+    /*else
+        std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance <<  std::endl;*/
+
 
     /*For the Kalman filter - distance to neighbours (CoM) */
     u_TimeSinceLastObserved = owner.m_sSensoryData.m_rTime;
 
 
-    /* used to establish consensus on FVs. if choice between many fv for robot id, use the fv with the highest min_number_featureobservations */
-    min_number_featureobservations = std::min(std::min(std::min(number_featureobservations_0, number_featureobservations_1),
-                                                       std::min(number_featureobservations_2, number_featureobservations_3)),
-                                              std::min(number_featureobservations_4, number_featureobservations_5));
+    /*if(m_unRobotId == 7 && owner.m_sSensoryData.m_unRobotId == 0)
+    {
+        std::cout << std::endl;
+    }*/
+
 }
 
 /******************************************************************************/
@@ -620,10 +639,10 @@ Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
     assert(step >= 0.0f);
 
-    if(m_unRobotId == 16 && owner.m_sSensoryData.m_unRobotId ==19 && displacement_vector.size() == 100)
+    /*if(m_unRobotId == 16 && owner.m_sSensoryData.m_unRobotId ==19 && displacement_vector.size() == 100)
     {
         printf("step %f, b_DataAvailable %d, observedRobotId_1_Range %f, observedRobotId_1_Bearing %f, delta_orientation %f, l_speed %f r_speed %f\n\n",step, b_DataAvailable,observedRobotId_1_Range, observedRobotId_1_Bearing.GetValue(), delta_orientation.GetValue(), owner.m_sSensoryData.f_LeftWheelSpeed, owner.m_sSensoryData.f_RightWheelSpeed);
-    }
+    }*/
 
     /*
      * Returns magnitude of displacement vector of the robot in the pre-specified time interval. If the robot is unobservable at the end of the pre-specified time interval, the function returns -1.
@@ -710,10 +729,10 @@ Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
             displacement              = -1.0f;
         }
 
-        if(m_unRobotId == 16 && owner.m_sSensoryData.m_unRobotId ==19 && displacement_vector.size() == 100)
+        /*if(m_unRobotId == 16 && owner.m_sSensoryData.m_unRobotId ==19 && displacement_vector.size() == 100)
         {
             printf("displacement %f \n", displacement);
-        }
+        }*/
 
 
 

@@ -1291,11 +1291,12 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
             if(robotId == 15)
             {
-                 //std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                 std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
             else
             {
-                 //std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                if(robotId == 0)
+                 std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
 
 
