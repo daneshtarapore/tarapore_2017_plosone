@@ -1,0 +1,68 @@
+clear; close all; clc;
+
+data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_STOP.out');
+%AllObservations = GetBooleanMotors_sm1(data, +1, 9);
+
+
+normalised_motor_threshold = 0.1;
+[x(:,1) motors motors_nosensors motors_irrespsensors timeobserved timeobserved_NoNbrsPresent timeobserved_IrrespectiveNbrsPresent] = GetRealSensorsMotors_sm3(data, +1, 18);
+
+%% normalised motor values in presence of nbr robots
+motors(motors >= normalised_motor_threshold) = 1;
+motors(motors <  normalised_motor_threshold) = 0;
+AllObservations = motors;
+time_vector = timeobserved;
+
+%% normalised motor values in absence of nbr robots
+% motors_nosensors(motors_nosensors >= normalised_motor_threshold) = 1;
+% motors_nosensors(motors_nosensors <  normalised_motor_threshold) = 0;
+% AllObservations = motors_nosensors;
+
+%% normalised motor values in irrespective of nbr robots
+% motors_irrespsensors(motors_irrespsensors >= normalised_motor_threshold) = 1;
+% motors_irrespsensors(motors_irrespsensors <  normalised_motor_threshold) = 0;
+% AllObservations = motors_irrespsensors;
+
+
+
+
+
+theta = linspace(0,1,100);
+
+
+VarianceInMeasurement = 1; % variance from measurement error %cm
+ProcessNoiseVariance_TemporalConstant  = 0.0001; %  cm % if max speed per tick is 0.5 cm, the variance can be +/- 0.25cm
+
+mu_prior  = 0.5; % prior mean
+var_prior = 1; % prior variance
+
+total_observations = 0;
+
+for (n=2:length(AllObservations));
+    
+    
+    mu_predicted   = mu_prior;
+    %var_predicted  = var_prior + ProcessNoiseVariance_TemporalConstant * 1;
+    var_predicted  = var_prior + ProcessNoiseVariance_TemporalConstant * (timeobserved(n) - timeobserved(n-1));
+    
+    NewObservation = AllObservations(n)
+    
+    mu_corrected  = ((mu_predicted / var_predicted) + (NewObservation / VarianceInMeasurement)) / (1/var_predicted + 1/VarianceInMeasurement);    
+    var_corrected = 1 / (1/var_predicted + 1/VarianceInMeasurement);
+    
+    mu_prior  = mu_corrected;
+    var_prior = var_corrected;
+    
+    
+    Y_posterior = normpdf(theta,mu_corrected,sqrt(var_corrected));
+    
+    
+    figure(4); plot(theta,Y_posterior,'r','LineWidth',3); xlabel('theta'); ylabel('P(h|m)')
+    
+    figure(5); hold on;
+    plot(timeobserved(n), mu_prior,'k.','MarkerSize',5); 
+    plot(timeobserved(n), var_prior,'R.','MarkerSize',5), axis([1 5000 0 1]); xlabel('time'); ylabel('E(h|m) in black, Var(h|m) in red ')
+    hold off
+    
+end
+
