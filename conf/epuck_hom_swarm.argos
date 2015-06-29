@@ -38,7 +38,7 @@
       </sensors>
       <params>
         <experiment_run swarm_behavior="SWARM_HOMING"
-			fault_behavior="FAULT_STOP" 
+			fault_behavior="FAULT_RABSENSOR_SETOFFSET" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
       </params>

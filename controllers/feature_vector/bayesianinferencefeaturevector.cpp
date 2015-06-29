@@ -74,7 +74,7 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
     t_ListObservedRobots::iterator it_listobrob = m_pcListObservedRobots.begin();
     while (it_listobrob != m_pcListObservedRobots.end())
     {
-        unsigned RefreshPriorsThreshold = 1000000u; /* For now we don't refresh it. In the future we might want to, specially since the distributions may not be stationary */
+        unsigned RefreshPriorsThreshold = 1000000u; /* For now we don't refresh it. In the future we might want to, specially since the distributions of the proportion of interactions that are positive (say in the presence of sensory input from a neighbouring robot) may not be stationary */
         if((it_listobrob->u_TimeSinceLastRefresh) > RefreshPriorsThreshold)
             it_listobrob->RefreshPriors();
 
@@ -216,7 +216,7 @@ CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::Ba
     /************************************************************************************/
 
      /* Lets initialise the priors */
-     RefreshPriors();
+     InitialisePriors();
 
      u_TimeSinceLastObserved = 0u; u_TimeSinceLastObserved_DistMeasure = 0u;
 }
@@ -252,7 +252,7 @@ CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::Ba
     /************************************************************************************/
 
     /* Lets initialise the priors */
-    RefreshPriors();
+    InitialisePriors();
 
     u_TimeSinceLastObserved = 0u; u_TimeSinceLastObserved_DistMeasure = 0u;
 }
@@ -484,10 +484,29 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     for (unsigned int i = 0; i < CBayesianInferenceFeatureVector::NUMBER_OF_FEATURES; i++)
         m_unValue += (unsigned)m_pfFeatureValues[i] * (1 << i);
 
-    if(m_unRobotId == 0)
-        std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance << std::endl;
-    /*else
+    if(m_unRobotId == 15)
+    {
+        /*if(max_posterior_variance < 0.2f && min_number_featureobservations > 25.0f)
         std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance <<  std::endl;*/
+
+        /*std::cout << "F2 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)sensmotPrior_Beta_a)       / ((Real)(sensmotPrior_Beta_a       + sensmotPrior_Beta_b)))   << " with number_featureobservations " << number_featureobservations_2 << " and posterior variance " << ((Real)(sensmotPrior_Beta_a * sensmotPrior_Beta_b)) /
+                     ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+                     (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+                     (sensmotPrior_Beta_a + sensmotPrior_Beta_b + 1u)))  << std::endl;
+
+        std::cout << "F3 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)nosensmotPrior_Beta_a)     / ((Real)(nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b)))   << " with number_featureobservations " << number_featureobservations_3 << " and posterior variance " << ((Real)(nosensmotPrior_Beta_a * nosensmotPrior_Beta_b)) /
+                     ((Real)((nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+                      (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+                      (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b + 1u)))  << std::endl;
+
+        std::cerr << "F4 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)))  << " with number_featureobservations " << number_featureobservations_4 << " and posterior variance " << ((Real)(irrespsensmotPrior_Beta_a * irrespsensmotPrior_Beta_b)) /
+                     ((Real)((irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+                      (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+                      (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) << std::endl;*/
+    }
+    /*else
+        if(max_posterior_variance < 0.2f && min_number_featureobservations > 25.0f)
+        std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance <<  std::endl;*/
 
 
     /*For the Kalman filter - distance to neighbours (CoM) */

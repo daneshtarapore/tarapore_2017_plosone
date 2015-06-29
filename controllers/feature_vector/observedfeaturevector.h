@@ -99,12 +99,11 @@ public:
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
        }
 
-       void SetSensoryData(unsigned RobId, Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
+       void SetSensoryData(unsigned RobId, Real time, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
        {
            m_unRobotId = RobId;
 
            m_rTime = time;
-           m_ProximitySensorData = proximity;
            m_RABSensorData = rab;
 
            f_LeftWheelSpeed_prev_prev = f_LeftWheelSpeed_prev; f_RightWheelSpeed_prev_prev = f_RightWheelSpeed_prev;

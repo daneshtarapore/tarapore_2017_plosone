@@ -1,3 +1,5 @@
+
+
 /* Include the controller definition */
 #include "epuck_hom_swarm.h"
 
@@ -36,7 +38,7 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 #define OBSERVATION_MODE 1
 #define COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE 2
 #define BAYESIANINFERENCE_MODE 3
-#define FV_MODE BAYESIANINFERENCE_MODE
+#define FV_MODE COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
 /****************************************/
 /****************************************/
 
@@ -53,12 +55,12 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 /*
  * The results of the CRM are valid for atmost 10s in the absence of any FVs to run the CRM
  */
-#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f
+#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds
 
 /*
  * The vote counts and consensus are valid for atmost 10s before being refreshed
  */
-#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f
+#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds
 
 /****************************************/
 /****************************************/
@@ -116,6 +118,34 @@ void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
         FBehavior = FAULT_CIRCLE;
     else if  (errorbehav.compare("FAULT_STOP") == 0)
         FBehavior = FAULT_STOP;
+
+
+    else if  (errorbehav.compare("FAULT_PROXIMITYSENSORS_SETMIN") == 0)
+        FBehavior = FAULT_PROXIMITYSENSORS_SETMIN;
+    else if  (errorbehav.compare("FAULT_PROXIMITYSENSORS_SETMAX") == 0)
+        FBehavior = FAULT_PROXIMITYSENSORS_SETMAX;
+    else if  (errorbehav.compare("FAULT_PROXIMITYSENSORS_SETRANDOM") == 0)
+        FBehavior = FAULT_PROXIMITYSENSORS_SETRANDOM;
+    else if  (errorbehav.compare("FAULT_PROXIMITYSENSORS_SETOFFSET") == 0)
+        FBehavior = FAULT_PROXIMITYSENSORS_SETOFFSET;
+
+
+    else if  (errorbehav.compare("FAULT_RABSENSOR_SETOFFSET") == 0)
+        FBehavior = FAULT_RABSENSOR_SETOFFSET;
+
+    else if  (errorbehav.compare("FAULT_ACTUATOR_LWHEEL_SETZERO") == 0)
+        FBehavior = FAULT_ACTUATOR_LWHEEL_SETZERO;
+    else if  (errorbehav.compare("FAULT_ACTUATOR_RWHEEL_SETZERO") == 0)
+        FBehavior = FAULT_ACTUATOR_RWHEEL_SETZERO;
+    else if  (errorbehav.compare("FAULT_ACTUATOR_BWHEELS_SETZERO") == 0)
+        FBehavior = FAULT_ACTUATOR_BWHEELS_SETZERO;
+
+    else if  (errorbehav.compare("FAULT_SOFTWARE") == 0)
+        FBehavior = FAULT_SOFTWARE;
+
+    else if  (errorbehav.compare("FAULT_POWER_FAILURE") == 0)
+        FBehavior = FAULT_POWER_FAILURE;
+
     else
     {
         std::cerr << "invalid fault behavior";
@@ -321,11 +351,15 @@ void CEPuckHomSwarm::ControlStep()
 
     m_fInternalRobotTimer+=1.0f;
 
+    bool b_RunningGeneralFaults(false);
     if(b_damagedrobot && (m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE ||
                           m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK ||
                           m_sExpRun.FBehavior == ExperimentToRun::FAULT_CIRCLE ||
                           m_sExpRun.FBehavior == ExperimentToRun::FAULT_STOP))
+    {
+        b_RunningGeneralFaults = true;
         RunGeneralFaults();
+    }
 
     else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION ||
             m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION ||
@@ -333,7 +367,49 @@ void CEPuckHomSwarm::ControlStep()
         RunHomogeneousSwarmExperiment();
 
 
-    CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_pcProximity->GetReadings(), m_pcRABS->GetReadings());
+    if(!b_damagedrobot || b_RunningGeneralFaults)
+        CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+    else
+    {
+        m_pcLEDs->SetAllColors(CColor::RED);
+
+        if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETMIN)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETMAX)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETRANDOM)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETOFFSET)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+
+
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_RABSENSOR_SETOFFSET)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+
+
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_LWHEEL_SETZERO)
+        {
+            // does not affect the sensors - they stay the same
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        }
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_RWHEEL_SETZERO)
+        {
+            // does not affect the sensors - they stay the same
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        }
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_BWHEELS_SETZERO)
+        {
+            // does not affect the sensors - they stay the same
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        }
+
+
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_SOFTWARE)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_POWER_FAILURE)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+    }
 
     Real leftSpeed = 0.0, rightSpeed = 0.0;
     bool bControlTaken = false;
@@ -363,9 +439,9 @@ void CEPuckHomSwarm::ControlStep()
                  "   IR4 " << m_pcProximity->GetReadings_Noiseless()[4].Value <<
                  "   IR5 " << m_pcProximity->GetReadings_Noiseless()[5].Value <<
                  "   IR6 " << m_pcProximity->GetReadings_Noiseless()[6].Value <<
-                 "   IR7 " << m_pcProximity->GetReadings_Noiseless()[7].Value << std::endl;
+                 "   IR7 " << m_pcProximity->GetReadings_Noiseless()[7].Value << std::endl;*/
 
-    if(!b_damagedrobot)
+    /*if(!b_damagedrobot)
     std::cerr << "IR0 " << m_pcProximity->GetReadings_Noiseless()[0].Value <<
                  "   IR1 " << m_pcProximity->GetReadings_Noiseless()[1].Value <<
                  "   IR2 " << m_pcProximity->GetReadings_Noiseless()[2].Value <<
@@ -391,9 +467,27 @@ void CEPuckHomSwarm::ControlStep()
     // if the robot is colliding with the wall other robot for more than 1s, we reduce its speed by half
     /* this will be harder to detect when we add noise on the IR sensors. Be wary of that. So using the noiseless variant of the IR sensors for this detection*/
     if((Real)u_num_consequtivecollisions > (m_sRobotDetails.iterations_per_second * 1.0f))
-        m_pcWheels->SetLinearVelocity(leftSpeed/2.0f, rightSpeed/2.0f); // in cm/s
-    else
-        m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+    {
+        leftSpeed = leftSpeed/2.0f;
+        rightSpeed = rightSpeed/2.0f;
+    }
+
+
+
+    if(b_damagedrobot && m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_LWHEEL_SETZERO)
+        leftSpeed  = 0.0f;
+
+    if(b_damagedrobot && m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_RWHEEL_SETZERO)
+        rightSpeed = 0.0f;
+
+    if(b_damagedrobot && m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_BWHEELS_SETZERO)
+    {
+        leftSpeed = 0.0f;
+        rightSpeed = 0.0f;
+    }
+
+    m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+
 
 
     /****************************************/
@@ -401,7 +495,7 @@ void CEPuckHomSwarm::ControlStep()
 
     /* Estimate feature-vectors - proprioceptively */
 
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cProprioceptiveFeatureVector.SimulationStep();
 
@@ -435,10 +529,10 @@ void CEPuckHomSwarm::ControlStep()
 
 
     /* Estimating FVs proprioceptively - to be used for the simplifying fault detection and to compute angular acceleration for the COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE */
-    /*m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+    /*m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                                  leftSpeed, rightSpeed);*/
     /*encoders give you the speed at the previous tick not current tick */
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
 
 
@@ -449,10 +543,10 @@ void CEPuckHomSwarm::ControlStep()
     m_uRobotId = RobotIdStrToInt();
 
 
-    /*m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+    /*m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                               leftSpeed, rightSpeed);*/
     /*encoders give you the speed at the previous tick not current tick */
-    m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+    m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                               m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cObservationFeatureVector.SimulationStep();
 
@@ -463,7 +557,7 @@ void CEPuckHomSwarm::ControlStep()
      * Send the robot id and the bearing at which it observes its different neighbours. Also relay the observed FVs
      */
 
-    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay);
+    SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
 
@@ -471,7 +565,7 @@ void CEPuckHomSwarm::ControlStep()
 #if FV_MODE == BAYESIANINFERENCE_MODE
 
     /*encoders give you the speed at the previous tick not current tick */
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
 
 
@@ -482,16 +576,14 @@ void CEPuckHomSwarm::ControlStep()
     m_uRobotId = RobotIdStrToInt();
 
 
-    /*m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
-                                                              leftSpeed, rightSpeed);*/
     /*encoders give you the speed at the previous tick not current tick */
-    m_cBayesianInferredFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, m_pcProximity->GetReadings(), m_pcRABS->GetReadings(),
+    m_cBayesianInferredFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                               m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cBayesianInferredFeatureVector.SimulationStep();
 
     Sense(PROBABILITY_FORGET_FV);
 
-    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings(), listMapFVsToRobotIds_relay);
+    SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
 
@@ -548,7 +640,9 @@ void CEPuckHomSwarm::ControlStep()
         }
     }
     /*else
-        SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABS->GetReadings()); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
+        SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior)); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
+
+
 
 }
 
@@ -591,7 +685,7 @@ void CEPuckHomSwarm::SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_V
 void CEPuckHomSwarm::Sense(Real m_fProbForget)
 {
 #if FV_MODE == PROPRIOCEPT_MODE
-    const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
+    const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
 
     /* Listen for feature vectors from neighbours */
     /* Read the id and proprioceptively computed FV of your neighbours. Read from communication channel and stored in listMapFVsToRobotIds */
@@ -620,7 +714,7 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
         UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
     }
 
-    const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
+    const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
     bool read_status = ReadFromCommunicationChannel_RelayedFv(tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
 
     //remove entries older than 10s
@@ -634,7 +728,11 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
     {
         unsigned robotId = m_cBayesianInferredFeatureVector.ObservedRobotIDs[i];
         unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
+        unsigned num_observations = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Min_Number_Featureobservations[i];
 
+
+        /* TODO: When you have multiple FVs for the same robot id; use the fv with the highest min_number_featureobservations
+           So the robot will have to wait for some time in its 100s evaluation interval   */
         listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
 
         //if(robotId == 15)
@@ -643,7 +741,7 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
         UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
     }
 
-    const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
+    const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
     bool read_status = ReadFromCommunicationChannel_RelayedFv(tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
 
     //remove entries older than 10s
@@ -671,7 +769,7 @@ void CEPuckHomSwarm::ReceiveVotesAndConsensus()
      *
     */
 
-    const CCI_RangeAndBearingSensor::TReadings& tmp = m_pcRABS->GetReadings();
+    const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
     bool read_status = ReadFromCommunicationChannel_VotCon(tmp); /* returns true if successfully read votes or consensus from at least one neighbour*/
 }
 
@@ -1291,12 +1389,11 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
             if(robotId == 15)
             {
-                 std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                 // std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
             else
             {
-                if(robotId == 0)
-                 std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                 // std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
 
 

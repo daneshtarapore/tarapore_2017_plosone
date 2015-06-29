@@ -83,11 +83,10 @@ public:
            //EstimateCurrentPosition();
        }
 
-       void SetSensoryData(unsigned RobId, Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
+       void SetSensoryData(unsigned RobId, Real time, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
        {
            m_unRobotId = RobId;
            m_rTime = time;
-           m_ProximitySensorData = proximity;
            m_RABSensorData = rab;
            f_LeftWheelSpeed_prev = f_LeftWheelSpeed; f_RightWheelSpeed_prev = f_RightWheelSpeed;
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;

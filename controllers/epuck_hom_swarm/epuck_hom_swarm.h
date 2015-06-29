@@ -9,7 +9,11 @@
 
 //! TODO
 //! 1. Introduce noise in the sensors and actuators of the e-puck (see parameters from Lorenzo)
-
+//! TODO: Use the num of observations to select Bayesian Inferred FVs
+//! TODO: Track the fraction of past observations when robot is (not) reacting to sensors - using a Kalman fitler
+//!       or
+//!       Refresh the priors perodically
+//! TODO: Implement the more realistic faults for software bugs and power failure - what do we do with powering the RAB sensors
 
 #ifndef EPUCK_HOMSWARM_H
 #define EPUCK_HOMSWARM_H
@@ -115,7 +119,27 @@ public:
             FAULT_STRAIGHTLINE,
             FAULT_RANDOMWALK,
             FAULT_CIRCLE,
-            FAULT_STOP
+            FAULT_STOP,
+
+
+            /* Implementing the faults themselves. The resulting behaviors will now depend on the normal behavior implementation. */
+            FAULT_PROXIMITYSENSORS_SETMIN,
+            FAULT_PROXIMITYSENSORS_SETMAX,
+            FAULT_PROXIMITYSENSORS_SETRANDOM,
+            FAULT_PROXIMITYSENSORS_SETOFFSET,
+
+            FAULT_RABSENSOR_SETOFFSET,
+
+            FAULT_ACTUATOR_LWHEEL_SETZERO,
+            FAULT_ACTUATOR_RWHEEL_SETZERO,
+            FAULT_ACTUATOR_BWHEELS_SETZERO,
+
+
+
+
+            FAULT_SOFTWARE,
+
+            FAULT_POWER_FAILURE
         } FBehavior;
 
         std::string id_FaultyRobotInSwarm;
@@ -362,7 +386,106 @@ public:
 
 private:
 
+    CCI_EPuckProximitySensor::TReadings GetIRSensorReadings(bool b_DamagedRobot, ExperimentToRun::FaultBehavior fault_type)
+    {
+        CCI_EPuckProximitySensor::TReadings sensor_readings = m_pcProximity->GetReadings();
 
+        if(!b_DamagedRobot)
+            return sensor_readings;
+
+        if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETMIN)
+        {
+             /* Front three IR sensors */
+            sensor_readings[0].Value = 0.0f; sensor_readings[1].Value = 0.0f; sensor_readings[7].Value = 0.0f;
+            return sensor_readings;
+        }
+        else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETMAX)
+        {
+             /* Front three IR sensors */
+            sensor_readings[0].Value = 1.0f; sensor_readings[1].Value = 1.0f; sensor_readings[7].Value = 1.0f;
+            return sensor_readings;
+        }
+        else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETRANDOM)
+        {
+             /* Front three IR sensors */
+            sensor_readings[0].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
+            sensor_readings[1].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
+            sensor_readings[7].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
+            return sensor_readings;
+        }
+        else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETOFFSET)
+        {
+             /* Front three IR sensors */
+            sensor_readings[0].Value += m_pcRNG->Uniform(CRange<Real>(-0.5f, 0.5f));
+            sensor_readings[1].Value += m_pcRNG->Uniform(CRange<Real>(-0.5f, 0.5f));
+            sensor_readings[7].Value += m_pcRNG->Uniform(CRange<Real>(-0.5f, 0.5f));
+
+
+            if(sensor_readings[0].Value > 1.0f)
+                sensor_readings[0].Value = 1.0f;
+            if(sensor_readings[0].Value < 0.0f)
+                sensor_readings[0].Value = 0.0f;
+
+            if(sensor_readings[1].Value > 1.0f)
+                sensor_readings[1].Value = 1.0f;
+            if(sensor_readings[1].Value < 0.0f)
+                sensor_readings[1].Value = 0.0f;
+
+            if(sensor_readings[7].Value > 1.0f)
+                sensor_readings[7].Value = 1.0f;
+            if(sensor_readings[7].Value < 0.0f)
+                sensor_readings[7].Value = 0.0f;
+
+            return sensor_readings;
+        }
+
+        else
+        {
+            /* the robot is running one of the general faults or one of the specific faults that doesnot influence IR sensor readings*/
+            return sensor_readings;
+        }
+    }
+
+
+    CCI_RangeAndBearingSensor::TReadings GetRABSensorReadings(bool b_DamagedRobot, ExperimentToRun::FaultBehavior fault_type)
+    {
+        CCI_RangeAndBearingSensor::TReadings sensor_readings = m_pcRABS->GetReadings();
+
+        if(!b_DamagedRobot)
+            return sensor_readings;
+
+        if(fault_type == ExperimentToRun::FaultBehavior::FAULT_RABSENSOR_SETOFFSET)
+        {
+            for(size_t i = 0; i <  sensor_readings.size(); ++i)
+            {
+                CVector2 tmp(sensor_readings[i].Range, sensor_readings[i].HorizontalBearing);
+                tmp += CVector2(m_pcRNG->Uniform(CRange<Real>(75.0f, 100.0f)),
+                                 m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI, CRadians::PI)));
+                sensor_readings[i].Range             = tmp.Length();
+                sensor_readings[i].HorizontalBearing = tmp.Angle();
+
+
+
+                /* sensor_readings[i].Range += m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
+                if(sensor_readings[i].Range > 100.0f)
+                    sensor_readings[i].Range = 100.0f;
+
+                if(sensor_readings[i].Range < 0.0f)
+                    sensor_readings[i].Range = 0.0f;
+
+                sensor_readings[i].HorizontalBearing += m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI_OVER_TWO, CRadians::PI_OVER_TWO)); */
+            }
+
+
+
+            return sensor_readings;
+        }
+        else
+        {
+            /* the robot is running one of the general faults or one of the specific faults that doesnot influence IR sensor readings*/
+            return sensor_readings;
+        }
+    }
 
 private:
 

@@ -99,12 +99,11 @@ public:
            f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
        }
 
-       void SetSensoryData(unsigned RobId, Real time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
+       void SetSensoryData(unsigned RobId, Real time, CCI_RangeAndBearingSensor::TReadings  rab, Real LeftWheelSpeed, Real RightWheelSpeed)
        {
            m_unRobotId = RobId;
 
            m_rTime = time;
-           m_ProximitySensorData = proximity;
            m_RABSensorData = rab;
 
            f_LeftWheelSpeed_prev_prev = f_LeftWheelSpeed_prev; f_RightWheelSpeed_prev_prev = f_RightWheelSpeed_prev;
@@ -144,7 +143,8 @@ public:
         Real TrackRobotDisplacement(Real step, Real observed_range, CRadians observed_bearing, CRadians self_delta_orientation, std::vector<RobotRelativePosData>& displacement_vector, bool b_DataAvailable);
         bool GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing, Real &observedRobotId_1_SelfBearingORAngularAcceleration);
 
-        void RefreshPriors()
+
+        void InitialisePriors()
         {
 
             /* Cleaning the slate */
@@ -170,6 +170,34 @@ public:
             max_posterior_variance         = 50.0f;
             number_featureobservations_0  = 0.0f; number_featureobservations_1  = 0.0f; number_featureobservations_2  = 0.0f;
             number_featureobservations_3  = 0.0f; number_featureobservations_4  = 0.0f; number_featureobservations_5  = 0.0f, min_number_featureobservations = 0.0f;
+        }
+
+        void RefreshPriors()
+        {
+
+            /* Cleaning the slate */
+            u_TimeSinceLastRefresh = 0u;
+
+
+            /* Sensor motor interactions. Motor reactions in the presence of sensor input from nbrs, and in the absence of sensor input from nbrs. Associated with the belief  */
+            sensmotPrior_Beta_a = 1u;   sensmotPrior_Beta_b = 1u;
+            nosensmotPrior_Beta_a = 1u; nosensmotPrior_Beta_b = 1u;
+
+
+            /* prior pertaining to actuation - i.e. distance travelled by robot in past 10s. Associated to the belief, is the robot moving large distances? */
+            motPrior_Gaussian_mu = 25.0f; motPrior_Gaussian_variance = 50.0f; // robot moves 0.5 cm /tick, so in 100  ticks the max distance covered is 50cm.
+            /* prior pertaining to motor reactions irrespective of sensor input. How does the robot react in a general sense */
+            irrespsensmotPrior_Beta_a = 1u; irrespsensmotPrior_Beta_b = 1u;
+
+
+            /* prior pertaining to sensing - i.e. number of neighbours in close and far proximity. Associated to the belief, is the robot part of a small aggregate?, and is the robot part of a large aggregate?  */
+            sensclosePrior_Gaussian_mu = 7.5f; sensclosePrior_Gaussian_variance = 15.0f; // sensed nbrs truly like in 15 cm range [0, 15].
+            sensfarPrior_Gaussian_mu   = 15.0f; sensfarPrior_Gaussian_variance   = 15.0f; // sensed nbrs truly like in 15 cm range [15, 30].
+
+
+            /* Only the priors associated with sensor-motor interactions need to be reset. The others use a Kalman filter, thus tracking the changes made */
+            number_featureobservations_2  = 0.0f;
+            number_featureobservations_3  = 0.0f; number_featureobservations_4  = 0.0f;
         }
 
 
