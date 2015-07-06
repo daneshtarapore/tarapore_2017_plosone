@@ -266,7 +266,7 @@ void CEPuckForaging::RunGeneralFaults()
     }
     else if (m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK)
     {
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f);
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
 
@@ -400,7 +400,7 @@ void CEPuckForaging::RunForagingExperiment()
         CAntiPhototaxisBehavior* pcAntiPhototaxisBehavior = new CAntiPhototaxisBehavior();
         m_vecBehaviors.push_back(pcAntiPhototaxisBehavior);
 
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f);
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
 
@@ -416,7 +416,7 @@ void CEPuckForaging::RunForagingExperiment()
         CPhototaxisBehavior* pCPhototaxisBehavior = new CPhototaxisBehavior();
         m_vecBehaviors.push_back(pCPhototaxisBehavior);
 
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f);
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
 }

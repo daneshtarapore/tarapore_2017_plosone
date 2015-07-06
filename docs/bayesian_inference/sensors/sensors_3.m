@@ -55,7 +55,7 @@
 clear; clc; figure(3); clf; figure(4); clf; figure(5); clf;
 
 data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/sensors/nbrsdataforBI_Aggregation_RANDOMWALK.out');
-[real_sensors_NumNbrs_close real_sensors_NumNbrs_far real_sensors_CoM_close real_sensors_CoM_far timeobserved] = GetRealSensors_s1(data, -1, 8);
+[real_sensors_NumNbrs_close real_sensors_NumNbrs_far real_sensors_CoM_close real_sensors_CoM_far timeobserved] = GetRealSensors_s1(data, +1, 8);
 
 
 AllObservations = real_sensors_CoM_far; 

@@ -6,7 +6,7 @@ data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/sen
 
 
 num_neighbours_threshold = 1;
-[real_sensors_NumNbrs_close real_sensors_NumNbrs_far real_sensors_CoM_close real_sensors_CoM_far timeobserved] = GetRealSensors_s1(data, -1, 8);
+[real_sensors_NumNbrs_close real_sensors_NumNbrs_far real_sensors_CoM_close real_sensors_CoM_far timeobserved] = GetRealSensors_s1(data, +1, 8);
 
 %% normalised motor values in presence of nbr robots
 real_sensors_NumNbrs_far(real_sensors_NumNbrs_far >= num_neighbours_threshold) = 1;
@@ -65,8 +65,8 @@ for time = 1:length(AllObservations)
     subplot(4,1,4),   
     hold on
     %plot(time,(a+X)/(b+N-X),'k.','MarkerSize',5), axis([1 length(AllObservations) 0 1])
-    plot(time,(a+X)/(a+b+N),'k.','MarkerSize',5), axis([1 length(AllObservations) 0 1])
-    plot(time,((a+X)*(a+b+N))/(((a+X)+(a+b+N))*((a+X)+(a+b+N))*((a+X)+(a+b+N)+1)),'r.','MarkerSize',5)
+    plot(timeobserved(time),(a+X)/(a+b+N),'k.','MarkerSize',5), axis([1 5000 0 1])
+    plot(timeobserved(time),((a+X)*(a+b+N))/(((a+X)+(a+b+N))*((a+X)+(a+b+N))*((a+X)+(a+b+N)+1)),'r.','MarkerSize',5)
     title('Expected value ','FontSize', 20)
     ylabel('E[.] black Var[.] red')
     set(h,'Position',[1000 150 900 900])

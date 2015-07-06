@@ -105,8 +105,6 @@ CRMinRobotAgentOptimised::~CRMinRobotAgentOptimised()
 
 void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed* FVsSensed)
 {
-    return;
-
     m_fInternalRobotTimer = InternalRobotTimer;
     ptr_listFVsSensed = FVsSensed;
 
@@ -188,10 +186,10 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 
     UpdateState();
 
-    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 1603)
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer >= 1000u && m_fInternalRobotTimer <= 1002u)
     {
         PrintCRMDetails(GetIdentification());
-        printf("-------at end----------------\n\n");
+        printf("-------at end----------------\n\n\n");
     }*/
 }
 
@@ -1644,6 +1642,7 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
 
     //for smaller samples of FV distribution
     if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) <= (1.0f/6.0f))
+        //return 1.0f;
         return 1.0f * exp(-(1.0f/k) * ((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES));
     else
         return 0.0;

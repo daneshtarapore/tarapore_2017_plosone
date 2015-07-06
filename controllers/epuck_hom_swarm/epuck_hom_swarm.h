@@ -397,12 +397,18 @@ private:
         {
              /* Front three IR sensors */
             sensor_readings[0].Value = 0.0f; sensor_readings[1].Value = 0.0f; sensor_readings[7].Value = 0.0f;
+
+            //sensor_readings[2].Value = 0.0f; sensor_readings[3].Value = 0.0f;
+            //sensor_readings[4].Value = 0.0f; sensor_readings[5].Value = 0.0f;
+
             return sensor_readings;
         }
         else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETMAX)
         {
              /* Front three IR sensors */
             sensor_readings[0].Value = 1.0f; sensor_readings[1].Value = 1.0f; sensor_readings[7].Value = 1.0f;
+
+            //sensor_readings[2].Value = 1.0f; sensor_readings[3].Value = 1.0f;
             return sensor_readings;
         }
         else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETRANDOM)
@@ -411,6 +417,10 @@ private:
             sensor_readings[0].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
             sensor_readings[1].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
             sensor_readings[7].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
+
+            /*sensor_readings[2].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
+            sensor_readings[3].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));*/
+
             return sensor_readings;
         }
         else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETOFFSET)

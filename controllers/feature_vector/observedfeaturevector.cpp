@@ -803,10 +803,6 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
             printf("%f %f %f \n\n", m_fEstimated_Dist_ShortTimeWindow,m_fEstimated_Dist_MediumTimeWindow,m_fEstimated_Dist_LongTimeWindow);*/
 
 
-    if (m_unRobotId == 1)
-    {
-        // std::cout << "Observer " << owner.m_sSensoryData.m_unRobotId << " distance " << m_fEstimated_Dist_LongTimeWindow << std::endl;
-    }
 
 
     if (m_sRobotData.OBSERVATION_MODE_TYPE == 1) // pure observation mode
@@ -818,7 +814,7 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
         m_pfFeatureValues[4] = f6;
         m_pfFeatureValues[5] = m_pfAllFeatureValues[5];
     }
-    else if (m_sRobotData.OBSERVATION_MODE_TYPE == 2) // pure observation mode
+    else if (m_sRobotData.OBSERVATION_MODE_TYPE == 2) // combined proprioceptive + observation mode
     {
         m_pfFeatureValues[0] = m_pfAllFeatureValues[0];
         m_pfFeatureValues[1] = m_pfAllFeatureValues[1];
@@ -833,6 +829,12 @@ void CObservedFeatureVector::ObservedRobots_FeatureVector::ComputeFeatureValues(
     m_unValue = 0;
     for (unsigned int i = 0; i < CObservedFeatureVector::NUMBER_OF_FEATURES; i++)
         m_unValue += (unsigned)m_pfFeatureValues[i] * (1 << i);
+
+    /*if (m_unRobotId == 15)
+        std::cerr << "Observer " << owner.m_sSensoryData.m_unRobotId << " observing " << m_unRobotId << "FV " << m_unValue << std::endl;
+    else
+        std::cout << "Observer " << owner.m_sSensoryData.m_unRobotId << " observing " << m_unRobotId << "FV " << m_unValue << std::endl;*/
+
 }
 
 /******************************************************************************/

@@ -1,11 +1,11 @@
 clear; close all; clc;
 
-data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Homing_STOP.out');
+data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_PMIN_191919_Noise.out');
 %AllObservations = GetBooleanMotors_sm1(data, +1, 9);
 
 
 normalised_motor_threshold = 0.1;
-[x(:,1) motors motors_nosensors motors_irrespsensors timeobserved timeobserved_NoNbrsPresent timeobserved_IrrespectiveNbrsPresent] = GetRealSensorsMotors_sm3(data, -1, 18);
+[x(:,1) motors motors_nosensors motors_irrespsensors timeobserved timeobserved_NoNbrsPresent timeobserved_IrrespectiveNbrsPresent] = GetRealSensorsMotors_sm3(data, +1, 10);
 
 %% normalised motor values in presence of nbr robots
 motors(motors >= normalised_motor_threshold) = 1;

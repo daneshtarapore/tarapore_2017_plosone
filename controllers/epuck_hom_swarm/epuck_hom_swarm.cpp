@@ -45,7 +45,7 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 /*
  * Probability to forget FV in distribution
  */
-#define PROBABILITY_FORGET_FV 0.001f
+#define PROBABILITY_FORGET_FV 0.001f //1.0f
 
 /*
  * Consensus threshold on FVs.
@@ -55,12 +55,12 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 /*
  * The results of the CRM are valid for atmost 10s in the absence of any FVs to run the CRM
  */
-#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds
+#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds //1.0f
 
 /*
  * The vote counts and consensus are valid for atmost 10s before being refreshed
  */
-#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds
+#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds //1.0f
 
 /****************************************/
 /****************************************/
@@ -367,7 +367,7 @@ void CEPuckHomSwarm::ControlStep()
         RunHomogeneousSwarmExperiment();
 
 
-    if(!b_damagedrobot || b_RunningGeneralFaults)
+    if(!b_damagedrobot || b_RunningGeneralFaults || m_sExpRun.FBehavior == ExperimentToRun::FAULT_NONE)
         CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
     else
     {
@@ -586,6 +586,14 @@ void CEPuckHomSwarm::ControlStep()
     SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
+
+   /*if(m_fInternalRobotTimer >= 1000u && m_fInternalRobotTimer <= 1002u && RobotIdStrToInt() == 15)
+    {
+        for(t_listMapFVsToRobotIds::iterator it_fv = listMapFVsToRobotIds.begin(); it_fv != listMapFVsToRobotIds.end(); ++it_fv)
+        {
+            std::cout << "Map: id " << it_fv->uRobotId  << " to fv " << it_fv->uFV  << " time sensed " << it_fv->fTimeSensed << std::endl << std::endl;
+        }
+    }*/
 
 
 
@@ -832,7 +840,7 @@ void CEPuckHomSwarm::RunGeneralFaults()
     }
     else if (m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK)
     {
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f);  // 0.05f
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
 
@@ -861,7 +869,7 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
         CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(60.0f); //range threshold in cm
         m_vecBehaviors.push_back(pcAggregateBehavior);
 
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
 
@@ -870,7 +878,7 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
         m_vecBehaviors.push_back(pcDisperseBehavior);
 
-        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
 
@@ -893,7 +901,7 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
             CHomingToFoodBeaconBehavior* pcHomingToFoodBeaconBehavior = new CHomingToFoodBeaconBehavior(BEACON_SIGNAL, MAX_BEACON_SIGNAL_RANGE);
             m_vecBehaviors.push_back(pcHomingToFoodBeaconBehavior);
 
-            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.05f);
+            CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
             m_vecBehaviors.push_back(pcRandomWalkBehavior);
         }
 
@@ -1371,12 +1379,12 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
         for(unsigned byteindex1 = byte_index; byteindex1 < tPackets[i].Data.Size(); byteindex1+=2)
         {
-            if(tPackets[i].Data[byteindex1] == RELAY_FVS_PACKET_FOOTER)
+            if (tPackets[i].Data[byteindex1] == RELAY_FVS_PACKET_FOOTER)
                 break;
 
             robotId = tPackets[i].Data[byteindex1];
 
-            if(tPackets[i].Data[byteindex1+1] == RELAY_FVS_PACKET_FOOTER)
+            if (tPackets[i].Data[byteindex1+1] == RELAY_FVS_PACKET_FOOTER)
                 break;
 
             fv      = tPackets[i].Data[byteindex1+1];
@@ -1389,11 +1397,11 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
             if(robotId == 15)
             {
-                 // std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                  // std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
             else
             {
-                 // std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                  // std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
 
 

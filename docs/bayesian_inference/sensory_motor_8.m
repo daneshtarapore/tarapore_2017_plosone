@@ -52,7 +52,7 @@
 
 clear; close all; clc;
 
-data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_STOP.out');
+data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_RNDWK.out');
 %AllObservations = GetBooleanMotors_sm1(data, +1, 9);
 
 
@@ -65,6 +65,7 @@ motors(motors <  normalised_motor_threshold) = 0;
 AllObservations = motors;
 time_vector = timeobserved;
 
+
 %% normalised motor values in absence of nbr robots
 % motors_nosensors(motors_nosensors >= normalised_motor_threshold) = 1;
 % motors_nosensors(motors_nosensors <  normalised_motor_threshold) = 0;
@@ -76,19 +77,29 @@ time_vector = timeobserved;
 % AllObservations = motors_irrespsensors;
 
 
+RawData(1) = 0;
+for (n=2:length(AllObservations));
+    if(AllObservations(n) == 1)
+        RawData(n) = 0;
+    else
+        RawData(n) = RawData(n-1) + 1*(timeobserved(n) - timeobserved(n-1));
+    end
+end
+figure(3); plot(timeobserved', RawData,'x')
 
 
 
-theta = linspace(0,1,100);
+theta = linspace(0,5000,5000); %% time since last observation - unit is ticks. we can assume it can go as high as +ve infinity - or +ve exp time?
 
 
-VarianceInMeasurement = 1; % variance from measurement error %cm
-ProcessNoiseVariance_TemporalConstant  = 0.0001; %  cm % if max speed per tick is 0.5 cm, the variance can be +/- 0.25cm
+VarianceInMeasurement = 100; % variance from measurement error % in ticks
+ProcessNoiseVariance_TemporalConstant  = 1; %  ticks % if max speed per tick is 0.5 cm, the variance can be +/- 0.25cm
 
-mu_prior  = 0.5; % prior mean
+mu_prior  = 0; % prior mean
 var_prior = 1; % prior variance
 
-total_observations = 0;
+
+NewObservation = 0;
 
 for (n=2:length(AllObservations));
     
@@ -97,7 +108,11 @@ for (n=2:length(AllObservations));
     %var_predicted  = var_prior + ProcessNoiseVariance_TemporalConstant * 1;
     var_predicted  = var_prior + ProcessNoiseVariance_TemporalConstant * (timeobserved(n) - timeobserved(n-1));
     
-    NewObservation = AllObservations(n) %% Our estimate of the time since the last observation of motor interaction in the presence (absence, irrespective) of sensor input
+    if(AllObservations(n) == 1)
+        NewObservation = 0; %% Our estimate of the time since the last observation of motor interaction in the presence (absence, irrespective) of sensor input
+    else
+        NewObservation = NewObservation + 1*(timeobserved(n) - timeobserved(n-1));
+    end
     
     mu_corrected  = ((mu_predicted / var_predicted) + (NewObservation / VarianceInMeasurement)) / (1/var_predicted + 1/VarianceInMeasurement);    
     var_corrected = 1 / (1/var_predicted + 1/VarianceInMeasurement);
@@ -113,7 +128,7 @@ for (n=2:length(AllObservations));
     
     figure(5); hold on;
     plot(timeobserved(n), mu_prior,'k.','MarkerSize',5); 
-    plot(timeobserved(n), var_prior,'R.','MarkerSize',5), axis([1 5000 0 1]); xlabel('time'); ylabel('E(h|m) in black, Var(h|m) in red ')
+    plot(timeobserved(n), var_prior,'R.','MarkerSize',5), axis([1 5000 0 100]); xlabel('time'); ylabel('E(h|m) in black, Var(h|m) in red ')
     hold off
     
 end

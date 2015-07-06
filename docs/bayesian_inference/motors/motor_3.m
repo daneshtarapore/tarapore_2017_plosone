@@ -55,8 +55,8 @@
 
 clear; clc; figure(3); clf; figure(4); clf; figure(5); clf;
 
-data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_RNDWK.out');
-[motors_1s motors_5s motors_10s timeobserved] = GetRealMotors_m1(data, +1, 13);
+data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_PMIN_191919_Noise.out');
+[motors_1s motors_5s motors_10s timeobserved] = GetRealMotors_m1(data, -1, 13);
 
 
 AllObservations = motors_10s; 
