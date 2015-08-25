@@ -20,6 +20,7 @@ public:
    virtual void Destroy();
    virtual CColor GetFloorColor(const CVector2& c_position_on_plane);
    virtual void PreStep();
+   virtual void PostStep();
 
 private:
 

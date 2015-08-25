@@ -35,6 +35,8 @@ void CRandomWalkBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
         fSpeed = fSpeed * 100.0; // converting to cm/s - as used in SetLinearVelocity
         fSpeed = Min<Real>(fSpeed, m_sRobotData.MaxSpeed);
 
+        //std::cout << "fSpeed  " << fSpeed << std::endl;
+
 
         if(angle.GetValue() > 0.0f) //turn right
         {
@@ -56,6 +58,8 @@ void CRandomWalkBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
         fLeftWheelSpeed  = m_sRobotData.MaxSpeed;
         fRightWheelSpeed = m_sRobotData.MaxSpeed;
     }
+
+    //std::cout << "RavdLS:  " << fLeftWheelSpeed << " RS:  " << fRightWheelSpeed << std::endl;
 
 
 }

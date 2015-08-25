@@ -13,9 +13,9 @@
   <!-- ************************* -->
   <framework>
     <system threads="0" />
-    <experiment length="1500"
+    <experiment length="500"
                 ticks_per_second="10"
-                random_seed="0" />
+                random_seed="111" />
   </framework>
 
   <!-- *************** -->
@@ -26,21 +26,22 @@
     <epuck_foraging_controller id="efc"
                                  library="build/controllers/epuck_foraging/libepuck_foraging.so">
       <actuators>
-        <differential_steering implementation="default" />
+        <differential_steering implementation="default" noise_std_dev="0.1" />
         <leds implementation="default" medium="leds" />
         <range_and_bearing implementation="default" />
       </actuators>
       <sensors>
-        <epuck_proximity implementation="default" show_rays="false" />
         <light_updated implementation="default" show_rays="false" />
         <ground implementation="rot_z_only" />
-        <range_and_bearing implementation="medium" medium="rab" show_rays="false" />
+        <epuck_proximity implementation="default" show_rays="false" noise_level="0.1" />
+        <range_and_bearing implementation="medium" medium="rab" show_rays="true" noise_std_dev="0.01" />
+        <differential_steering implementation="default" vel_noise_range="-0.1:0.1"  dist_noise_range="-1.0:1.0" />
       </sensors>
       <params>
         <experiment_run swarm_behavior="SWARM_FORAGING"
-			fault_behavior="FAULT_NONE" 
+			fault_behavior="FAULT_RABSENSOR_SETOFFSET" 
 	                id_faulty_robot="15" />
-        <wheel_turning max_speed="10" />
+        <wheel_turning max_speed="5" />
         <state initial_rest_to_explore_prob="0.1"
 	       minimum_resting_time="50"
                minimum_unsuccessful_explore_time="6000000"
@@ -56,9 +57,9 @@
   <!-- ****************** -->
   <loop_functions library="build/loop_functions/foraging_loop_functions/libforaging_loop_functions.so"
                   label="foraging_loop_functions">
-    <foraging items="2"
+    <foraging items="1"
               radius="0.1"
-              output="epuckforaging.txt" />
+              output="nohup.txt" />
   </loop_functions>
 
   <!-- *********************** -->
@@ -91,10 +92,10 @@
            medium="leds" />
 
     <distribute>
-      <position method="uniform" min="-1.5,-1.5,0" max="-1.0,1.5,0" />
+      <position method="uniform" min="-1.5,-1.5,0" max="1.5,1.5,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
       <entity quantity="20" max_trials="100">
-        <e-puck id="ep">
+	<e-puck id="ep" rab_data_size="200" rab_range="1">    <!-- using a high bandwidth of 100 bytes for now -->
           <controller config="efc" />
         </e-puck>
       </entity>
@@ -106,7 +107,7 @@
   <!-- * Physics engines * -->
   <!-- ******************* -->
   <physics_engines>
-    <dynamics2d id="dyn2d" />
+    <dynamics2d id="dyn2d" iterations="50" />
   </physics_engines>
 
   <!-- ********* -->
@@ -124,10 +125,14 @@
     <qt-opengl>
       <camera>
         <placement idx="0"
-                   position="0,0,4.6"
+                   position="0,0,2.0"
                    look_at="0,0,0"
-                   lens_focal_length="20" />
+                   lens_focal_length="15" />
       </camera>
+
+     <user_functions library="build/loop_functions/id_loop_functions/libid_loop_functions"
+                      label="id_qtuser_functions" /> 
+
       <user_functions label="foraging_qt_user_functions" />
     </qt-opengl>
   </visualization>

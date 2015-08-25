@@ -85,6 +85,10 @@ E[0]=2.811005e+00,R[0]=3.679913e-01 (A=0.002000) [History=3019]  E[2]=7.950483e-
     assert(m_fcross_affinity > 0.0);
 
     m_uNumberFloatingPtOperations = 0;
+
+    /*m_uHistoryTcells          = 5000u;
+    m_fSuspicionThreshold     = 0.95f;
+    m_fNewFVSuspicionIncr     = 0.95f;*/
 }
 
 /******************************************************************************/
@@ -107,6 +111,36 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 {
     m_fInternalRobotTimer = InternalRobotTimer;
     ptr_listFVsSensed = FVsSensed;
+
+
+    /*double proxmity_threshold = 1.4f; //2.0f; // CRM threshold around between 1.32919 and 1.65839
+    for (t_listFVsSensed::iterator it_listfvs = ptr_listFVsSensed->begin(); it_listfvs != ptr_listFVsSensed->end(); ++it_listfvs)
+    {
+        double proximity_count = 0.0f;
+        for (t_listFVsSensed::iterator tmpit_listfvs = ptr_listFVsSensed->begin(); tmpit_listfvs != ptr_listFVsSensed->end(); ++tmpit_listfvs)
+        {
+            proximity_count += tmpit_listfvs->fRobots *  NegExpDistAffinity(it_listfvs->uFV, tmpit_listfvs->uFV, m_fcross_affinity);
+        }
+
+        // if(GetIdentification() == 14 && m_fInternalRobotTimer >= 1200u && m_fInternalRobotTimer <= 1202u)
+        // {
+        //     printf("Proximity count for fv %d is %f \n", it_listfvs->uFV, proximity_count);
+        // }
+
+        if(proximity_count < proxmity_threshold)
+            SetMostWantedList(&it_listfvs, 1u);
+        else
+            SetMostWantedList(&it_listfvs, 2u);
+    }
+
+//    if(GetIdentification() == 8 && m_fInternalRobotTimer >= 1329u && m_fInternalRobotTimer <= 1399u)
+//    {
+//        PrintFeatureVectorDistribution(GetIdentification());
+//        printf("-------at end----------------\n\n\n");
+//    }
+
+    return;*/
+
 
 
     /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 3470)
@@ -186,11 +220,11 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 
     UpdateState();
 
-    /*if(GetIdentification() == 15 && m_fInternalRobotTimer >= 1000u && m_fInternalRobotTimer <= 1002u)
-    {
-        PrintCRMDetails(GetIdentification());
-        printf("-------at end----------------\n\n\n");
-    }*/
+//    if(GetIdentification() == 4 && m_fInternalRobotTimer > 3500)
+//    {
+//        PrintCRMDetails(GetIdentification());
+//        printf("----------at start-----------\n\n");
+//    }
 }
 
 /******************************************************************************/
@@ -1418,6 +1452,49 @@ void CRMinRobotAgentOptimised::UpdateState()
         else if (tmp_E > tmp_R)            // Attack
         {
             SetMostWantedList(&it_fvsensed, 1);
+
+
+            /*if (m_uHistoryTcells > 0)
+            {
+                double suspicioncounter = 0.0;
+
+                list< list<structTcell> >::iterator pop_index;
+                int tmp_index = 0; bool fv_present = false;
+                for(pop_index = listlistTcells.begin(); pop_index != listlistTcells.end(); ++pop_index)
+                {
+                    tmp_index++;
+                    double tmp_E1, tmp_R1, tmp_affinity1;
+                    tmp_E1 = 0.0; tmp_R1 = 0.0;
+                    list<structTcell>::iterator it_tcells1;
+                    for(it_tcells1 =  (*pop_index).begin();
+                        it_tcells1 != (*pop_index).end(); ++it_tcells1)
+                    {
+                        tmp_affinity1 = NegExpDistAffinity((*it_tcells1).uFV, (*it_apcs).uFV, m_fcross_affinity);
+                        tmp_E1 += tmp_affinity1 * (*it_tcells1).fE;
+                        tmp_R1 += tmp_affinity1 * (*it_tcells1).fR;
+
+                        unsigned int hammingdistance  = CRMinRobotAgentOptimised::GetNumberOfSetBits((*it_apcs).uFV ^ (*it_tcells1).uFV);
+                        if ((double)hammingdistance / (double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES < 2.0/6.0)
+                        //if((*it_apcs).uFV == (*it_tcells1).uFV)
+                            fv_present = true;
+
+#ifdef FLOATINGPOINTOPERATIONS
+                        robotAgent->IncNumberFloatingPtOperations(4+3); //3 operations in NegExpDistAffinity
+#endif
+                    }
+
+                    if(fv_present == false)
+                        //suspicioncounter +=1.0;
+                        suspicioncounter += m_fNewFVSuspicionIncr; // 1.0/10.0; //effect of taking different sub-unit values?
+                    else if (tmp_E1 > tmp_R1)
+                        suspicioncounter +=1.0;
+                }
+
+                suspicioncounter = suspicioncounter / listlistTcells.size();
+
+                if (suspicioncounter < m_fSuspicionThreshold)
+                    SetMostWantedList(&it_fvsensed, 4); // deemed suspicious - but not abnormal; else deemed abnormal.
+            }*/
         }
         else            // Tolerate
         {
@@ -1425,6 +1502,19 @@ void CRMinRobotAgentOptimised::UpdateState()
         }
         ++it_fvsensed;
     }
+
+    /*if (m_uHistoryTcells > 0)
+    {
+        if(m_fInternalRobotTimer < MODELSTARTTIME + m_uHistoryTcells + 1)
+        {
+            listlistTcells.push_back(listTcells);
+        }
+        else
+        {
+            listlistTcells.push_back(listTcells);
+            listlistTcells.pop_front();
+        }
+    }*/
 }
 
 /******************************************************************************/
@@ -1638,7 +1728,7 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
         return 0.0f;*/
 
 
-    //return 1.0 * exp(-(1.0f/k) * ((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES));
+    return 1.0 * exp(-(1.0f/k) * ((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES));
 
     //for smaller samples of FV distribution
     if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) <= (1.0f/6.0f))

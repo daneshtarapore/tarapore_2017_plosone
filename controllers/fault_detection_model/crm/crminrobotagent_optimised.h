@@ -146,7 +146,13 @@ protected:
     //double m_fExchangeRange;
 
 
+    unsigned m_uHistoryTcells; // a history of t-cell populations (at each of the previous m_uHistoryTcells simulation time-steps)
+    float m_fSuspicionThreshold; // Threshold above which a FV is to be tolerated - but deemed suspicious [0,1]
+    float m_fNewFVSuspicionIncr;
+
+
     list<structTcell> listTcells, listTcells_cpy; // list of non-zero t-cell clonaltypes and a copy in case integration has to be run again
+    list <list<structTcell> > listlistTcells; // a record of T-cells over previous X simulation steps
 
     list<structAPC>   listAPCs;
     virtual inline void IncIt(list<structTcell>::iterator *it_tcell, list<structTcell>* list)

@@ -8,12 +8,9 @@
  */
 
 //! TODO
-//! 1. Introduce noise in the sensors and actuators of the e-puck (see parameters from Lorenzo)
-//! TODO: Use the num of observations to select Bayesian Inferred FVs
-//! TODO: Track the fraction of past observations when robot is (not) reacting to sensors - using a Kalman fitler
-//!       or
-//!       Refresh the priors perodically
-//! TODO: Implement the more realistic faults for software bugs and power failure - what do we do with powering the RAB sensors
+//! TODO: Use the num of observations to select from different relayed FVs Bayesian Inferred FVs
+//! TODO: Refresh the priors perodically
+
 
 #ifndef EPUCK_HOMSWARM_H
 #define EPUCK_HOMSWARM_H
@@ -66,6 +63,7 @@
 #include "antiphototaxisbehavior.h"
 #include "homingtofoodbeaconbehavior.h"
 #include "circlebehavior.h"
+#include "flockingbehavior.h"
 
 /****************************************/
 /****************************************/
@@ -106,8 +104,16 @@ public:
         {
             SWARM_AGGREGATION = 0,
             SWARM_DISPERSION,
-            SWARM_HOMING
-        } SBehavior;
+            SWARM_HOMING,
+            SWARM_FLOCKING,
+            SWARM_STOP,
+            SWARM_NONE
+        };
+        enum SwarmBehavior SBehavior;
+
+
+        enum SwarmBehavior SBehavior_Trans, SBehavior_Current; Real time_between_robots_trans_behav;
+        std::list <unsigned> robot_ids_behav1; std::list <unsigned> robot_ids_behav2;
 
 
         /* The possible faults on robot */
@@ -129,6 +135,7 @@ public:
             FAULT_PROXIMITYSENSORS_SETOFFSET,
 
             FAULT_RABSENSOR_SETOFFSET,
+            FAULT_RABSENSOR_MISSINGRECEIVERS,
 
             FAULT_ACTUATOR_LWHEEL_SETZERO,
             FAULT_ACTUATOR_RWHEEL_SETZERO,
@@ -143,6 +150,7 @@ public:
         } FBehavior;
 
         std::string id_FaultyRobotInSwarm;
+
 
         ExperimentToRun();
         void Init(TConfigurationNode& t_node);
@@ -182,7 +190,7 @@ public:
         RobotDetails()
         {
             iterations_per_second  = 10.0f; /*10 ticks per second so dt=0.01s. i.e., the controlcycle is run 10 times per second*/
-            seconds_per_iterations = 1.0f / CBehavior::m_sRobotData.iterations_per_second;
+            seconds_per_iterations = 1.0f / iterations_per_second;
             HALF_INTERWHEEL_DISTANCE = 0.053f * 0.5f;  // m
             INTERWHEEL_DISTANCE  = 0.053f;  // m
             WHEEL_RADIUS = 0.0205f;  // m
@@ -193,9 +201,13 @@ public:
 
         void SetKinematicDetails(Real f_MaxLeftWheelSpeed, Real f_MaxRightWheelSpeed) // arguments are speeds in cm/s
         {
+            //std::cout << " f_MaxLeftWheelSpeed " << f_MaxLeftWheelSpeed << std::endl;
+
             // the max linear speed is 1 cm/controlcycle.
             // so, MaxLinearSpeed = 1
             MaxLinearSpeed        = ((f_MaxLeftWheelSpeed + f_MaxRightWheelSpeed) / 2.0f) * seconds_per_iterations;  //in cm/ (controlcycle)
+
+            //std::cout << " MaxLinearSpeed " << MaxLinearSpeed << std::endl;
 
             // as the max speed is 1 cm/controlcycle (resultant speed is always positive as the robot does not traverse backwards), the max acceleration is +/-1 cm/controlcycle/controlcycle
             // so, MaxLinearAcceleration = |+/-1 cm/controlcycle/controlcycle| = 1cm/controlcycle/controlcycle
@@ -395,8 +407,8 @@ private:
 
         if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETMIN)
         {
-             /* Front three IR sensors */
-            sensor_readings[0].Value = 0.0f; sensor_readings[1].Value = 0.0f; sensor_readings[7].Value = 0.0f;
+             /* Front four IR sensors */
+            sensor_readings[0].Value = 0.0f; sensor_readings[1].Value = 0.0f; sensor_readings[7].Value = 0.0f; sensor_readings[6].Value = 0.0f;
 
             //sensor_readings[2].Value = 0.0f; sensor_readings[3].Value = 0.0f;
             //sensor_readings[4].Value = 0.0f; sensor_readings[5].Value = 0.0f;
@@ -405,18 +417,19 @@ private:
         }
         else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETMAX)
         {
-             /* Front three IR sensors */
-            sensor_readings[0].Value = 1.0f; sensor_readings[1].Value = 1.0f; sensor_readings[7].Value = 1.0f;
+             /* Front four IR sensors */
+            sensor_readings[0].Value = 1.0f; sensor_readings[1].Value = 1.0f; sensor_readings[7].Value = 1.0f; sensor_readings[6].Value = 1.0f;
 
             //sensor_readings[2].Value = 1.0f; sensor_readings[3].Value = 1.0f;
             return sensor_readings;
         }
         else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETRANDOM)
         {
-             /* Front three IR sensors */
+             /* Front four IR sensors */
             sensor_readings[0].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
             sensor_readings[1].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
             sensor_readings[7].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
+            sensor_readings[6].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
 
             /*sensor_readings[2].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));
             sensor_readings[3].Value = m_pcRNG->Uniform(CRange<Real>(0.0f, 1.0f));*/
@@ -425,10 +438,11 @@ private:
         }
         else if(fault_type == ExperimentToRun::FaultBehavior::FAULT_PROXIMITYSENSORS_SETOFFSET)
         {
-             /* Front three IR sensors */
+             /* Front four IR sensors */
             sensor_readings[0].Value += m_pcRNG->Uniform(CRange<Real>(-0.5f, 0.5f));
             sensor_readings[1].Value += m_pcRNG->Uniform(CRange<Real>(-0.5f, 0.5f));
             sensor_readings[7].Value += m_pcRNG->Uniform(CRange<Real>(-0.5f, 0.5f));
+            sensor_readings[6].Value += m_pcRNG->Uniform(CRange<Real>(-0.5f, 0.5f));
 
 
             if(sensor_readings[0].Value > 1.0f)
@@ -445,6 +459,11 @@ private:
                 sensor_readings[7].Value = 1.0f;
             if(sensor_readings[7].Value < 0.0f)
                 sensor_readings[7].Value = 0.0f;
+
+            if(sensor_readings[6].Value > 1.0f)
+                sensor_readings[6].Value = 1.0f;
+            if(sensor_readings[6].Value < 0.0f)
+                sensor_readings[6].Value = 0.0f;
 
             return sensor_readings;
         }
@@ -490,6 +509,88 @@ private:
 
             return sensor_readings;
         }
+
+        else if(fault_type == ExperimentToRun::FAULT_RABSENSOR_MISSINGRECEIVERS)
+        {
+            Real ReceiverSensingInterval[12][2];
+
+            ReceiverSensingInterval[0][0] = 0.0f;                    ReceiverSensingInterval[0][1] = 15.0f + (50.0f - 15.0f)/2.0f;
+            ReceiverSensingInterval[1][0] = 15.0f + (50.0f - 15.0f)/2.0f;    ReceiverSensingInterval[1][1] = 50.0f + (75.0f - 50.0f)/2.0f;
+            ReceiverSensingInterval[2][0] = 50.0f + (75.0f - 50.0f)/2.0f;    ReceiverSensingInterval[2][1] = 75.0f + (105.0f - 75.0f)/2.0f;
+            ReceiverSensingInterval[3][0] = 75.0f + (105.0f - 75.0f)/2.0f;   ReceiverSensingInterval[3][1] = 105.0f + (133.0f - 105.0f)/2.0f;
+            ReceiverSensingInterval[4][0] = 105.0f + (133.0f - 105.0f)/2.0f;  ReceiverSensingInterval[4][1] = 133.0f + (159.0f - 133.0f)/2.0f;
+            ReceiverSensingInterval[5][0] = 133.0f + (159.0f - 133.0f)/2.0f;  ReceiverSensingInterval[5][1] = 159.0f + (195.0f - 159.0f)/2.0f;
+            ReceiverSensingInterval[6][0] = 159.0f + (195.0f - 159.0f)/2.0f;  ReceiverSensingInterval[6][1] = 195.0f + (225.0f - 195.0f)/2.0f;
+            ReceiverSensingInterval[7][0] = 195.0f + (225.0f - 195.0f)/2.0f;  ReceiverSensingInterval[7][1] = 225.0f + (255.0f - 225.0f)/2.0f;
+            ReceiverSensingInterval[8][0] = 225.0f + (255.0f - 225.0f)/2.0f;  ReceiverSensingInterval[8][1] = 255.0f + (283.0f - 255.0f)/2.0f;
+            ReceiverSensingInterval[9][0] = 255.0f + (283.0f - 255.0f)/2.0f;  ReceiverSensingInterval[9][1] = 283.0f + (310.0f - 283.0f)/2.0f;
+            ReceiverSensingInterval[10][0] = 283.0f + (310.0f - 283.0f)/2.0f;  ReceiverSensingInterval[10][1] = 310.0f + (345.0f - 310.0f)/2.0f;
+            ReceiverSensingInterval[11][0] = 310.0f + (345.0f - 310.0f)/2.0f;  ReceiverSensingInterval[11][1] = 360.0f;
+
+            Real startangle, endangle;
+
+            /*unsigned missingreceiver_start = 0u; unsigned nummissingreceiver = 3u;
+            Real angle1 = ReceiverSensingInterval[missingreceiver_start][0];
+            Real angle2 = ReceiverSensingInterval[(missingreceiver_start+nummissingreceiver - 1) % 12][1];
+
+
+            if(angle1 < angle2)
+            {
+                startangle = angle1;
+                endangle   = angle2;
+            }
+            else
+            {
+                startangle = angle2;
+                endangle   = angle1;
+            }
+
+            std::cout << " missingreceiver_start " << missingreceiver_start<< " (missingreceiver_start+nummissingreceiver - 1) % 12 " << (missingreceiver_start+nummissingreceiver - 1) % 12 << std::endl;
+            std::cout << "startangle " << startangle << " endangle " << endangle << std::endl;*/
+
+
+            // assume the front two receivers numbered 0 and 11 are missing
+
+
+            for(size_t i = 0; i <  sensor_readings.size(); ++i)
+            {
+                CRadians BearingAngle     = sensor_readings[i].HorizontalBearing;
+                Real BearingAngle_Degrees = ToDegrees(BearingAngle).UnsignedNormalize().GetValue();
+
+                assert(BearingAngle_Degrees >= 0.0f);
+
+
+                /*if(BearingAngle_Degrees > startangle && BearingAngle_Degrees <= endangle)
+                {
+                    if(std::min(BearingAngle_Degrees - startangle, endangle - BearingAngle_Degrees) == (BearingAngle_Degrees - startangle))
+                        BearingAngle_Degrees = startangle;
+                    else
+                        BearingAngle_Degrees = endangle;
+
+                    //sensor_readings[i].Range             = ;
+                    sensor_readings[i].HorizontalBearing = ToRadians(CDegrees(BearingAngle_Degrees));
+
+                    continue;
+                }*/
+
+                startangle = 105.0f + (133.0f - 105.0f)/2.0f;
+                endangle   = 225.0f + (255.0f - 225.0f)/2.0f;
+                if((BearingAngle_Degrees >= 0 && BearingAngle_Degrees <= startangle) || (BearingAngle_Degrees >= endangle && BearingAngle_Degrees <= 360.0f))
+                {
+                    if(BearingAngle_Degrees >= 0 && BearingAngle_Degrees <= startangle)
+                        BearingAngle_Degrees = startangle;
+                    else
+                        BearingAngle_Degrees = endangle;
+
+                    //sensor_readings[i].Range             = ;
+                    sensor_readings[i].HorizontalBearing = ToRadians(CDegrees(BearingAngle_Degrees));
+
+                    continue;
+                }
+            }
+            return sensor_readings;
+        }
+
         else
         {
             /* the robot is running one of the general faults or one of the specific faults that doesnot influence IR sensor readings*/
@@ -501,6 +602,8 @@ private:
 
     TBehaviorVector             m_vecBehaviors;
     bool                        b_damagedrobot;     // true if robot is damaged
+
+    CFlockingBehavior*          m_pFlockingBehavior;
 
     unsigned                    u_num_consequtivecollisions;
 

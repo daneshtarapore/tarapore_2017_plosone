@@ -1,4 +1,4 @@
-function [real_motors_1s real_motors_5s real_motors_10s time_vector] = GetRealMotors_m1(data, robottype, normalrobotid)
+function [real_motors_1s real_motors_5s real_motors_10s time_vector real_motors_10s_avg] = GetRealMotors_m1(data, robottype, normalrobotid)
 
 % robottype = -1 % look for abnormally behaving robot
 % robottype = +1 % look for normally behaving robot
@@ -29,6 +29,8 @@ INDEX_ONESEC_DIST     = 4;
 INDEX_FIVESEC_DIST    = 5;
 INDEX_TENSEC_DIST     = 6;
 
+INDEX_TENSEC_DIST_AVG     = 7;
+
 MAX_DIST_IN_ONESEC    = 1; %5; 
 MAX_DIST_IN_FIVESEC   = 1; %25; 
 MAX_DIST_IN_TENSEC    = 1; %50; 
@@ -52,6 +54,14 @@ data = data_backup;
 
 disttravelled    =  data(:,INDEX_TENSEC_DIST);
 real_motors_10s  =  disttravelled ./ MAX_DIST_IN_TENSEC;
+
+
+%% Looking at our motor output feature averaged in 10 second interval
+data = data_backup;
+
+disttravelled    =  data(:,INDEX_TENSEC_DIST_AVG);
+real_motors_10s_avg =  disttravelled ./ MAX_DIST_IN_TENSEC;
+
 
 time_vector = data(:, 1);
 

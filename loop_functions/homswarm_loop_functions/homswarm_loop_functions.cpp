@@ -2,7 +2,7 @@
 #include <argos3/core/simulator/simulator.h>
 #include <argos3/core/utility/configuration/argos_configuration.h>
 #include <argos3/plugins/robots/e-puck/simulator/epuck_entity.h>
-
+#include <argos3/plugins/simulator/entities/light_entity.h>
 #include </home/danesh/argos3-foraging/controllers/epuck_hom_swarm/epuck_hom_swarm.h>
 
 
@@ -94,6 +94,97 @@ void CHomSwarmLoopFunctions::PreStep()
 //    m_pvecCoordAtTimeStep[m_unCoordCurrQueueIndex] = vecAgentPos;
 //    m_unCoordCurrQueueIndex = (m_unCoordCurrQueueIndex + 1) % m_iDistTravelledTimeWindow;
 //    CurrentStepNumber++;
+
+
+    /*CSpace::TMapPerType& m_cLights = GetSpace().GetEntitiesByType("light");
+    for(CSpace::TMapPerType::iterator it = m_cLights.begin(); it != m_cLights.end(); ++it)
+    {
+        CLightEntity& cLight = *any_cast<CLightEntity*>(it->second);
+
+        if((unsigned)(GetSpace().GetSimulationClock())%100 == 0)
+            cLight.MoveTo(CVector3(), CQuaternion());
+
+        cLight.GetInitPosition();
+    }*/
+
+
+    float start_firsttrans_sec = 500.0f, finish_firsttosecondtrans_sec = 1000.0f;
+
+
+    CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
+    for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
+    {
+        /* Get handle to e-puck entity and controller */
+        CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
+        CEPuckHomSwarm& cController = dynamic_cast<CEPuckHomSwarm&>(cEPuck.GetControllableEntity().GetController());
+
+        if(GetSpace().GetSimulationClock() < start_firsttrans_sec * cController.m_sRobotDetails.iterations_per_second)
+        { }
+
+        /*transition robot ids from robot_ids_behav1 to robot_ids_behav2 */
+        else if((GetSpace().GetSimulationClock() >= start_firsttrans_sec  * cController.m_sRobotDetails.iterations_per_second) &&
+                (GetSpace().GetSimulationClock() < finish_firsttosecondtrans_sec  * cController.m_sRobotDetails.iterations_per_second))
+        {
+            Real time_between_robots_trans_behav = cController.GetExperimentType().time_between_robots_trans_behav * cController.m_sRobotDetails.iterations_per_second;
+
+            Real m_fInternalRobotTimer = GetSpace().GetSimulationClock() - start_firsttrans_sec  * cController.m_sRobotDetails.iterations_per_second;
+
+            if(cController.GetExperimentType().robot_ids_behav1.size() > 0u)
+            {
+                if(time_between_robots_trans_behav > 0.0f)
+                {
+                    if(((unsigned)m_fInternalRobotTimer)%((unsigned)time_between_robots_trans_behav) == 0)
+                    {
+                        cController.GetExperimentType().robot_ids_behav2.push_back(cController.GetExperimentType().robot_ids_behav1.front());
+                        cController.GetExperimentType().robot_ids_behav1.pop_front();
+                    }
+                }
+                else if(time_between_robots_trans_behav == 0.0f)
+                {
+                    while(cController.GetExperimentType().robot_ids_behav1.size() > 0u)
+                    {
+                        cController.GetExperimentType().robot_ids_behav2.push_back(cController.GetExperimentType().robot_ids_behav1.front());
+                        cController.GetExperimentType().robot_ids_behav1.pop_front();
+                    }
+                }
+            }
+        }
+
+        /* transition robot ids from robot_ids_behav2 back to robot_ids_behav1 */
+        else if (GetSpace().GetSimulationClock() >= finish_firsttosecondtrans_sec  * cController.m_sRobotDetails.iterations_per_second)
+        {
+            Real time_between_robots_trans_behav = cController.GetExperimentType().time_between_robots_trans_behav * cController.m_sRobotDetails.iterations_per_second;
+
+            Real m_fInternalRobotTimer = GetSpace().GetSimulationClock() - finish_firsttosecondtrans_sec  * cController.m_sRobotDetails.iterations_per_second;
+
+//            if((((unsigned)m_fInternalRobotTimer)%((unsigned)time_between_robots_trans_behav) == 0) && (cController.GetExperimentType().robot_ids_behav2.size() > 0u))
+//            {
+//                cController.GetExperimentType().robot_ids_behav1.push_back(cController.GetExperimentType().robot_ids_behav2.front());
+//                cController.GetExperimentType().robot_ids_behav2.pop_front();
+//            }
+
+            if(cController.GetExperimentType().robot_ids_behav2.size() > 0u)
+            {
+                if(time_between_robots_trans_behav > 0.0f)
+                {
+                    if(((unsigned)m_fInternalRobotTimer)%((unsigned)time_between_robots_trans_behav) == 0)
+                    {
+                        cController.GetExperimentType().robot_ids_behav1.push_back(cController.GetExperimentType().robot_ids_behav2.front());
+                        cController.GetExperimentType().robot_ids_behav2.pop_front();
+                    }
+                }
+                else if(time_between_robots_trans_behav == 0.0f)
+                {
+                    while(cController.GetExperimentType().robot_ids_behav2.size() > 0u)
+                    {
+                        cController.GetExperimentType().robot_ids_behav1.push_back(cController.GetExperimentType().robot_ids_behav2.front());
+                        cController.GetExperimentType().robot_ids_behav2.pop_front();
+                    }
+                }
+            }
+
+        }
+    }
 }
 
 /****************************************/

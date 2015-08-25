@@ -20,6 +20,11 @@ public:
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 
+    void SimulationStep()
+    {
+
+    }
+
     virtual void PrintBehaviorIdentity();
 
 

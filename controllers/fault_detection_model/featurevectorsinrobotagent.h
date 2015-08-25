@@ -59,6 +59,8 @@ struct DetailedInformationFVsSensed
     unsigned int uRobotId;
     double       fTimeSensed;
 
+    double       f_TimesAttacked, f_TimesTolerated; //! we count the number of times the fv uFV is attacked / tolerated according to the CRM. During the last X time-steps, we send out the vote depending on what is in the majority???
+
     DetailedInformationFVsSensed(unsigned int robotid, double timesensed, unsigned int fv)
     {
         uFV         = fv;

@@ -38,14 +38,14 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 #define OBSERVATION_MODE 1
 #define COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE 2
 #define BAYESIANINFERENCE_MODE 3
-#define FV_MODE COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
+#define FV_MODE BAYESIANINFERENCE_MODE
 /****************************************/
 /****************************************/
 
 /*
  * Probability to forget FV in distribution
  */
-#define PROBABILITY_FORGET_FV 0.001f //1.0f
+#define PROBABILITY_FORGET_FV 1.0f //0.001f // We don't need a large history because FVs are being relayed every time-step. That combined with the BI of FVs (small observation window) means that robots will have sufficient FVs of neighbours to make a decision. Also it is difficult to assume that robot behavior has not changed in the last 100s.Will have a CRM_RESULTS_VALIDFOR_SECONDS history instead.
 
 /*
  * Consensus threshold on FVs.
@@ -55,7 +55,7 @@ UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
 /*
  * The results of the CRM are valid for atmost 10s in the absence of any FVs to run the CRM
  */
-#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds //1.0f
+#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds // assume the robot behaviors have not changed in the last 10s
 
 /*
  * The vote counts and consensus are valid for atmost 10s before being refreshed
@@ -79,19 +79,31 @@ CBayesianInferenceFeatureVector::RobotData CBayesianInferenceFeatureVector::m_sR
 
 CEPuckHomSwarm::ExperimentToRun::ExperimentToRun() :
     SBehavior(SWARM_AGGREGATION),
+    SBehavior_Trans(SWARM_NONE),
     FBehavior(FAULT_NONE),
-    id_FaultyRobotInSwarm("-1") {}
+    id_FaultyRobotInSwarm("-1"),
+    time_between_robots_trans_behav(-1.0f)
+{
+    robot_ids_behav1.clear(); robot_ids_behav2.clear();
+
+    for(unsigned id = 0; id < 20; ++id)
+        robot_ids_behav1.push_back(id);
+}
 
 
 void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
 {
     std::string swarmbehav, errorbehav;
+    std::string swarmbehav_trans, time_between_robots_trans_behav__str;
 
     try
     {
         GetNodeAttribute(t_node, "swarm_behavior", swarmbehav);
         GetNodeAttribute(t_node, "fault_behavior", errorbehav);
         GetNodeAttribute(t_node, "id_faulty_robot", id_FaultyRobotInSwarm);
+
+        GetNodeAttribute(t_node, "swarm_behavior_trans", swarmbehav_trans);
+        GetNodeAttribute(t_node, "time_between_robots_trans_behav", time_between_robots_trans_behav__str);
     }
     catch(CARGoSException& ex)
             THROW_ARGOSEXCEPTION_NESTED("Error initializing type of experiment to run, and fault to simulate.", ex);
@@ -100,8 +112,12 @@ void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
         SBehavior = SWARM_AGGREGATION;
     else if (swarmbehav.compare("SWARM_DISPERSION") == 0)
         SBehavior = SWARM_DISPERSION;
+    else if (swarmbehav.compare("SWARM_FLOCKING") == 0)
+        SBehavior = SWARM_FLOCKING;
     else if (swarmbehav.compare("SWARM_HOMING") == 0)
         SBehavior = SWARM_HOMING;
+    else if (swarmbehav.compare("SWARM_STOP") == 0)
+        SBehavior = SWARM_STOP;
     else
     {
         std::cerr << "invalid swarm behavior";
@@ -132,6 +148,9 @@ void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
 
     else if  (errorbehav.compare("FAULT_RABSENSOR_SETOFFSET") == 0)
         FBehavior = FAULT_RABSENSOR_SETOFFSET;
+    else if  (errorbehav.compare("FAULT_RABSENSOR_MISSINGRECEIVERS") == 0)
+        FBehavior = FAULT_RABSENSOR_MISSINGRECEIVERS;
+
 
     else if  (errorbehav.compare("FAULT_ACTUATOR_LWHEEL_SETZERO") == 0)
         FBehavior = FAULT_ACTUATOR_LWHEEL_SETZERO;
@@ -151,6 +170,28 @@ void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
         std::cerr << "invalid fault behavior";
         assert(-1);
     }
+
+
+    /* Transition to behavior */
+    if (swarmbehav_trans.compare("SWARM_AGGREGATION") == 0)
+        SBehavior_Trans = SWARM_AGGREGATION;
+    else if (swarmbehav_trans.compare("SWARM_DISPERSION") == 0)
+        SBehavior_Trans = SWARM_DISPERSION;
+    else if (swarmbehav_trans.compare("SWARM_FLOCKING") == 0)
+        SBehavior_Trans = SWARM_FLOCKING;
+    else if (swarmbehav_trans.compare("SWARM_HOMING") == 0)
+        SBehavior_Trans = SWARM_HOMING;
+    else if (swarmbehav_trans.compare("SWARM_STOP") == 0)
+        SBehavior_Trans = SWARM_STOP;
+    else if (swarmbehav_trans.compare("") == 0)
+        SBehavior_Trans = SWARM_NONE;
+    else
+    {
+        std::cerr << "invalid swarm transition behavior";
+        assert(-1);
+    }
+
+    time_between_robots_trans_behav = strtold(time_between_robots_trans_behav__str.c_str(),NULL);
 }
 
 /****************************************/
@@ -164,6 +205,8 @@ void CEPuckHomSwarm::SWheelTurningParams::Init(TConfigurationNode& t_node)
     }
     catch(CARGoSException& ex)
             THROW_ARGOSEXCEPTION_NESTED("Error initializing controller wheel turning parameters.", ex);
+
+    //std::cout << " MaxSpeed " << MaxSpeed << std::endl;
 }
 
 /****************************************/
@@ -246,6 +289,9 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
 
     CopyRobotDetails(m_sRobotDetails);
 
+
+    m_pFlockingBehavior = new CFlockingBehavior(m_sRobotDetails.iterations_per_second * 1.0f); // 5.0f
+
     if(this->GetId().compare("ep"+m_sExpRun.id_FaultyRobotInSwarm) == 0)
         b_damagedrobot = true;
 
@@ -258,6 +304,9 @@ void CEPuckHomSwarm::Init(TConfigurationNode& t_node)
 
 void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
 {
+    //std::cout << " robdetails.MaxLinearSpeed " << robdetails.MaxLinearSpeed << std::endl;
+    //std::cout << " robdetails.iterations_per_second " << robdetails.iterations_per_second << std::endl;
+
     CBehavior::m_sRobotData.MaxSpeed                    = robdetails.MaxLinearSpeed * robdetails.iterations_per_second; // max speed in cm/s to control behavior
     CBehavior::m_sRobotData.iterations_per_second       = robdetails.iterations_per_second;
     CBehavior::m_sRobotData.seconds_per_iterations      = 1.0f / robdetails.iterations_per_second;
@@ -267,6 +316,17 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
 
     CBehavior::m_sRobotData.m_cNoTurnOnAngleThreshold   = robdetails.m_cNoTurnOnAngleThreshold;
     CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = robdetails.m_cSoftTurnOnAngleThreshold;
+
+    CBehavior::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CBehavior::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
+    CBehavior::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
+    CBehavior::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
+    CBehavior::m_sRobotData.RELAY_FVS_PACKET_FOOTER_MARKER = RELAY_FVS_PACKET_FOOTER;
+    CBehavior::m_sRobotData.VOTER_PACKET_MARKER            = VOTER_PACKET;
+    CBehavior::m_sRobotData.VOTER_PACKET_FOOTER_MARKER     = VOTER_PACKET_FOOTER;
+    CBehavior::m_sRobotData.DATA_BYTE_BOUND_MARKER         = DATA_BYTE_BOUND;
+    CBehavior::m_sRobotData.OBSERVATION_MODE_TYPE          = FV_MODE;
+
 
 
 
@@ -362,54 +422,65 @@ void CEPuckHomSwarm::ControlStep()
     }
 
     else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION ||
-            m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION ||
-            m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
+            m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION  ||
+            m_sExpRun.SBehavior == ExperimentToRun::SWARM_FLOCKING    ||
+            m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING      ||
+            m_sExpRun.SBehavior == ExperimentToRun::SWARM_STOP)
         RunHomogeneousSwarmExperiment();
 
 
     if(!b_damagedrobot || b_RunningGeneralFaults || m_sExpRun.FBehavior == ExperimentToRun::FAULT_NONE)
-        CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
     else
     {
         m_pcLEDs->SetAllColors(CColor::RED);
 
         if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETMIN)
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETMAX)
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETRANDOM)
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETOFFSET)
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
 
 
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_RABSENSOR_SETOFFSET)
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_RABSENSOR_MISSINGRECEIVERS)
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
 
 
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_LWHEEL_SETZERO)
         {
             // does not affect the sensors - they stay the same
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
         }
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_RWHEEL_SETZERO)
         {
             // does not affect the sensors - they stay the same
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
         }
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_ACTUATOR_BWHEELS_SETZERO)
         {
             // does not affect the sensors - they stay the same
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
         }
 
 
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_SOFTWARE)
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
 
         else if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_POWER_FAILURE)
-            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+            CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
     }
+
+    /*For flocking behavior - to compute relative velocity*/
+    CBehavior::m_sSensoryData.SetWheelSpeedsFromEncoders(m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
+
+    /*The robot has to continually track the velocity of its neighbours - since this is done over a period of time. It can't wait until the flocking behavior is activated to start tracking neighbours*/
+    m_pFlockingBehavior->SimulationStep();
+
 
     Real leftSpeed = 0.0, rightSpeed = 0.0;
     bool bControlTaken = false;
@@ -420,14 +491,15 @@ void CEPuckHomSwarm::ControlStep()
             bControlTaken = (*i)->TakeControl();
             if (bControlTaken)
             {
-                /* (*i)->PrintBehaviorIdentity(); */
+                /*if(b_damagedrobot)
+                    (*i)->PrintBehaviorIdentity();*/
+                /*(*i)->PrintBehaviorIdentity();*/
                 (*i)->Action(leftSpeed, rightSpeed);
             }
         } else
             (*i)->Suppress();
     }
 
-    //!TODO
     /*If robot is contantly colliding against a wall, half the speed at which the wheels rotate - to make the robot movement closer to reality. We use the IR sensors to detect this scenario and we can do this even when there is a sensor fault as in reality the speed would reduce on its own when the robot is stuck to a wall*/
     /*Using the noiseless variant of the IR sensors for this detection*/
 
@@ -487,6 +559,8 @@ void CEPuckHomSwarm::ControlStep()
     }
 
     m_pcWheels->SetLinearVelocity(leftSpeed, rightSpeed); // in cm/s
+
+    //std::cout << "LS:  " << leftSpeed << " RS:  " << rightSpeed << std::endl;
 
 
 
@@ -564,6 +638,7 @@ void CEPuckHomSwarm::ControlStep()
     /****************************************/
 #if FV_MODE == BAYESIANINFERENCE_MODE
 
+    /* Estimating FVs proprioceptively - to be used for computing angular acceleration*/
     /*encoders give you the speed at the previous tick not current tick */
     m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
@@ -587,13 +662,13 @@ void CEPuckHomSwarm::ControlStep()
 #endif
     /****************************************/
 
-   /*if(m_fInternalRobotTimer >= 1000u && m_fInternalRobotTimer <= 1002u && RobotIdStrToInt() == 15)
-    {
-        for(t_listMapFVsToRobotIds::iterator it_fv = listMapFVsToRobotIds.begin(); it_fv != listMapFVsToRobotIds.end(); ++it_fv)
-        {
-            std::cout << "Map: id " << it_fv->uRobotId  << " to fv " << it_fv->uFV  << " time sensed " << it_fv->fTimeSensed << std::endl << std::endl;
-        }
-    }*/
+//    if(m_fInternalRobotTimer >= 3500.0f && m_fInternalRobotTimer <= 5000u && RobotIdStrToInt() == 4)
+//    {
+//        for(t_listMapFVsToRobotIds::iterator it_fv = listMapFVsToRobotIds.begin(); it_fv != listMapFVsToRobotIds.end(); ++it_fv)
+//        {
+//            std::cout << "Map: id " << it_fv->uRobotId  << " to fv " << it_fv->uFV  << " time sensed " << it_fv->fTimeSensed << std::endl << std::endl;
+//        }
+//    }
 
 
 
@@ -787,7 +862,7 @@ void CEPuckHomSwarm::ReceiveVotesAndConsensus()
 void CEPuckHomSwarm::EstablishConsensus()
 {
     /* For each robot id in listVoteInformationRobots that is not in listConsensusInfoOnRobotIds
-     * If #votes-registered > CONSENSUS_THRESHOLD, or if we are close to the expiry time of current VOTCON_RESULTS_VALIDFOR_SECONDS window (1s remaining)
+     * If #votes-registered > CONSENSUS_THRESHOLD, or if we are close to the expiry time of current VOTCON_RESULTS_VALIDFOR_SECONDS window (1s remaining) (not anymore)
      * Establish temporary consensus on robot id by adding it to listConsensusInfoOnRobotIds
      */
 
@@ -815,9 +890,18 @@ void CEPuckHomSwarm::EstablishConsensus()
             bool b_OneSecondToVotConReset(false);
 
 
-            /* If #votes-registered > CONSENSUS_THRESHOLD, or if we are close to the expiry time of current VOTCON_RESULTS_VALIDFOR_SECONDS window (1s remaining) after which the consensus and vote vectors will be cleared */
+            /* If #votes-registered > CONSENSUS_THRESHOLD, or if we are close to the expiry time of current VOTCON_RESULTS_VALIDFOR_SECONDS window (1s remaining) after which the consensus and vote vectors will be cleared (not anymore) */
             if ((it_vot->uVoterIds.size() >= CONSENSUS_THRESHOLD) || b_OneSecondToVotConReset) /* at least one vote will be registered. establish consensus on that */
             {
+                /*if(RobotIdStrToInt() == 19 && VotedOnRobotId==15 && (m_fInternalRobotTimer >= 700 && m_fInternalRobotTimer <= 705))
+                {
+                    for(std::list<unsigned>::iterator tmp = it_vot->uVoterIds.begin(); tmp != it_vot->uVoterIds.end(); ++tmp)
+                    {
+                        std::cout << "In voter list at m_fInternalRobotTimer " << m_fInternalRobotTimer << " voter ids" <<  (*tmp) << std::endl;
+                    }
+                }*/
+
+
                 listConsensusInfoOnRobotIds.push_back(ConsensusInformationRobots(it_vot->uRobotId,
                                                                                  (it_vot->attackvote_count > it_vot->toleratevote_count)?1u:2u)); /* if equal votes, we tolerate robot*/
             }
@@ -861,34 +945,85 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
 {
     m_vecBehaviors.clear();
 
-    if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_AGGREGATION)
+    float start_firsttrans_sec = 500.0f;
+
+    if(m_sExpRun.SBehavior_Trans != ExperimentToRun::SWARM_NONE)// && m_sExpRun.time_between_robots_trans_behav > 0.0f)
+    {
+        if(m_fInternalRobotTimer / m_sRobotDetails.iterations_per_second < start_firsttrans_sec)
+        {
+            m_sExpRun.SBehavior_Current = m_sExpRun.SBehavior;
+        }
+        /*
+         * else if((m_fInternalRobotTimer / m_sRobotDetails.iterations_per_second >= 500.0f) && (m_fInternalRobotTimer  / m_sRobotDetails.iterations_per_second < 1000.0f))
+        {
+            std::list<unsigned>::iterator findIter = std::find(m_sExpRun.robot_ids_behav1.begin(), m_sExpRun.robot_ids_behav1.end(), RobotIdStrToInt());
+            if ( m_sExpRun.robot_ids_behav1.end() == findIter ) // not in list1
+                m_sExpRun.SBehavior_Current = m_sExpRun.SBehavior_Trans;
+            else
+                m_sExpRun.SBehavior_Current = m_sExpRun.SBehavior;
+        }
+        */
+        else
+        {
+            std::list<unsigned>::iterator findIter = std::find(m_sExpRun.robot_ids_behav1.begin(), m_sExpRun.robot_ids_behav1.end(), RobotIdStrToInt());
+            if ( m_sExpRun.robot_ids_behav1.end() == findIter ) // not in list1
+                m_sExpRun.SBehavior_Current = m_sExpRun.SBehavior_Trans;
+            else
+                m_sExpRun.SBehavior_Current = m_sExpRun.SBehavior;
+        }
+    }
+    else
+         m_sExpRun.SBehavior_Current = m_sExpRun.SBehavior;
+
+
+
+
+    //if(RobotIdStrToInt()>0 || (RobotIdStrToInt()==0 && m_fInternalRobotTimer <= 2500.0f))
+    if(m_sExpRun.SBehavior_Current == ExperimentToRun::SWARM_AGGREGATION)
     {
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));    // 0.1f reflects a distance of about 4.5cm
         m_vecBehaviors.push_back(pcDisperseBehavior);
 
-        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(60.0f); //range threshold in cm
+        CAggregateBehavior* pcAggregateBehavior = new CAggregateBehavior(100.0f); //range threshold in cm //60.0
         m_vecBehaviors.push_back(pcAggregateBehavior);
 
         CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
+
+        m_pcLEDs->SetAllColors(CColor::GREEN);
     }
 
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_DISPERSION)
+    //else if((RobotIdStrToInt()==0 && m_fInternalRobotTimer > 2500.0f))
+    else if(m_sExpRun.SBehavior_Current == ExperimentToRun::SWARM_DISPERSION)
     {
         CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
         m_vecBehaviors.push_back(pcDisperseBehavior);
 
         CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
+
+        m_pcLEDs->SetAllColors(CColor::RED);
     }
 
-    else if(m_sExpRun.SBehavior == ExperimentToRun::SWARM_HOMING)
+    else if(m_sExpRun.SBehavior_Current == ExperimentToRun::SWARM_FLOCKING)
+    {
+        CDisperseBehavior* pcDisperseBehavior = new CDisperseBehavior(0.1f, ToRadians(CDegrees(5.0f)));
+        m_vecBehaviors.push_back(pcDisperseBehavior);
+
+        m_vecBehaviors.push_back(m_pFlockingBehavior);
+
+        CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
+        m_vecBehaviors.push_back(pcRandomWalkBehavior);
+    }
+
+    else if(m_sExpRun.SBehavior_Current == ExperimentToRun::SWARM_HOMING)
     {
         if(this->GetId().compare("ep0") == 0)
         {
             // ep0 is the beacon robot
             /* Sends out data 'BEACON_SIGNAL' with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
             // BEACON_SIGNAL is way above the DATA_BYTE_BOUND
+
             m_pcRABA->SetData(0, BEACON_SIGNAL);
             m_pcLEDs->SetAllColors(CColor::YELLOW);
         }
@@ -907,6 +1042,9 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
 
         // Homing disabled as the beacon signal data will interfere with the FV data
         //exit(-1);
+    }
+    else if(m_sExpRun.SBehavior_Current == ExperimentToRun::SWARM_STOP)
+    {
     }
 }
 
@@ -1128,7 +1266,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
 
     size_t databyte_index;
 
-    // we not put all the different message types in the same packet - to be sent at the same cycle
+    // we now put all the different message types in the same packet - to be sent at the same cycle
     /*if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
@@ -1395,13 +1533,13 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
                 std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }*/
 
-            if(robotId == 15)
+            if(robotId == 14)
             {
-                  // std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                    //std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
             else
             {
-                  // std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+                    //std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }
 
 
@@ -1487,6 +1625,12 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBear
                 fv                   = tmp1;
                 attack_tolerate_vote = (tmp2==ATTACK_VOTE)?1u:2u;
 
+                /*if(RobotIdStrToInt() == 19 && (m_fInternalRobotTimer >= 700 && m_fInternalRobotTimer <= 705))
+                {
+                    std::cout << " m_fInternalRobotTimer " << m_fInternalRobotTimer << " voter id" <<  votertId << " attack_tolerate_vote " << attack_tolerate_vote << " fv " << fv << std::endl;
+                }*/
+
+
                 UpdateVoterRegistry(listVoteInformationRobots,
                                     listMapFVsToRobotIds,
                                     listConsensusInfoOnRobotIds,
@@ -1497,6 +1641,11 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBear
                 assert(tmp2 == ATTACK_CONSENSUS || tmp2 == TOLERATE_CONSENSUS);
                 ConsensusOnRobotId = tmp1;
                 ConsensusState     = (tmp2==ATTACK_CONSENSUS)?1u:2u;
+
+                /*if(RobotIdStrToInt() == 19 && (ConsensusOnRobotId==15) && (m_fInternalRobotTimer >= 700 && m_fInternalRobotTimer <= 705))
+                {
+                    std::cout << " m_fInternalRobotTimer " << m_fInternalRobotTimer << " voter id" <<  votertId <<  " consensus " << ConsensusState << " id " << ConsensusOnRobotId << std::endl;
+                }*/
 
                 bool b_ConsensusAlreadyEstablishedOnRobot(false);
                 for (t_listConsensusInfoOnRobotIds::iterator it_cons = listConsensusInfoOnRobotIds.begin(); it_cons != listConsensusInfoOnRobotIds.end(); ++it_cons)

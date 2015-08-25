@@ -48,6 +48,8 @@ public:
     CBehavior();
     virtual ~CBehavior();
 
+    virtual void SimulationStep() = 0;
+
     virtual bool TakeControl() = 0;
     virtual void Suppress();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
@@ -65,32 +67,59 @@ public:
         Real     seconds_per_iterations;
         CRadians m_cNoTurnOnAngleThreshold;
         CRadians m_cSoftTurnOnAngleThreshold;
+
+
+        size_t   BEACON_SIGNAL_MARKER;
+
+        size_t   SELF_INFO_PACKET_MARKER;
+        size_t   SELF_INFO_PACKET_FOOTER_MARKER;
+
+        size_t   RELAY_FVS_PACKET_MARKER;
+        size_t   RELAY_FVS_PACKET_FOOTER_MARKER;
+
+        size_t   VOTER_PACKET_MARKER;
+        size_t   VOTER_PACKET_FOOTER_MARKER;
+
+        size_t   DATA_BYTE_BOUND_MARKER;
+
+        size_t   OBSERVATION_MODE_TYPE;
     };
 
     struct SensoryData
     {
        CRandom::CRNG* m_pcRNG;
 
+       Real m_rTime;
+
        CCI_EPuckProximitySensor::TReadings m_ProximitySensorData;
        CCI_LightUpdatedSensor::TReadings m_LightSensorData;
        CCI_GroundSensor::TReadings m_GroundSensorData;
        CCI_RangeAndBearingSensor::TReadings  m_RABSensorData;
 
-       void SetSensoryData(CRandom::CRNG* rng, CCI_EPuckProximitySensor::TReadings proximity, CCI_LightUpdatedSensor::TReadings light, CCI_GroundSensor::TReadings ground,
+       Real f_LeftWheelSpeed, f_RightWheelSpeed;
+
+       void SetSensoryData(CRandom::CRNG* rng, Real Time, CCI_EPuckProximitySensor::TReadings proximity, CCI_LightUpdatedSensor::TReadings light, CCI_GroundSensor::TReadings ground,
                            CCI_RangeAndBearingSensor::TReadings  rab)
        {
            m_pcRNG = rng;
+           m_rTime = Time;
            m_ProximitySensorData = proximity;
            m_LightSensorData = light;
            m_GroundSensorData = ground;
            m_RABSensorData = rab;
        }
 
-       void SetSensoryData(CRandom::CRNG* rng, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab)
+       void SetSensoryData(CRandom::CRNG* rng, Real Time, CCI_EPuckProximitySensor::TReadings proximity, CCI_RangeAndBearingSensor::TReadings  rab)
        {
            m_pcRNG = rng;
+           m_rTime = Time;
            m_ProximitySensorData = proximity;
            m_RABSensorData = rab;
+       }
+
+       void SetWheelSpeedsFromEncoders(Real LeftWheelSpeed, Real RightWheelSpeed)
+       {
+           f_LeftWheelSpeed = LeftWheelSpeed; f_RightWheelSpeed = RightWheelSpeed;
        }
     };
 

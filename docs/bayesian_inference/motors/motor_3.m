@@ -53,10 +53,11 @@
 %            (var(t) + ProcessNoiseVariance + VarianceInMeasurement)
 % is the Kalman gain term
 
-clear; clc; figure(3); clf; figure(4); clf; figure(5); clf;
+clear; clc; % figure(3); clf; figure(4); clf; figure(5); clf;
 
-data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_PMIN_191919_Noise.out');
-[motors_1s motors_5s motors_10s timeobserved] = GetRealMotors_m1(data, -1, 13);
+%data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Dispersion_PMIN_191919_Noise.out');
+data            = load('/home/danesh/argos3-foraging/docs/bayesian_inference/dataforBI_Aggregation_RABOFF_181818_noise.out');
+[motors_1s motors_5s motors_10s timeobserved motors_10s_avg] = GetRealMotors_m1(data, +1, 0);
 
 
 AllObservations = motors_10s; 
@@ -76,6 +77,7 @@ theta = linspace(0,50,100);
 
 VarianceInMeasurement = 50; % variance from measurement error %cm
 ProcessNoiseVariance_TemporalConstant  = 0.5; %  cm % if max speed per tick is 0.5 cm, the variance can be +/- 0.25cm
+%% ProcessNoiseVariance_TemporalConstant  at 0.005 give results similar to using a moving average over past 100 observations
 
 mu_prior  = 0.5; % prior mean
 var_prior = 1; % prior variance
@@ -101,12 +103,22 @@ for (n=2:length(AllObservations));
     Y_posterior = normpdf(theta,mu_corrected,sqrt(var_corrected));
     
     
-    figure(4); plot(theta,Y_posterior,'r','LineWidth',3); xlabel('theta'); ylabel('P(h|m)')
+%     figure(4); plot(theta,Y_posterior,'r','LineWidth',3); xlabel('theta'); ylabel('P(h|m)')
+%     
+%     figure(5); hold on;
+%     plot(timeobserved(n), mu_prior,'k.','MarkerSize',5); 
+%     plot(timeobserved(n), var_prior,'R.','MarkerSize',5), axis([1 5000 0 50]); xlabel('time'); ylabel('E(h|m) in black, Var(h|m) in red ')
+%     hold off
     
-    figure(5); hold on;
-    plot(timeobserved(n), mu_prior,'k.','MarkerSize',5); 
-    plot(timeobserved(n), var_prior,'R.','MarkerSize',5), axis([1 5000 0 50]); xlabel('time'); ylabel('E(h|m) in black, Var(h|m) in red ')
-    hold off
+    kf_data(n,[1:3]) = [timeobserved(n), mu_prior,var_prior];
     
 end
 
+    figure(5); hold on;
+    plot(timeobserved',AllObservations, '.-')
+    plot(kf_data(:,1), kf_data(:,2),'rx-'); 
+    plot(kf_data(:,1), kf_data(:,3),'kx-','MarkerSize',3), axis([1 5000 0 50]); xlabel('time'); ylabel('E(h|m) in black, Var(h|m) in red ')
+    
+    l = line([0, 5000], [7.5, 7.5])
+    set(l,'Color',[0,0,0],'LineStyle','--')
+    hold off

@@ -22,12 +22,20 @@ bool CAggregateBehavior::TakeControl()
 
     unsigned robotsinrange = 0;
     for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
+    {
         if(m_sSensoryData.m_RABSensorData[i].Range < m_fRangeAndBearing_RangeThreshold)
         {
-            controltaken = true;
+            // controltaken = true;
             m_cAggregationVector += CVector2(m_sSensoryData.m_RABSensorData[i].Range, m_sSensoryData.m_RABSensorData[i].HorizontalBearing);
             robotsinrange++;
         }
+    }
+
+    if(robotsinrange > 3u) // use > 3 instead of > 0 to avoid small aggregates of just 2 robots or just 3 robots.
+        controltaken = true;
+
+    /*if(robotsinrange > 0u)
+        controltaken = true;*/
 
     if(controltaken)
     {
@@ -65,8 +73,12 @@ bool CAggregateBehavior::TakeControl()
 // Move in the opposite direction of CoM
 void CAggregateBehavior::Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed)
 {
-     //CVector2 m_cHeadingVector = m_cAggregationVector.Normalize() * m_sRobotData.MaxSpeed + m_sRobotData.MaxSpeed * CVector2(1.0f, 0.0f);
-     CVector2 m_cHeadingVector = m_cAggregationVector.Normalize() * m_sRobotData.MaxSpeed + m_sRobotData.MaxSpeed * CVector2(1.0f, m_sSensoryData.m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI, CRadians::PI))); // i add the random component to break stable aggregates of pair of robots.
+     CVector2 m_cHeadingVector =  m_sRobotData.MaxSpeed  * (1.0f * m_cAggregationVector.Normalize() +
+                                                            1.0f * CVector2(1.0f, m_sSensoryData.m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI, CRadians::PI))));
+
+     // i add a strong random component to break stable aggregates of pair of robots.
+     /*CVector2 m_cHeadingVector =  m_sRobotData.MaxSpeed  * (0.3f * m_cAggregationVector.Normalize() +
+                                                            0.7f * CVector2(1.0f, m_sSensoryData.m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI, CRadians::PI))));*/
 
      WheelSpeedsFromHeadingVector(m_cHeadingVector, fLeftWheelSpeed, fRightWheelSpeed);
 }

@@ -17,6 +17,12 @@ class CAggregateBehavior : public CBehavior
 public:
     CAggregateBehavior(Real m_fRangeAndBearing_RangeThreshold);
 
+    void SimulationStep()
+    {
+
+    }
+
+
     virtual bool TakeControl();
     virtual void Action(Real &fLeftWheelSpeed, Real &fRightWheelSpeed);
 

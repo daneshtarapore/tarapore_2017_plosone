@@ -132,6 +132,12 @@ public:
         BayesInference_ObservedRobots_FeatureVector(const BayesInference_ObservedRobots_FeatureVector& ClassToCopy);
         ~BayesInference_ObservedRobots_FeatureVector();
 
+        void ClearNbrs()
+        {
+            // clear the past observations of nbrs (upto 10s). Most likely because of an interruption in  observation
+            list_NbrsInCloseProxm.clear(); list_NbrsInFarProxm.clear();
+        }
+
         unsigned GetValue() const
         {
             return m_unValue;
@@ -163,8 +169,11 @@ public:
 
 
             /* prior pertaining to sensing - i.e. number of neighbours in close and far proximity. Associated to the belief, is the robot part of a small aggregate?, and is the robot part of a large aggregate?  */
-            sensclosePrior_Gaussian_mu = 7.5f; sensclosePrior_Gaussian_variance = 15.0f; // sensed nbrs truly like in 15 cm range [0, 15].
-            sensfarPrior_Gaussian_mu   = 15.0f; sensfarPrior_Gaussian_variance   = 15.0f; // sensed nbrs truly like in 15 cm range [15, 30].
+            /*sensclosePrior_Gaussian_mu = 7.5f; sensclosePrior_Gaussian_variance = 15.0f; // sensed nbrs truly like in 15 cm range [0, 15].
+            sensfarPrior_Gaussian_mu   = 15.0f; sensfarPrior_Gaussian_variance   = 15.0f; // sensed nbrs truly like in 15 cm range [15, 30].*/
+
+            sensclosePrior_Gaussian_mu = 0.5f; sensclosePrior_Gaussian_variance = 1.0f; // nbr present (at least one) half the time of past 10 s
+            sensfarPrior_Gaussian_mu   = 0.5f; sensfarPrior_Gaussian_variance   = 1.0f; // nbr present (at least one) half the time of past 10 s
 
 
             max_posterior_variance         = 50.0f;
@@ -256,6 +265,9 @@ public:
             /* Keeping track of neighbours at different time scales*/
             Real m_fEstimated_Dist_ShortTimeWindow, m_fEstimated_Dist_MediumTimeWindow, m_fEstimated_Dist_LongTimeWindow;
             std::vector<RobotRelativePosData> vec_RobPos_ShortRangeTimeWindow, vec_RobPos_MediumRangeTimeWindow, vec_RobPos_LongRangeTimeWindow;
+
+            std::list<Real> list_NbrsInCloseProxm, list_NbrsInFarProxm;
+            std::list<Real> list_Dist_LongRangeTimeWindow;
             /************************************************************************************/
     };
 
