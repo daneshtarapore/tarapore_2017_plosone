@@ -394,7 +394,7 @@ public:
     Real m_fCRM_RUN_TIMESTAMP;
     bool b_CRM_Run;
 
-    static UInt8 BEACON_SIGNAL;
+    static UInt8 BEACON_SIGNAL, NEST_BEACON_SIGNAL;
 
 private:
 

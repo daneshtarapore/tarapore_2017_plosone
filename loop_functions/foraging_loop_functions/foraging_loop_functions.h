@@ -22,6 +22,8 @@ public:
    virtual void PreStep();
    virtual void PostStep();
 
+   virtual void PostExperiment();
+
 private:
 
    Real m_fFoodSquareRadius;

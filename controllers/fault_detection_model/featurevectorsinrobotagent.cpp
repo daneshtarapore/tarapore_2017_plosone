@@ -1,4 +1,5 @@
 #include <list>
+#include <assert.h>
 
 /******************************************************************************/
 /******************************************************************************/
@@ -131,20 +132,68 @@ void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
 /******************************************************************************/
 /******************************************************************************/
 
+void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
+                          unsigned int ObserverRobotId, unsigned int fv, unsigned ObservedRobotId, double timesensed)
+{
+    t_listMapFVsToRobotIds::iterator itd;
+
+    // check if ObservedRobotId is in listMapFVsToRobotIds
+    /*
+     * if so, then check if ObserverRobotId is part of the entry.
+     *        if so,  than update its fv if timesensed is more recent.
+     *        if not, than add the ObserverRobotId, timesensed and fv to the entry
+     *
+     *  if not, then add ObservedRobotId, and also add ObserverRobotId, timesensed and fv to the entry
+     */
+
+    bool robot_present(false);
+    for (itd = listMapFVsToRobotIds.begin(); itd != listMapFVsToRobotIds.end(); ++itd)
+    {
+        if((*itd).uRobotId == ObservedRobotId)
+        {
+            robot_present = true;
+
+            bool observer_robot_present(false);
+            //for(std::vector<unsigned>::iterator itd1 = (*itd).vec_ObserverRobotIds.begin(); itd1 != (*itd).vec_ObserverRobotIds.end(); ++itd1)
+            for(size_t vec_index = 0; vec_index < (*itd).vec_ObserverRobotIds.size(); ++vec_index)
+            {
+                if (ObserverRobotId == (*itd).vec_ObserverRobotIds[vec_index])
+                {
+                    observer_robot_present = true;
+
+                    if(timesensed > (*itd).vec_TimeObserved[vec_index])
+                    {
+                        (*itd).vec_TimeObserved[vec_index]     = timesensed;
+                        (*itd).vec_ObservedRobotFVs[vec_index] = fv;
+                    }
+                    return;
+                }
+            }
+
+            if(!observer_robot_present)
+            {
+                (*itd).AddNewInformationFVsSensed(ObserverRobotId, timesensed, fv);
+                return;
+            }
+        }
+    }
+
+    if(!robot_present) // if the list is empty or the robot with given id is not present in the list
+        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(ObserverRobotId, ObservedRobotId, timesensed, fv));
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
 bool sortfventries (const DetailedInformationFVsSensed& i, const DetailedInformationFVsSensed& j) { return (i.fTimeSensed < j.fTimeSensed); }
 
 void TrimFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds, Real f_CurrentRobotTime, Real f_FvToId_MaintenanceTime)
 {
+#ifndef ConsensusOnMapOfIDtoFV
     // when do we delete entries?
     // if an entry is older than f_FvToId_MaintenanceTime, we delete it.
-
-    /*listMapFVsToRobotIds.sort(sortfventries);
     t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
-    while(listMapFVsToRobotIds.size() > 10)
-        itd = listMapFVsToRobotIds.erase(itd);*/
-
-    t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
-    while(itd != listMapFVsToRobotIds.end()) // REMEMBER A FOR LOOP HERE WILL CAUSE RUNTIME ERRORS IF THE LAST T-CELL CLONAL POPULATION IS DELETED.
+    while(itd != listMapFVsToRobotIds.end()) // REMEMBER A FOR LOOP HERE WILL CAUSE RUNTIME ERRORS IF THE LAST ENTRY IN POPULATION IS DELETED.
     {
          if (itd->fTimeSensed < (f_CurrentRobotTime - f_FvToId_MaintenanceTime))
          {
@@ -153,6 +202,87 @@ void TrimFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds, Real f_Cur
          }
 
          ++itd;
+    }
+#else
+
+
+    // when do we delete entries?
+    // if all subentries in vec_ObserverRobotIds are older than f_FvToId_MaintenanceTime, we delete it.
+    t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
+    while(itd != listMapFVsToRobotIds.end()) // REMEMBER A FOR LOOP HERE WILL CAUSE RUNTIME ERRORS IF THE LAST ENTRY IN POPULATION IS DELETED.
+    {
+        std::vector<unsigned>::iterator it_observer     = itd->vec_ObserverRobotIds.begin();
+        std::vector<Real>::iterator     it_timeobserved = itd->vec_TimeObserved.begin();
+        std::vector<unsigned>::iterator it_observerdfv  = itd->vec_ObservedRobotFVs.begin();
+
+        while(it_timeobserved != itd->vec_TimeObserved.end())
+        {
+            if ((*it_timeobserved) < (f_CurrentRobotTime - f_FvToId_MaintenanceTime))
+            {
+                it_observer     = itd->vec_ObserverRobotIds.erase(it_observer);
+                it_timeobserved = itd->vec_TimeObserved.erase(it_timeobserved);
+                it_observerdfv  = itd->vec_ObservedRobotFVs.erase(it_observerdfv);
+                continue;
+            }
+            ++it_observer; ++it_timeobserved; ++it_observerdfv;
+        }
+
+
+         if (itd->vec_ObserverRobotIds.size() == 0u)
+         {
+             assert(itd->vec_TimeObserved.size()     == 0u);
+             assert(itd->vec_ObservedRobotFVs.size() == 0u);
+             itd = listMapFVsToRobotIds.erase(itd);
+             continue;
+         }
+
+         ++itd;
+    }
+#endif
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+void PrintFvToRobotIdMap(unsigned u_MapOfRobotId, t_listMapFVsToRobotIds &listMapFVsToRobotIds, unsigned u_ObservedRobotId)
+{
+    std::cout << "Number of entries in map of " << u_MapOfRobotId << " is " << listMapFVsToRobotIds.size() << std::endl;
+
+    t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
+    while(itd != listMapFVsToRobotIds.end())
+    {
+        if(itd->uRobotId != 99999u && itd->uRobotId != u_ObservedRobotId)
+        {
+            ++itd;
+            continue;
+        }
+
+        std::cout << "Observed robot id " << itd->uRobotId << " has " << itd->vec_ObserverRobotIds.size() <<  " sub-entries " << std::endl;
+
+        for(size_t index = 0; index < itd->vec_ObserverRobotIds.size(); ++index)
+        {
+            std::cout << "   Sub-entry " << index <<
+                         " ObserverId " << itd->vec_ObserverRobotIds[index] <<
+                         " ObservedFV " << itd->vec_ObservedRobotFVs[index] << " ObservedFV " << itd->vec_TimeObserved[index] << std::endl;
+
+        }
+
+        std::cout << "Observed robot fv (best selected) " << itd->uFV << std::endl << std::endl;
+        ++itd;
+    }
+}
+
+
+/******************************************************************************/
+/******************************************************************************/
+
+void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listMapFVsToRobotIds, unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs)
+{
+    t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
+    while(itd != listMapFVsToRobotIds.end())
+    {
+        itd->SelectBestFVFromAllObservedFVs(u_NumFeatures, m_pcRNG_FVs);
+        ++itd;
     }
 }
 
@@ -251,7 +381,62 @@ void UpdateVoterRegistry(t_listVoteInformationRobots   &listVoteInformationRobot
 
 }
 
+/******************************************************************************/
+/******************************************************************************/
 
+void PrintVoterRegistry(unsigned u_VoterRegistryOfRobotId, t_listVoteInformationRobots &listVoteInformationRobots, unsigned u_VotedOnRobotId)
+{
+    std::cout << "Number of entries in vote registry of " << u_VoterRegistryOfRobotId << " is " << listVoteInformationRobots.size() << std::endl;
+
+    t_listVoteInformationRobots::iterator itd = listVoteInformationRobots.begin();
+    while(itd != listVoteInformationRobots.end())
+    {
+        if(itd->uRobotId != 99999u && itd->uRobotId != u_VotedOnRobotId)
+        {
+            ++itd;
+            continue;
+        }
+
+        std::cout << "Voted on robot id " << itd->uRobotId << " has received " << itd->uVoterIds.size() <<  " votes " << std::endl;
+        size_t index = 0;
+        for(std::list <unsigned>::iterator itd1 = itd->uVoterIds.begin(); itd1 != itd->uVoterIds.end(); ++itd1)
+        {
+            std::cout << "   Sub-entry " << index <<
+                         " VotedId " << (*itd1) << std::endl;
+             ++index;
+
+        }
+
+        std::cout << "Numbers of attack voters " << itd->attackvote_count << "; tolerate voters " << itd->toleratevote_count << std::endl << std::endl;
+        ++itd;
+    }
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+void PrintConsensusRegistry(unsigned u_ConsensusRegistryOfRobotId, t_listConsensusInfoOnRobotIds &listConsensusInfoOnRobotIds, unsigned u_ConsensusOnRobotId)
+{
+    std::cout << "Number of entries in consensus registry of " << u_ConsensusRegistryOfRobotId << " is " << listConsensusInfoOnRobotIds.size() << std::endl;
+
+    t_listConsensusInfoOnRobotIds::iterator itd = listConsensusInfoOnRobotIds.begin();
+    while(itd != listConsensusInfoOnRobotIds.end())
+    {
+        if(itd->uRobotId != 99999u && itd->uRobotId != u_ConsensusOnRobotId)
+        {
+            ++itd;
+            continue;
+        }
+
+        std::cout << "Consensus state on robot id " << itd->uRobotId << " is " << itd->consensus_state << std::endl;
+        ++itd;
+    }
+
+    std::cout << std::endl << std::endl;
+}
+
+/******************************************************************************/
+/******************************************************************************/
 
 /******************************************************************************/
 /******************************************************************************/

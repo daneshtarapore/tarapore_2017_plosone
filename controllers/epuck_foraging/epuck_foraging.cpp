@@ -12,21 +12,21 @@
 
 #define DATA_BYTE_BOUND 240.0f
 UInt8 CEPuckForaging::BEACON_SIGNAL = 241;
+UInt8 CEPuckForaging::NEST_BEACON_SIGNAL = 242;
 
-//#define END_BUFFER 240
 
-#define SELF_INFO_PACKET 242 /* used to encompass info of self, be that the proprioceptively computed FVs, the bearings at which neighbours are observed, or proprioceptively computed angular acceleration.*/
-#define SELF_INFO_PACKET_FOOTER 243
+#define SELF_INFO_PACKET 243 /* used to encompass info of self, be that the proprioceptively computed FVs, the bearings at which neighbours are observed, or proprioceptively computed angular acceleration.*/
+#define SELF_INFO_PACKET_FOOTER 244
 
-#define RELAY_FVS_PACKET 244
-#define RELAY_FVS_PACKET_FOOTER 245
+#define RELAY_FVS_PACKET 245
+#define RELAY_FVS_PACKET_FOOTER 246
 
-#define VOTER_PACKET 246
-#define ATTACK_VOTE 247
-#define TOLERATE_VOTE 248
-#define ATTACK_CONSENSUS 249
-#define TOLERATE_CONSENSUS 250
-#define VOTER_PACKET_FOOTER 251
+#define VOTER_PACKET 247
+#define ATTACK_VOTE 248
+#define TOLERATE_VOTE 249
+#define ATTACK_CONSENSUS 250
+#define TOLERATE_CONSENSUS 251
+#define VOTER_PACKET_FOOTER 252
 
 
 #define PROPRIOCEPT_MODE 0
@@ -308,6 +308,7 @@ void CEPuckForaging::CopyRobotDetails(RobotDetails& robdetails)
     CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = robdetails.m_cSoftTurnOnAngleThreshold;
 
     CBehavior::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CBehavior::m_sRobotData.NEST_BEACON_SIGNAL_MARKER      = NEST_BEACON_SIGNAL;
     CBehavior::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
     CBehavior::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
     CBehavior::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
@@ -345,6 +346,7 @@ void CEPuckForaging::CopyRobotDetails(RobotDetails& robdetails)
 
 
     CObservedFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CObservedFeatureVector::m_sRobotData.NEST_BEACON_SIGNAL_MARKER      = NEST_BEACON_SIGNAL;
     CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
     CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
     CObservedFeatureVector::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
@@ -370,6 +372,7 @@ void CEPuckForaging::CopyRobotDetails(RobotDetails& robdetails)
     CBayesianInferenceFeatureVector::m_sRobotData.SetLengthOdometryTimeWindows();
 
     CBayesianInferenceFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CBayesianInferenceFeatureVector::m_sRobotData.NEST_BEACON_SIGNAL_MARKER           = NEST_BEACON_SIGNAL;
     CBayesianInferenceFeatureVector::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
     CBayesianInferenceFeatureVector::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
     CBayesianInferenceFeatureVector::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
@@ -619,6 +622,7 @@ void CEPuckForaging::ControlStep()
 
     SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), listMapFVsToRobotIds_relay);
 #endif
+
     /****************************************/
 
     /*if(m_fInternalRobotTimer >= 2500.0f && m_fInternalRobotTimer <= 3000u && RobotIdStrToInt() == 0)
@@ -683,10 +687,6 @@ void CEPuckForaging::ControlStep()
     }
     /*else
         SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior)); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
-
-
-
-
 }
 
 /****************************************/
@@ -728,6 +728,11 @@ void CEPuckForaging::SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_V
 void CEPuckForaging::Sense(Real m_fProbForget)
 {
 #if FV_MODE == PROPRIOCEPT_MODE
+
+#ifdef ConsensusOnMapOfIDtoFV
+    exit(-1);
+#endif
+
     const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
 
     /* Listen for feature vectors from neighbours */
@@ -743,6 +748,11 @@ void CEPuckForaging::Sense(Real m_fProbForget)
 #endif
 
 #if FV_MODE == OBSERVATION_MODE || FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
+
+#ifdef ConsensusOnMapOfIDtoFV
+    exit(-1);
+#endif
+
     listMapFVsToRobotIds_relay.clear();
     for (size_t i = 0; i < m_cObservationFeatureVector.ObservedRobotIDs.size(); ++i)
     {
@@ -765,7 +775,7 @@ void CEPuckForaging::Sense(Real m_fProbForget)
     UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
 #endif
 
-#if FV_MODE == BAYESIANINFERENCE_MODE
+/*#if FV_MODE == BAYESIANINFERENCE_MODE
     listMapFVsToRobotIds_relay.clear();
     for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
     {
@@ -774,8 +784,6 @@ void CEPuckForaging::Sense(Real m_fProbForget)
         unsigned num_observations = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Min_Number_Featureobservations[i];
 
 
-        /* TODO: When you have multiple FVs for the same robot id; use the fv with the highest min_number_featureobservations
-           So the robot will have to wait for some time in its 100s evaluation interval   */
         listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
 
         //if(robotId == 15)
@@ -785,11 +793,57 @@ void CEPuckForaging::Sense(Real m_fProbForget)
     }
 
     const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
-    bool read_status = ReadFromCommunicationChannel_RelayedFv(tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
+    bool read_status = ReadFromCommunicationChannel_RelayedFv(tmp); // returns true if successfully read id and fvs from at least one neighbour
 
     //remove entries older than 10s
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
     UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
+#endif*/
+
+#if FV_MODE == BAYESIANINFERENCE_MODE
+
+    listMapFVsToRobotIds_relay.clear();
+    for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
+    {
+        unsigned robotId = m_cBayesianInferredFeatureVector.ObservedRobotIDs[i];
+        unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
+        unsigned num_observations = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Min_Number_Featureobservations[i];
+
+//#ifndef ConsensusOnMapOfIDtoFV
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
+//#endif
+
+        //if(robotId == 15)
+        //  std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
+
+#ifndef ConsensusOnMapOfIDtoFV
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+#else
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, RobotIdStrToInt(), fv, robotId, m_fInternalRobotTimer);
+#endif
+    }
+
+    const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
+    bool read_status = ReadFromCommunicationChannel_RelayedFv(tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
+
+    //remove entries older than 10s
+    TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
+
+#ifdef ConsensusOnMapOfIDtoFV
+    SelectBestFVFromAllObservedFVs(listMapFVsToRobotIds, CProprioceptiveFeatureVector::NUMBER_OF_FEATURES, m_pcRNG_FVs);
+#endif
+
+/*#ifdef ConsensusOnMapOfIDtoFV
+    listMapFVsToRobotIds_relay.clear();
+    for(t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin(); itd != listMapFVsToRobotIds.end(); ++itd)
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(itd->uRobotId, -1.0f, itd->uFV));
+#endif*/
+
+    /*if((RobotIdStrToInt() == 2 || RobotIdStrToInt() == 13) && (m_fInternalRobotTimer == 501.0f || m_fInternalRobotTimer == 502.0f))
+        PrintFvToRobotIdMap(RobotIdStrToInt(), listMapFVsToRobotIds, 15);*/
+
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
+
 #endif
 }
 
@@ -903,7 +957,7 @@ void CEPuckForaging::Reset()
     /* Clear up the last exploration result */
     m_eLastExplorationResult = LAST_EXPLORATION_NONE;
     m_pcRABA->ClearData();
-    m_pcRABA->SetData(0, LAST_EXPLORATION_NONE);
+    //m_pcRABA->SetData(0, LAST_EXPLORATION_NONE);
 }
 
 /****************************************/
@@ -1025,6 +1079,12 @@ void CEPuckForaging::RunForagingExperiment()
         /*CPhototaxisBehavior* pCPhototaxisBehavior = new CPhototaxisBehavior();
         m_vecBehaviors.push_back(pCPhototaxisBehavior);*/
 
+
+        /*Real MAX_BEACON_SIGNAL_RANGE = 1.0f; //1m
+        CHomingToFoodBeaconBehavior* pcHomingToNestBeaconBehavior = new CHomingToFoodBeaconBehavior(NEST_BEACON_SIGNAL, MAX_BEACON_SIGNAL_RANGE);
+        m_vecBehaviors.push_back(pcHomingToNestBeaconBehavior);*/
+
+
         CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f);
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
     }
@@ -1047,6 +1107,9 @@ void CEPuckForaging::RestAtNest()
     }
     else
     {
+        /* Send out data with RABS that you are a nest beacon. Neighbouring robots will use this data to home in on your position */
+        //m_pcRABA->SetData(0, NEST_BEACON_SIGNAL);
+
         ++m_sStateData.TimeRested;
     }
 }
@@ -1203,6 +1266,8 @@ void CEPuckForaging::ReturnToNest()
         /* Have we looked for a place long enough? */
         if(m_sStateData.TimeSearchingForPlaceInNest > m_sStateData.MinimumSearchForPlaceInNestTime)
         {
+            // m_pcLEDs->SetAllColors(CColor::YELLOW); if the robot became a nest beacon
+
             /* switch to state 'resting' */
             m_pcLEDs->SetAllColors(CColor::RED);
             m_sStateData.State = SStateData::STATE_RESTING;
@@ -1306,7 +1371,7 @@ void CEPuckForaging::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
 {
     size_t databyte_index;
 
-    if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    if ((m_pcRABA->GetData(0) == BEACON_SIGNAL) || (m_pcRABA->GetData(0) == NEST_BEACON_SIGNAL))
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
     else
@@ -1327,7 +1392,7 @@ void CEPuckForaging::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
     {
         size_t byte_index = 0; unsigned robotId, un_bearing; CRadians bearing;
 
-        if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        if((tPackets[i].Data[0] == BEACON_SIGNAL) || (tPackets[i].Data[0] == NEST_BEACON_SIGNAL)) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
             byte_index = 0;
@@ -1382,7 +1447,7 @@ void CEPuckForaging::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
 {
     size_t databyte_index;
 
-    if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    if ((m_pcRABA->GetData(0) == BEACON_SIGNAL) || (m_pcRABA->GetData(0) == NEST_BEACON_SIGNAL))
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
     else
@@ -1437,7 +1502,7 @@ void CEPuckForaging::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
     size_t databyte_index;
 
     // we now put all the different message types in the same packet - to be sent at the same cycle
-    /*if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    /*if ((m_pcRABA->GetData(0) == BEACON_SIGNAL) || (m_pcRABA->GetData(0) == NEST_BEACON_SIGNAL))
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
     else
@@ -1600,7 +1665,7 @@ bool  CEPuckForaging::ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearin
     {
         size_t byte_index = 0; unsigned robotId, fv;
 
-        if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        if((tPackets[i].Data[0] == BEACON_SIGNAL) || (tPackets[i].Data[0] == NEST_BEACON_SIGNAL)) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
             byte_index = 0;
@@ -1715,7 +1780,17 @@ bool  CEPuckForaging::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
             read_successful = true;
 
+            //UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1); // old information
+#ifndef ConsensusOnMapOfIDtoFV
             UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1); // old information
+#else
+            if(observerId == 999u)
+            {
+                printf("\n observerId was not in packet");
+                exit(-1);
+            }
+            UpdateFvToRobotIdMap(listMapFVsToRobotIds, observerId, fv, robotId, m_fInternalRobotTimer-1);
+#endif
         }
     }
 
@@ -1753,7 +1828,7 @@ bool  CEPuckForaging::ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBear
         size_t byte_index = 0;
         unsigned votertId, fv, attack_tolerate_vote, ConsensusOnRobotId, ConsensusState; unsigned tmp1, tmp2;
 
-        /*if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        /*if((tPackets[i].Data[0] == BEACON_SIGNAL) || (tPackets[i].Data[0] == NEST_BEACON_SIGNAL)) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
         byte_index = 0;*/

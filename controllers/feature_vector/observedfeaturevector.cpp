@@ -149,7 +149,8 @@ unsigned CObservedFeatureVector::SimulationStep()
 
 unsigned CObservedFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index)
 {
-    if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER)
+    if ((rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER) ||
+        (rab_packet[rab_packet_index].Data[0] == m_sRobotData.NEST_BEACON_SIGNAL_MARKER))
     {
         if (rab_packet[rab_packet_index].Data[1] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[1] == m_sRobotData.SELF_INFO_PACKET_MARKER)
         {
@@ -179,7 +180,8 @@ unsigned CObservedFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearingSensor::T
 float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robot_id, CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index, unsigned observerd_robot_id)
 {
     size_t index_start = 0;
-    if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER)
+    if ((rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER) ||
+        (rab_packet[rab_packet_index].Data[0] == m_sRobotData.NEST_BEACON_SIGNAL_MARKER))
         index_start = 1;
 
 
@@ -228,7 +230,8 @@ float CObservedFeatureVector::GetSelfBearingFromRABPacket(unsigned observer_robo
 float CObservedFeatureVector::GetAnguAccelerFromRABPacket(CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index, unsigned observerd_robot_id)
 {
     size_t index_start = 0;
-    if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER)
+    if ((rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER) ||
+        (rab_packet[rab_packet_index].Data[0] == m_sRobotData.NEST_BEACON_SIGNAL_MARKER))
         index_start = 1;
 
 

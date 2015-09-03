@@ -253,4 +253,33 @@ void CForagingLoopFunctions::PostStep()
 /****************************************/
 /****************************************/
 
+void CForagingLoopFunctions::PostExperiment()
+{
+    /* Writing the ids of the beacon robots */
+
+    bool beaconspresent(false);
+
+    m_cOutput << "BeaconRobotIds: " << "\t";
+
+    CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
+    for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
+    {
+        /* Get handle to e-puck entity and controller */
+        CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
+        CEPuckForaging& cController = dynamic_cast<CEPuckForaging&>(cEPuck.GetControllableEntity().GetController());
+
+        if(cController.GetStateData().State == CEPuckForaging::SStateData::STATE_BEACON)
+        {
+            beaconspresent = true;
+            m_cOutput <<  cController.RobotIdStrToInt() << " ";
+        }
+    }
+
+    if(!beaconspresent)
+        m_cOutput << "-1 ";
+}
+
+/****************************************/
+/****************************************/
+
 REGISTER_LOOP_FUNCTIONS(CForagingLoopFunctions, "foraging_loop_functions")

@@ -39,7 +39,7 @@ public:
         Real     INTERWHEEL_DISTANCE, HALF_INTERWHEEL_DISTANCE;
         Real     WHEEL_RADIUS;
 
-        size_t   BEACON_SIGNAL_MARKER;
+        size_t   BEACON_SIGNAL_MARKER, NEST_BEACON_SIGNAL_MARKER;
 
         size_t   SELF_INFO_PACKET_MARKER;
         size_t   SELF_INFO_PACKET_FOOTER_MARKER;

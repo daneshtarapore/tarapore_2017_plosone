@@ -17,21 +17,29 @@
 
 #define DATA_BYTE_BOUND 240.0f
 UInt8 CEPuckHomSwarm::BEACON_SIGNAL = 241;
+UInt8 CEPuckHomSwarm::NEST_BEACON_SIGNAL = 242;
 
-//#define END_BUFFER 240
 
-#define SELF_INFO_PACKET 242 /* used to encompass info of self, be that the proprioceptively computed FVs, the bearings at which neighbours are observed, or proprioceptively computed angular acceleration.*/
-#define SELF_INFO_PACKET_FOOTER 243
+#define SELF_INFO_PACKET 243 /* used to encompass info of self, be that the proprioceptively computed FVs, the bearings at which neighbours are observed, or proprioceptively computed angular acceleration.*/
+#define SELF_INFO_PACKET_FOOTER 244
 
-#define RELAY_FVS_PACKET 244
-#define RELAY_FVS_PACKET_FOOTER 245
+#define RELAY_FVS_PACKET 245
+#define RELAY_FVS_PACKET_FOOTER 246
 
-#define VOTER_PACKET 246
-#define ATTACK_VOTE 247
-#define TOLERATE_VOTE 248
-#define ATTACK_CONSENSUS 249
-#define TOLERATE_CONSENSUS 250
-#define VOTER_PACKET_FOOTER 251
+#define VOTER_PACKET 247
+#define ATTACK_VOTE 248
+#define TOLERATE_VOTE 249
+#define ATTACK_CONSENSUS 250
+#define TOLERATE_CONSENSUS 251
+#define VOTER_PACKET_FOOTER 252
+
+
+#define PROPRIOCEPT_MODE 0
+#define OBSERVATION_MODE 1
+#define COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE 2
+#define BAYESIANINFERENCE_MODE 3
+#define FV_MODE BAYESIANINFERENCE_MODE
+
 
 
 #define PROPRIOCEPT_MODE 0
@@ -318,6 +326,7 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
     CBehavior::m_sRobotData.m_cSoftTurnOnAngleThreshold = robdetails.m_cSoftTurnOnAngleThreshold;
 
     CBehavior::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CBehavior::m_sRobotData.NEST_BEACON_SIGNAL_MARKER      = NEST_BEACON_SIGNAL;
     CBehavior::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
     CBehavior::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
     CBehavior::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
@@ -355,6 +364,7 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
 
 
     CObservedFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CObservedFeatureVector::m_sRobotData.NEST_BEACON_SIGNAL_MARKER      = NEST_BEACON_SIGNAL;
     CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
     CObservedFeatureVector::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
     CObservedFeatureVector::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
@@ -380,6 +390,7 @@ void CEPuckHomSwarm::CopyRobotDetails(RobotDetails& robdetails)
     CBayesianInferenceFeatureVector::m_sRobotData.SetLengthOdometryTimeWindows();
 
     CBayesianInferenceFeatureVector::m_sRobotData.BEACON_SIGNAL_MARKER           = BEACON_SIGNAL;
+    CBayesianInferenceFeatureVector::m_sRobotData.NEST_BEACON_SIGNAL_MARKER      = NEST_BEACON_SIGNAL;
     CBayesianInferenceFeatureVector::m_sRobotData.SELF_INFO_PACKET_MARKER        = SELF_INFO_PACKET;
     CBayesianInferenceFeatureVector::m_sRobotData.SELF_INFO_PACKET_FOOTER_MARKER = SELF_INFO_PACKET_FOOTER;
     CBayesianInferenceFeatureVector::m_sRobotData.RELAY_FVS_PACKET_MARKER        = RELAY_FVS_PACKET;
@@ -643,7 +654,6 @@ void CEPuckHomSwarm::ControlStep()
     m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
 
-
     m_cProprioceptiveFeatureVector.SimulationStep();
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
 
@@ -653,7 +663,7 @@ void CEPuckHomSwarm::ControlStep()
 
     /*encoders give you the speed at the previous tick not current tick */
     m_cBayesianInferredFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
-                                                              m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
+                                                                   m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cBayesianInferredFeatureVector.SimulationStep();
 
     Sense(PROBABILITY_FORGET_FV);
@@ -726,6 +736,11 @@ void CEPuckHomSwarm::ControlStep()
         SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior)); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
 
 
+    if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 5) && ((m_fInternalRobotTimer == 2201.0f || m_fInternalRobotTimer == 2202.0f)  || (m_fInternalRobotTimer == 2501.0f || m_fInternalRobotTimer == 2502.0f)  || (m_fInternalRobotTimer == 3001.0f || m_fInternalRobotTimer == 3002.0f)))
+    {
+        PrintVoterRegistry(RobotIdStrToInt(), listVoteInformationRobots, 3);
+        PrintConsensusRegistry(RobotIdStrToInt(), listConsensusInfoOnRobotIds, 3);
+    }
 
 }
 
@@ -768,6 +783,11 @@ void CEPuckHomSwarm::SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_V
 void CEPuckHomSwarm::Sense(Real m_fProbForget)
 {
 #if FV_MODE == PROPRIOCEPT_MODE
+
+#ifdef ConsensusOnMapOfIDtoFV
+    exit(-1);
+#endif
+
     const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
 
     /* Listen for feature vectors from neighbours */
@@ -783,6 +803,11 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 #endif
 
 #if FV_MODE == OBSERVATION_MODE || FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
+
+#ifdef ConsensusOnMapOfIDtoFV
+    exit(-1);
+#endif
+
     listMapFVsToRobotIds_relay.clear();
     for (size_t i = 0; i < m_cObservationFeatureVector.ObservedRobotIDs.size(); ++i)
     {
@@ -806,6 +831,7 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 #endif
 
 #if FV_MODE == BAYESIANINFERENCE_MODE
+
     listMapFVsToRobotIds_relay.clear();
     for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
     {
@@ -813,15 +839,18 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
         unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
         unsigned num_observations = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Min_Number_Featureobservations[i];
 
-
-        /* TODO: When you have multiple FVs for the same robot id; use the fv with the highest min_number_featureobservations
-           So the robot will have to wait for some time in its 100s evaluation interval   */
+//#ifndef ConsensusOnMapOfIDtoFV
         listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
+//#endif
 
         //if(robotId == 15)
         //  std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
 
+#ifndef ConsensusOnMapOfIDtoFV
         UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+#else
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, RobotIdStrToInt(), fv, robotId, m_fInternalRobotTimer);
+#endif
     }
 
     const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
@@ -829,7 +858,23 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
 
     //remove entries older than 10s
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
+
+#ifdef ConsensusOnMapOfIDtoFV
+    SelectBestFVFromAllObservedFVs(listMapFVsToRobotIds, CProprioceptiveFeatureVector::NUMBER_OF_FEATURES, m_pcRNG_FVs);
+#endif
+
+/*#ifdef ConsensusOnMapOfIDtoFV
+    listMapFVsToRobotIds_relay.clear();
+    for(t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin(); itd != listMapFVsToRobotIds.end(); ++itd)
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(itd->uRobotId, -1.0f, itd->uFV));
+#endif*/
+
+    //if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 5) && (m_fInternalRobotTimer == 2501.0f || m_fInternalRobotTimer == 2502.0f))
+    if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 5) && ((m_fInternalRobotTimer == 2201.0f || m_fInternalRobotTimer == 2202.0f)  || (m_fInternalRobotTimer == 2501.0f || m_fInternalRobotTimer == 2502.0f)  || (m_fInternalRobotTimer == 3001.0f || m_fInternalRobotTimer == 3002.0f)))
+        PrintFvToRobotIdMap(RobotIdStrToInt(), listMapFVsToRobotIds, 3);
+
     UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
+
 #endif
 }
 
@@ -1136,7 +1181,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
 {
     size_t databyte_index;
 
-    if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    if ((m_pcRABA->GetData(0) == BEACON_SIGNAL) || (m_pcRABA->GetData(0) == NEST_BEACON_SIGNAL))
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
     else
@@ -1157,7 +1202,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, const CCI_Rang
     {
         size_t byte_index = 0; unsigned robotId, un_bearing; CRadians bearing;
 
-        if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        if((tPackets[i].Data[0] == BEACON_SIGNAL) || (tPackets[i].Data[0] == NEST_BEACON_SIGNAL)) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
             byte_index = 0;
@@ -1212,7 +1257,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned SelfId, unsigned SelfF
 {
     size_t databyte_index;
 
-    if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    if ((m_pcRABA->GetData(0) == BEACON_SIGNAL) || (m_pcRABA->GetData(0) == NEST_BEACON_SIGNAL))
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
     else
@@ -1267,7 +1312,7 @@ void CEPuckHomSwarm::WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsT
     size_t databyte_index;
 
     // we now put all the different message types in the same packet - to be sent at the same cycle
-    /*if (m_pcRABA->GetData(0) == BEACON_SIGNAL)
+    /*if ((m_pcRABA->GetData(0) == BEACON_SIGNAL) || (m_pcRABA->GetData(0) == NEST_BEACON_SIGNAL))
         // sending out a becon signal at data-byte 0; send the other information on data-bytes 1 onwards
         databyte_index = 1;
     else
@@ -1430,7 +1475,7 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearin
     {
         size_t byte_index = 0; unsigned robotId, fv;
 
-        if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        if((tPackets[i].Data[0] == BEACON_SIGNAL) || (tPackets[i].Data[0] == NEST_BEACON_SIGNAL)) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
             byte_index = 0;
@@ -1545,7 +1590,17 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndB
 
             read_successful = true;
 
+
+#ifndef ConsensusOnMapOfIDtoFV
             UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1); // old information
+#else
+            if(observerId == 999u)
+            {
+                printf("\n observerId was not in packet");
+                exit(-1);
+            }
+            UpdateFvToRobotIdMap(listMapFVsToRobotIds, observerId, fv, robotId, m_fInternalRobotTimer-1);
+#endif
         }
     }
 
@@ -1583,7 +1638,7 @@ bool  CEPuckHomSwarm::ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBear
         size_t byte_index = 0;
         unsigned votertId, fv, attack_tolerate_vote, ConsensusOnRobotId, ConsensusState; unsigned tmp1, tmp2;
 
-        /*if(tPackets[i].Data[0] == BEACON_SIGNAL) // data from a beacon  - get the next two bytes
+        /*if((tPackets[i].Data[0] == BEACON_SIGNAL) || (tPackets[i].Data[0] == NEST_BEACON_SIGNAL)) // data from a beacon  - get the next two bytes
             byte_index = 1;
         else
         byte_index = 0;*/

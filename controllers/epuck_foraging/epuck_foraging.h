@@ -467,6 +467,16 @@ public:
     }
 
     /*
+    * Returns the state data
+    */
+    inline SStateData& GetStateData()
+    {
+        return m_sStateData;
+    }
+
+
+
+    /*
     * Returns the experiment type
     */
     inline ExperimentToRun& GetExperimentType()
@@ -487,7 +497,7 @@ public:
     Real m_fCRM_RUN_TIMESTAMP;
     bool b_CRM_Run;
 
-    static UInt8 BEACON_SIGNAL;
+    static UInt8 BEACON_SIGNAL, NEST_BEACON_SIGNAL;
 
 private:
 

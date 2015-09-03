@@ -16,7 +16,7 @@
     <system threads="0" />
     <experiment length="500"
                 ticks_per_second="10"
-                random_seed="181818" /> 
+                random_seed="111" /> 
   </framework>
 
   <!-- *************** -->
@@ -41,7 +41,7 @@
         <experiment_run swarm_behavior="SWARM_AGGREGATION"
 			swarm_behavior_trans=""
 			time_between_robots_trans_behav="-1.0"
-			fault_behavior="FAULT_RABSENSOR_SETOFFSET" 
+			fault_behavior="FAULT_NONE" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
       </params>
