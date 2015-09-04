@@ -407,7 +407,7 @@ void PrintVoterRegistry(unsigned u_VoterRegistryOfRobotId, t_listVoteInformation
 
         }
 
-        std::cout << "Numbers of attack voters " << itd->attackvote_count << "; tolerate voters " << itd->toleratevote_count << std::endl << std::endl;
+        std::cout << "Numbers of attack voters " << itd->attackvote_count << "; tolerate voters " << itd->toleratevote_count << ". Time consensus reached " << itd->fTimeConsensusReached << std::endl << std::endl;
         ++itd;
     }
 }

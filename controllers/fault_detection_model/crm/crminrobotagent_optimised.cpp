@@ -1410,9 +1410,12 @@ void CRMinRobotAgentOptimised::PrintFeatureVectorDistribution(unsigned int id)
         return;
 
     t_listFVsSensed::iterator it;
-    printf("\n====R%d Feature Vector Distribution=====\n",GetIdentification());
+    //printf("\n====R%d Feature Vector Distribution=====\n",GetIdentification());
+    std::cerr << "====R" << GetIdentification() << " Feature Vector Distribution=====" <<  std::endl;
     for (it = ptr_listFVsSensed->begin(); it != ptr_listFVsSensed->end(); ++it)
-        printf("FV:%d, Robots:%f ",(*it).uFV, (*it).fRobots);
+        //printf("FV:%d, Robots:%f ",(*it).uFV, (*it).fRobots);
+        std::cerr << "FV: " << (*it).uFV << " Robots: " << (*it).fRobots << std::endl;
+    std::cerr << std::endl;
 }
 
 /******************************************************************************/

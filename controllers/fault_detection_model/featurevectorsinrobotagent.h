@@ -65,13 +65,15 @@ struct DetailedInformationFVsSensed
     unsigned int uFV;
     double       fTimeSensed;
 
-    //double       f_TimesAttacked, f_TimesTolerated; //! we count the number of times the fv uFV is attacked / tolerated according to the CRM. During the last X time-steps, we send out the vote depending on what is in the majority???
+    double       f_TimesAttacked, f_TimesTolerated; //! we count the number of times the fv uFV is attacked / tolerated according to the CRM. During the last X time-steps, we send out the vote depending on what is in the majority???
 
     DetailedInformationFVsSensed(unsigned int robotid, double timesensed, unsigned int fv)
     {
         uFV         = fv;
         uRobotId    = robotid;
         fTimeSensed = timesensed;
+
+        f_TimesAttacked = 0.0f; f_TimesTolerated = 0.0f;
     }
 
 
@@ -143,6 +145,8 @@ struct VoteInformationRobots
     std::list <unsigned> uVoterIds;
     unsigned attackvote_count;
     unsigned toleratevote_count;
+    Real fTimeConsensusReached;
+
 
     VoteInformationRobots(unsigned Id, unsigned voterId, unsigned attack_tolerate_vote)
     {
@@ -150,6 +154,8 @@ struct VoteInformationRobots
 
         uVoterIds.clear();
         uVoterIds.push_back(voterId);
+
+        fTimeConsensusReached = 100000.0;
 
 
         attackvote_count = 0; toleratevote_count = 0;

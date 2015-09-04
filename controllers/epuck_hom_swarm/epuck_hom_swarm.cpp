@@ -63,12 +63,12 @@ UInt8 CEPuckHomSwarm::NEST_BEACON_SIGNAL = 242;
 /*
  * The results of the CRM are valid for atmost 10s in the absence of any FVs to run the CRM
  */
-#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds // assume the robot behaviors have not changed in the last 10s
+#define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds // assume the robot behaviors have not changed in the last 10s // can we remove this.
 
 /*
  * The vote counts and consensus are valid for atmost 10s before being refreshed
  */
-#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds //1.0f
+#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds //10.0f
 
 /****************************************/
 /****************************************/
@@ -672,16 +672,6 @@ void CEPuckHomSwarm::ControlStep()
 #endif
     /****************************************/
 
-//    if(m_fInternalRobotTimer >= 3500.0f && m_fInternalRobotTimer <= 5000u && RobotIdStrToInt() == 4)
-//    {
-//        for(t_listMapFVsToRobotIds::iterator it_fv = listMapFVsToRobotIds.begin(); it_fv != listMapFVsToRobotIds.end(); ++it_fv)
-//        {
-//            std::cout << "Map: id " << it_fv->uRobotId  << " to fv " << it_fv->uFV  << " time sensed " << it_fv->fTimeSensed << std::endl << std::endl;
-//        }
-//    }
-
-
-
     if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u)
         // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
     {
@@ -692,9 +682,7 @@ void CEPuckHomSwarm::ControlStep()
         /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
     {
         /* Listen for voting packets and consensus packets from neighbours*/
-        //printf(" ReceiveVotesAndConsensus(); \n\n\n");
         ReceiveVotesAndConsensus();
-        //printf(" Finished ReceiveVotesAndConsensus(); \n\n\n");
         EstablishConsensus();
     }
 
@@ -727,19 +715,20 @@ void CEPuckHomSwarm::ControlStep()
     {
         if ((m_fInternalRobotTimer > MODELSTARTTIME)) // && (unsigned)m_fInternalRobotTimer%2u == 1)
         {
-            //printf(" SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); \n\n\n");
             SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); // only send CRM results if they are valid
-            //printf(" Finished SendCRMResultsAndConsensusToNeighbours(b_CRM_Run); \n\n\n");
         }
     }
-    /*else
-        SendIdSelfBearingAndObsFVsToNeighbours(GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior)); */ /* we need to send the robot id on the range and bearing sensors all the time - as gaps in data reception are not programmed for */
 
 
-    if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 5) && ((m_fInternalRobotTimer == 2201.0f || m_fInternalRobotTimer == 2202.0f)  || (m_fInternalRobotTimer == 2501.0f || m_fInternalRobotTimer == 2502.0f)  || (m_fInternalRobotTimer == 3001.0f || m_fInternalRobotTimer == 3002.0f)))
+    if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 13) && ((m_fInternalRobotTimer == 1701.0f || m_fInternalRobotTimer == 1702.0f)  || (m_fInternalRobotTimer == 1801.0f || m_fInternalRobotTimer == 1802.0f)  || (m_fInternalRobotTimer == 1901.0f || m_fInternalRobotTimer == 1902.0f)))
     {
-        PrintVoterRegistry(RobotIdStrToInt(), listVoteInformationRobots, 3);
-        PrintConsensusRegistry(RobotIdStrToInt(), listConsensusInfoOnRobotIds, 3);
+        PrintVoterRegistry(RobotIdStrToInt(), listVoteInformationRobots, 9);
+        PrintConsensusRegistry(RobotIdStrToInt(), listConsensusInfoOnRobotIds, 9);
+    }
+
+    if((RobotIdStrToInt() == 0) && ((m_fInternalRobotTimer == 1701.0f || m_fInternalRobotTimer == 1702.0f)  || (m_fInternalRobotTimer == 1801.0f || m_fInternalRobotTimer == 1802.0f)  || (m_fInternalRobotTimer == 1901.0f || m_fInternalRobotTimer == 1902.0f)))
+    {
+        crminAgent->PrintFeatureVectorDistribution(0);
     }
 
 }
@@ -839,9 +828,9 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
         unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
         unsigned num_observations = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Min_Number_Featureobservations[i];
 
-//#ifndef ConsensusOnMapOfIDtoFV
+#ifndef ConsensusOnMapOfIDtoFV
         listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
-//#endif
+#endif
 
         //if(robotId == 15)
         //  std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
@@ -863,15 +852,20 @@ void CEPuckHomSwarm::Sense(Real m_fProbForget)
     SelectBestFVFromAllObservedFVs(listMapFVsToRobotIds, CProprioceptiveFeatureVector::NUMBER_OF_FEATURES, m_pcRNG_FVs);
 #endif
 
-/*#ifdef ConsensusOnMapOfIDtoFV
+#ifdef ConsensusOnMapOfIDtoFV
     listMapFVsToRobotIds_relay.clear();
     for(t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin(); itd != listMapFVsToRobotIds.end(); ++itd)
-        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(itd->uRobotId, -1.0f, itd->uFV));
-#endif*/
+        for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
+        {
+            if(itd->uRobotId == m_cBayesianInferredFeatureVector.ObservedRobotIDs[i])
+                listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(itd->uRobotId, m_fInternalRobotTimer, itd->uFV));
+        }
+#endif
 
-    //if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 5) && (m_fInternalRobotTimer == 2501.0f || m_fInternalRobotTimer == 2502.0f))
-    if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 5) && ((m_fInternalRobotTimer == 2201.0f || m_fInternalRobotTimer == 2202.0f)  || (m_fInternalRobotTimer == 2501.0f || m_fInternalRobotTimer == 2502.0f)  || (m_fInternalRobotTimer == 3001.0f || m_fInternalRobotTimer == 3002.0f)))
-        PrintFvToRobotIdMap(RobotIdStrToInt(), listMapFVsToRobotIds, 3);
+
+    if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 13) && ((m_fInternalRobotTimer == 1701.0f || m_fInternalRobotTimer == 1702.0f)  || (m_fInternalRobotTimer == 1801.0f || m_fInternalRobotTimer == 1802.0f)  || (m_fInternalRobotTimer == 1901.0f || m_fInternalRobotTimer == 1902.0f)))
+    //if(RobotIdStrToInt() == 6)
+        PrintFvToRobotIdMap(RobotIdStrToInt(), listMapFVsToRobotIds, 9);
 
     UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
 
@@ -946,7 +940,7 @@ void CEPuckHomSwarm::EstablishConsensus()
                     }
                 }*/
 
-
+                it_vot->fTimeConsensusReached = m_fInternalRobotTimer;
                 listConsensusInfoOnRobotIds.push_back(ConsensusInformationRobots(it_vot->uRobotId,
                                                                                  (it_vot->attackvote_count > it_vot->toleratevote_count)?1u:2u)); /* if equal votes, we tolerate robot*/
             }
