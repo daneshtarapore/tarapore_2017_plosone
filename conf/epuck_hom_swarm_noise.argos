@@ -38,10 +38,10 @@
         <differential_steering implementation="default" vel_noise_range="-0.1:0.1"  dist_noise_range="-1.0:1.0" />
       </sensors>
       <params>
-        <experiment_run swarm_behavior="SWARM_AGGREGATION"
+        <experiment_run swarm_behavior="SWARM_DISPERSION"
 			swarm_behavior_trans=""
 			time_between_robots_trans_behav="-1.0"
-			fault_behavior="FAULT_NONE" 
+			fault_behavior="FAULT_RABSENSOR_SETOFFSET" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
       </params>
@@ -118,7 +118,7 @@
       <position method="uniform" min="-1.5,-1.5,0" max="1.5,1.5,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
       <entity quantity="20" max_trials="100">
-        <e-puck id="ep" rab_data_size="200" rab_range="1">    <!-- using a high bandwidth of 100 bytes for now -->
+        <e-puck id="ep" rab_data_size="200" rab_range="1">    <!-- using a high bandwidth of 200 bytes for now -->
           <controller config="ehs" />
         </e-puck>
       </entity>

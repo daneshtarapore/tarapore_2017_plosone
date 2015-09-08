@@ -275,6 +275,7 @@ void PrintFvToRobotIdMap(unsigned u_MapOfRobotId, t_listMapFVsToRobotIds &listMa
 
 /******************************************************************************/
 /******************************************************************************/
+#ifdef ConsensusOnMapOfIDtoFV
 
 void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listMapFVsToRobotIds, unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs)
 {
@@ -285,6 +286,102 @@ void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listMapFVsToRobotIds
         ++itd;
     }
 }
+#endif
+
+/******************************************************************************/
+/******************************************************************************/
+
+void IntegrateAttackTolerateDecisions(t_listMapFVsToRobotIds   &listMapFVsToRobotIds,
+                                      unsigned fv,
+                                      unsigned attack_tolerate_prevote)
+{
+    t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
+    while(itd != listMapFVsToRobotIds.end())
+    {
+        if(itd->uFV == fv)
+        {
+            if (attack_tolerate_prevote == 1)
+                itd->f_TimesAttacked+= 1.0f;
+            else
+                itd->f_TimesTolerated+= 1.0f;
+        }
+        ++itd;
+    }
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+void UpdateVoterRegistry(t_listVoteInformationRobots   &listVoteInformationRobots,
+                         t_listConsensusInfoOnRobotIds &listConsensusInfoOnRobotIds,
+                         unsigned voter_id,
+                         unsigned votedon_id,
+                         unsigned attack_tolerate_vote)
+{
+
+    /* Read the voter id:
+     * Followed by <id, ATTACK_VOTE / TOLERATE_VOTE > or <id, ATTACK_CONSENSUS / TOLERATE_CONSENSUS >
+     * If a vote is received,
+     *                      1. if votedon_id is in listConsensusInfoOnRobotIds, ignore vote for this robot id.
+     *                      2. if voter id has voted on votedon_id before, ignore vote.
+    */
+
+
+    /* map the fv to the robot id  (one-many function) */
+    unsigned mappedRobotId = votedon_id;
+
+    /* if mapped robot id is in listConsensusInfoOnRobotIds, ignore vote for this robot id. */
+    bool b_ConsensusReachedOnId(false);
+    for(t_listConsensusInfoOnRobotIds::iterator it_cons  = listConsensusInfoOnRobotIds.begin(); it_cons != listConsensusInfoOnRobotIds.end(); ++it_cons)
+    {
+        if(it_cons->uRobotId == mappedRobotId)
+        {
+            b_ConsensusReachedOnId = (true);
+            break;
+        }
+    }
+
+    if(b_ConsensusReachedOnId)
+        return;
+
+    /* consensus has not yet been reached for mappedRobotId. lets vote*/
+    bool b_MappedRobotVotedOnBefore(false);
+    for(t_listVoteInformationRobots::iterator it_vote = listVoteInformationRobots.begin(); it_vote != listVoteInformationRobots.end(); ++it_vote)
+    {
+        /* robot is on the list of robots being voted on */
+        if(it_vote->uRobotId == mappedRobotId)
+        {
+            b_MappedRobotVotedOnBefore = (true);
+
+            /* if voter id has voted on mapped robot id before, ignore vote */
+            bool b_VoterIdHasVotedBefore(false);
+            for(std::list<unsigned>::iterator it_voterids = it_vote->uVoterIds.begin(); it_voterids != it_vote->uVoterIds.end(); ++it_voterids)
+            {
+                if((*it_voterids) == voter_id) /* yes voterid has voted before on mappedrobotid - ignore this vote */
+                {
+                    b_VoterIdHasVotedBefore = (true);
+                    break;
+                }
+            }
+
+            if(!b_VoterIdHasVotedBefore) /* no voterid has not voted before on mappedrobotid - ignore this vote */
+            {
+                it_vote->uVoterIds.push_back(voter_id);
+
+                if (attack_tolerate_vote == 1)
+                    it_vote->attackvote_count++;
+                else
+                    it_vote->toleratevote_count++;
+            }
+
+            break; /* robots on the list of robots being voted on, are unique */
+        }
+    }
+
+    /* if mappedRobotId robot has not been voted on before, lets vote */
+    if(!b_MappedRobotVotedOnBefore)
+        listVoteInformationRobots.push_back(VoteInformationRobots(mappedRobotId, voter_id, attack_tolerate_vote));
+}
 
 /******************************************************************************/
 /******************************************************************************/
@@ -294,7 +391,7 @@ void UpdateVoterRegistry(t_listVoteInformationRobots   &listVoteInformationRobot
                          t_listConsensusInfoOnRobotIds &listConsensusInfoOnRobotIds,
                          unsigned voter_id,
                          unsigned fv,
-                         unsigned attack_tolerate_vote)
+                         unsigned attack_tolerate_vote, bool filterownersvote) // filterownersvote set if filter enabled and robot is casting vote based on its own CRM decisions as opposed to casting proxy votes (nbrs send their crm decision on fv. robot maps these decisions to corresponding robot ids) from neighbours.
 {
 
     /* Read the voter id:
@@ -310,6 +407,14 @@ void UpdateVoterRegistry(t_listVoteInformationRobots   &listVoteInformationRobot
     {
         if(it_map->uFV == fv)
         {
+            if(filterownersvote)
+            {
+                if (it_map->f_TimesAttacked / (it_map->f_TimesAttacked + it_map->f_TimesTolerated) > 0.5f)
+                    attack_tolerate_vote = 1;
+                else
+                    attack_tolerate_vote = 2;
+            }
+
             b_IdForFvFound = (true);
 
             /* map the fv to the robot id  (one-many function) */

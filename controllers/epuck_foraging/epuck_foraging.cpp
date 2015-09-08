@@ -81,6 +81,11 @@ CEPuckForaging::ExperimentToRun::ExperimentToRun() :
 
 void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
 {
+#ifdef VOTESONROBOTID
+    printf("VOTESONROBOTID");
+    exit(-1);
+#endif
+
     std::string swarmbehav, errorbehav;
 
     try

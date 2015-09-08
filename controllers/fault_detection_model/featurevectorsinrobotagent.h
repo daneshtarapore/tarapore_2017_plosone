@@ -18,7 +18,12 @@
 /******************************************************************************/
 /******************************************************************************/
 
-#define ConsensusOnMapOfIDtoFV
+//#define ConsensusOnMapOfIDtoFV
+//#define ConsensusOnMapOfIDtoFV_SupraOneThreshold 0.5f //0.35f seems to work better. think of way to automate threshold, giving probabilistic weights to feature set
+
+#define FILTER_BEFORE_VOTE // 90% decision making 10% voting and consensus
+
+//#define VOTESONROBOTID // not fv
 
 /******************************************************************************/
 /******************************************************************************/
@@ -65,7 +70,7 @@ struct DetailedInformationFVsSensed
     unsigned int uFV;
     double       fTimeSensed;
 
-    double       f_TimesAttacked, f_TimesTolerated; //! we count the number of times the fv uFV is attacked / tolerated according to the CRM. During the last X time-steps, we send out the vote depending on what is in the majority???
+    double       f_TimesAttacked, f_TimesTolerated; //! we count the number of times the fv uFV is attacked / tolerated according to the CRM. During the last X time-steps, we only send out the vote near the end of the vote compilation period.
 
     DetailedInformationFVsSensed(unsigned int robotid, double timesensed, unsigned int fv)
     {
@@ -99,30 +104,25 @@ struct DetailedInformationFVsSensed
         vec_ObservedRobotFVs.push_back(fv);
     }
 
+#ifdef ConsensusOnMapOfIDtoFV
     void SelectBestFVFromAllObservedFVs(unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs)
     {
-        std::vector <int> vec_countbestfeatures(u_NumFeatures, 0);
+        std::vector <Real> vec_countfeatures_one(u_NumFeatures, 0);
+        std::vector <Real> vec_countfeatures_zero(u_NumFeatures, 0);
 
         for (size_t fv_index = 0; fv_index < vec_ObservedRobotFVs.size(); ++fv_index)
-        {
             for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
-            {
-                vec_countbestfeatures[feature_index] += ((vec_ObservedRobotFVs[fv_index] >> feature_index) & 0x1) ? 1 : -1;
-            }
-        }
+                ((vec_ObservedRobotFVs[fv_index] >> feature_index) & 0x1) ? vec_countfeatures_one[feature_index] += 1.0f : vec_countfeatures_zero[feature_index] += 1.0f;
+
 
         uFV = 0u;
         for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
         {
-            if(vec_countbestfeatures[feature_index] > 0)
+            if((vec_countfeatures_one[feature_index] / (vec_countfeatures_one[feature_index] + vec_countfeatures_zero[feature_index]))  >= ConsensusOnMapOfIDtoFV_SupraOneThreshold)
                 uFV += (1 << feature_index);
-            else if(vec_countbestfeatures[feature_index] == 0)
-            {
-                if (m_pcRNG_FVs->Uniform(CRange<Real>(0.0f, 1.0f)) > 0.5f)
-                    uFV += (1 << feature_index);
-            }
         }
     }
+#endif
 };
 
 
@@ -205,11 +205,30 @@ void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listDetailedInformationFVsSens
  *
  *
  */
+void IntegrateAttackTolerateDecisions(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
+                                      unsigned fv,
+                                      unsigned attack_tolerate_prevote);
+
+
+/*
+ * voting on decisions communicated to you directly on robot ids.
+ *
+ */
+void UpdateVoterRegistry(t_listVoteInformationRobots   &listVoteInformationRobots,
+                         t_listConsensusInfoOnRobotIds &listConsensusInfoOnRobotIds,
+                         unsigned voter_id,
+                         unsigned votedon_id,
+                         unsigned attack_tolerate_vote);
+
+/*
+ * voting on decisions communicated to you on fvs, that you map to robot ids and then vote
+ *
+ */
 void UpdateVoterRegistry(t_listVoteInformationRobots   &listVoteInformationRobots,
                          t_listMapFVsToRobotIds   &listMapFVsToRobotIds,
                          t_listConsensusInfoOnRobotIds &listConsensusInfoOnRobotIds,
                          unsigned voter_id, unsigned fv,
-                         unsigned attack_tolerate_vote);
+                         unsigned attack_tolerate_vote, bool filterownersvote = false);
 
 
 /*
