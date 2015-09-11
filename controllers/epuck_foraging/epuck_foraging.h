@@ -84,6 +84,7 @@
 /****************************************/
 /* Definition of functions to assimilate the different feature-vectors and perform abnormality detection */
 
+#include "sensingandcommunication.h"
 #include "featurevectorsinrobotagent.h"
 #include "crminrobotagent_optimised.h"
 
@@ -324,73 +325,73 @@ public:
      *
      *
      */
-    virtual void SendIdSelfBearingAndObsFVsToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
+    //virtual void SendIdSelfBearingAndObsFVsToNeighbours(const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
 
     /*
      *
      *
     */
-    virtual void SendFVsToNeighbours();
+    //virtual void SendFVsToNeighbours();
 
 
     /*
      *
      *
      */
-    virtual void WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings &tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay);
+    //virtual void WriteToCommunicationChannel(unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings &tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay);
 
     /*
      *
      *
      */
-    virtual void WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
+    //virtual void WriteToCommunicationChannel(unsigned SelfId, unsigned SelfFV, t_listMapFVsToRobotIds& IdToFVsMap_torelay);
 
     /*
      *
      *
      */
-    virtual void WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
-                                             t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid);
+    //virtual void WriteToCommunicationChannel(unsigned VoterId, t_listMapFVsToRobotIds& MapFVsToRobotIds,
+    //                                         t_listFVsSensed& CRMResultsOnFVDist, t_listConsensusInfoOnRobotIds& ConsensusLst, bool b_CRM_Results_Valid);
 
     /*
      *
      */
-    virtual bool ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearingSensor::TReadings& tPackets);
-
-
-    /*
-     *
-     */
-    virtual bool ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndBearingSensor::TReadings& tPackets);
+    //virtual bool ReadFromCommunicationChannel_IdFv(const CCI_RangeAndBearingSensor::TReadings& tPackets);
 
 
     /*
      *
      */
-    virtual bool ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBearingSensor::TReadings& tPackets);
+    //virtual bool ReadFromCommunicationChannel_RelayedFv(const CCI_RangeAndBearingSensor::TReadings& tPackets);
+
+
+    /*
+     *
+     */
+    //virtual bool ReadFromCommunicationChannel_VotCon(const CCI_RangeAndBearingSensor::TReadings& tPackets);
 
     /*
     * This function is called once every time step.
     * It listens for feature-vectors at the current time-step and then assimilates them into the robot's internal feature-vector distribution.
     */
-    virtual void Sense(Real m_fProbForget);
+    //virtual void Sense(Real m_fProbForget);
 
     /*
      *
      */
-    virtual void ReceiveVotesAndConsensus();
+    //virtual void ReceiveVotesAndConsensus();
 
     /*
      *
      */
-    virtual void EstablishConsensus();
+    //virtual void EstablishConsensus();
 
 
     /*
      *
      *
      */
-    virtual void SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_Valid);
+    //virtual void SendCRMResultsAndConsensusToNeighbours(bool b_CRM_Results_Valid);
 
 
     /*
@@ -497,7 +498,7 @@ public:
     Real m_fCRM_RUN_TIMESTAMP;
     bool b_CRM_Run;
 
-    static UInt8 BEACON_SIGNAL, NEST_BEACON_SIGNAL;
+    // static UInt8 BEACON_SIGNAL, NEST_BEACON_SIGNAL;
 
 private:
 

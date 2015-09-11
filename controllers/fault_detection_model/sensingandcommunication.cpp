@@ -3,32 +3,148 @@
 
 
 
-void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
-         CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector,
-         CObservedFeatureVector &m_cObservationFeatureVector, CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector)
+/****************************************/
+/****************************************/
+
+void Sense(Real m_fProbForget,
+           unsigned RobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
+           Real m_fInternalRobotTimer, CCI_RangeAndBearingSensor::TReadings &rabsensor_readings,
+           t_listMapFVsToRobotIds& listMapFVsToRobotIds, t_listMapFVsToRobotIds& listMapFVsToRobotIds_relay, t_listFVsSensed& listFVsSensed,
+           t_listVoteInformationRobots&  listVoteInformationRobots, t_listConsensusInfoOnRobotIds& listConsensusInfoOnRobotIds,
+           CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector, CObservedFeatureVector &m_cObservationFeatureVector,
+           CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector, CRandom::CRNG* m_pcRNG_FVs)
 {
+#if FV_MODE == PROPRIOCEPT_MODE
+
+#ifdef ConsensusOnMapOfIDtoFV
+    exit(-1);
+#endif
+
+    const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
+
+    /* Listen for feature vectors from neighbours */
+    /* Read the id and proprioceptively computed FV of your neighbours. Read from communication channel and stored in listMapFVsToRobotIds */
+    /* Mark these read FVs as to be relayed. Stored separately in listMapFVsToRobotIds_relay */
+    /* Also read the the id and fvs relayed by your neighbours, timstamped to behavior at the previous control cycle. Read from communication channel and stored in listMapFVsToRobotIds */
+    bool read_status = ReadFromCommunicationChannel_IdFv(m_fInternalRobotTimer, listMapFVsToRobotIds_relay, listMapFVsToRobotIds, tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
+
+
+    TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS); /*remove entries older than 10s */
+
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
+#endif
+
+#if FV_MODE == OBSERVATION_MODE || FV_MODE == COMBINED_PROPRIOCEPTIVE_OBSERVATION_MODE
+
+#ifdef ConsensusOnMapOfIDtoFV
+    exit(-1);
+#endif
+
+    listMapFVsToRobotIds_relay.clear();
+    for (size_t i = 0; i < m_cObservationFeatureVector.ObservedRobotIDs.size(); ++i)
+    {
+        unsigned robotId = m_cObservationFeatureVector.ObservedRobotIDs[i];
+        unsigned fv      = m_cObservationFeatureVector.ObservedRobotFVs[i];
+
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
+
+        //if(robotId == 15)
+        //  std::cerr << "Observer: " << m_uRobotId << " ObservedId " << robotId << " ObservedFV " << fv << std::endl;
+
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+    }
+
+    const CCI_RangeAndBearingSensor::TReadings& tmp = GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
+    bool read_status = ReadFromCommunicationChannel_RelayedFv(m_fInternalRobotTimer, listMapFVsToRobotIds, tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
+
+    //remove entries older than 10s
+    TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CBehavior::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
+#endif
+
+#if FV_MODE == BAYESIANINFERENCE_MODE
+
+    listMapFVsToRobotIds_relay.clear();
+    for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
+    {
+        unsigned robotId = m_cBayesianInferredFeatureVector.ObservedRobotIDs[i];
+        unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
+        unsigned num_observations = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Min_Number_Featureobservations[i];
+
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
+
+
+#ifndef ConsensusOnMapOfIDtoFV
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+#else
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, RobotId, fv, robotId, m_fInternalRobotTimer);
+#endif
+    }
+
+    const CCI_RangeAndBearingSensor::TReadings& tmp = rabsensor_readings; //GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior);
+    bool read_status = ReadFromCommunicationChannel_RelayedFv(m_fInternalRobotTimer, listMapFVsToRobotIds, tmp); /* returns true if successfully read id and fvs from at least one neighbour*/
+
+    //remove entries older than 10s
+    TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
+
+#ifdef ConsensusOnMapOfIDtoFV
+    SelectBestFVFromAllObservedFVs(listMapFVsToRobotIds, CProprioceptiveFeatureVector::NUMBER_OF_FEATURES, m_pcRNG_FVs);
+#endif
+
+
+    /*if((RobotIdStrToInt() == 6 || RobotIdStrToInt() == 13) && ((m_fInternalRobotTimer == 1701.0f || m_fInternalRobotTimer == 1702.0f)  || (m_fInternalRobotTimer == 1801.0f || m_fInternalRobotTimer == 1802.0f)  || (m_fInternalRobotTimer == 1901.0f || m_fInternalRobotTimer == 1902.0f)))
+    //if(RobotIdStrToInt() == 6)
+        PrintFvToRobotIdMap(RobotIdStrToInt(), listMapFVsToRobotIds, 9);*/
+
+    UpdaterFvDistribution(listFVsSensed, listMapFVsToRobotIds, m_pcRNG_FVs, m_fProbForget); // update listFVsSensed
+
+#endif
+}
+
+/****************************************/
+/****************************************/
+
+void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pcRABA, CCI_DifferentialSteeringSensor* m_pcWheelsEncoder,
+         Real m_fInternalRobotTimer, CCI_RangeAndBearingSensor::TReadings &rabsensor_readings,
+         t_listMapFVsToRobotIds& listMapFVsToRobotIds, t_listMapFVsToRobotIds& listMapFVsToRobotIds_relay, t_listFVsSensed& listFVsSensed,
+         t_listVoteInformationRobots&  listVoteInformationRobots, t_listConsensusInfoOnRobotIds& listConsensusInfoOnRobotIds,
+         CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector,
+         CObservedFeatureVector &m_cObservationFeatureVector, CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector,
+         bool b_CRM_Run, Real m_fCRM_RUN_TIMESTAMP, CRMinRobotAgentOptimised* crminAgent, CRandom::CRNG* m_pcRNG_FVs, unsigned& m_uRobotFV)
+{
+    unsigned m_uRobotId;
+
+
     /****************************************/
 #if FV_MODE == PROPRIOCEPT_MODE
 
     /* Estimate feature-vectors - proprioceptively */
 
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotId, m_fInternalRobotTimer, rabsensor_readings,
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cProprioceptiveFeatureVector.SimulationStep();
 
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue(); // to debug
-    m_uRobotId = RobotIdStrToInt();
+    m_uRobotId = RobotId; //RobotIdStrToInt();
 
     /* Communicate your id and proprioceptively computed FV to whoever is in range, using the RAB sensor*/
     /* Also relay the id and fvs of neighbours, received by you in the previous control cycle */
     //if ((unsigned)m_fInternalRobotTimer%2u == 0)
 
     //printf(" SendFVsToNeighbours() \n\n\n");
-    SendFVsToNeighbours();
+    //SendFVsToNeighbours();
+    SendFVsToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector,
+                        RobotId, listMapFVsToRobotIds_relay);
 
     /* Listen for robot ids + feature vectors from neighbours and then assimilate them  */
     //printf(" Sense(PROBABILITY_FORGET_FV); \n\n\n");
-    Sense(PROBABILITY_FORGET_FV);
+    Sense(PROBABILITY_FORGET_FV, RobotId, m_pcRABA,
+          m_fInternalRobotTimer, rabsensor_readings,
+          listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed,
+          listVoteInformationRobots, listConsensusInfoOnRobotIds,
+          m_cProprioceptiveFeatureVector, m_cObservationFeatureVector,
+          m_cBayesianInferredFeatureVector, m_pcRNG_FVs);
+
 #endif
     /****************************************/
 
@@ -41,7 +157,7 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
     /*m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                                  leftSpeed, rightSpeed);*/
     /*encoders give you the speed at the previous tick not current tick */
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotId, m_fInternalRobotTimer, rabsensor_readings,
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
 
 
@@ -49,25 +165,31 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
 
     /* Estimate feature-vectors - via observation */
-    m_uRobotId = RobotIdStrToInt();
+    m_uRobotId = RobotId; //RobotIdStrToInt();
 
 
     /*m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
                                                               leftSpeed, rightSpeed);*/
     /*encoders give you the speed at the previous tick not current tick */
-    m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
+    m_cObservationFeatureVector.m_sSensoryData.SetSensoryData(RobotId, m_fInternalRobotTimer, rabsensor_readings,
                                                               m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cObservationFeatureVector.SimulationStep();
 
-    Sense(PROBABILITY_FORGET_FV);
+    Sense(PROBABILITY_FORGET_FV, RobotId, m_pcRABA,
+          m_fInternalRobotTimer, rabsensor_readings,
+          listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed,
+          listVoteInformationRobots, listConsensusInfoOnRobotIds,
+          m_cProprioceptiveFeatureVector, m_cObservationFeatureVector,
+          m_cBayesianInferredFeatureVector, m_pcRNG_FVs);
+
 
     //if ( ((unsigned)m_fInternalRobotTimer%2u == 0) || (m_fInternalRobotTimer <= MODELSTARTTIME))
     /*
      * Send the robot id and the bearing at which it observes its different neighbours. Also relay the observed FVs
      */
 
-    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector, RobotIdStrToInt(),
-                                           GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), listMapFVsToRobotIds_relay);
+    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector, RobotId,
+                                           rabsensor_readings, listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
 
@@ -76,25 +198,30 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
 
     /* Estimating FVs proprioceptively - to be used for computing angular acceleration*/
     /*encoders give you the speed at the previous tick not current tick */
-    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
+    m_cProprioceptiveFeatureVector.m_sSensoryData.SetSensoryData(RobotId, m_fInternalRobotTimer, rabsensor_readings,
                                                                  m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
 
     m_cProprioceptiveFeatureVector.SimulationStep();
     m_uRobotFV = m_cProprioceptiveFeatureVector.GetValue();
 
     /* Estimate feature-vectors - via observation */
-    m_uRobotId = RobotIdStrToInt();
+    m_uRobotId = RobotId; //RobotIdStrToInt();
 
 
     /*encoders give you the speed at the previous tick not current tick */
-    m_cBayesianInferredFeatureVector.m_sSensoryData.SetSensoryData(RobotIdStrToInt(), m_fInternalRobotTimer, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior),
+    m_cBayesianInferredFeatureVector.m_sSensoryData.SetSensoryData(RobotId, m_fInternalRobotTimer, rabsensor_readings,
                                                                    m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
     m_cBayesianInferredFeatureVector.SimulationStep();
 
-    Sense(PROBABILITY_FORGET_FV);
+    Sense(PROBABILITY_FORGET_FV, RobotId, m_pcRABA,
+          m_fInternalRobotTimer, rabsensor_readings,
+          listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed,
+          listVoteInformationRobots, listConsensusInfoOnRobotIds,
+          m_cProprioceptiveFeatureVector, m_cObservationFeatureVector,
+          m_cBayesianInferredFeatureVector, m_pcRNG_FVs);
 
-    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector, RobotIdStrToInt(),
-                                           GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), listMapFVsToRobotIds_relay);
+    SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector, RobotId,
+                                           rabsensor_readings, listMapFVsToRobotIds_relay);
 #endif
     /****************************************/
 
@@ -108,7 +235,7 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
         /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
     {
         /* Listen for voting packets and consensus packets from neighbours*/
-        ReceiveVotesAndConsensus(listVoteInformationRobots, listMapFVsToRobotIds, listConsensusInfoOnRobotIds, GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
+        ReceiveVotesAndConsensus(listVoteInformationRobots, listMapFVsToRobotIds, listConsensusInfoOnRobotIds, rabsensor_readings);
         EstablishConsensus(m_fInternalRobotTimer, listVoteInformationRobots, listConsensusInfoOnRobotIds);
     }
 
@@ -134,7 +261,7 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
             UpdateVoterRegistry(listVoteInformationRobots,
                                 listMapFVsToRobotIds,
                                 listConsensusInfoOnRobotIds,
-                                RobotIdStrToInt(), it_fv->uFV, it_fv->uMostWantedState);
+                                RobotId, it_fv->uFV, it_fv->uMostWantedState);
 #else
             Real m_fVoteCompilationStartTime = (Real)(((unsigned)m_fInternalRobotTimer)/
                                                  ((unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second))) *
@@ -146,7 +273,7 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
                 UpdateVoterRegistry(listVoteInformationRobots,
                                     listMapFVsToRobotIds,
                                     listConsensusInfoOnRobotIds,
-                                    RobotIdStrToInt(), it_fv->uFV, it_fv->uMostWantedState, true);
+                                    RobotId, it_fv->uFV, it_fv->uMostWantedState, true);
             }
             else
             {
@@ -163,12 +290,11 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
         {
 #ifndef FILTER_BEFORE_VOTE
             SendCRMResultsAndConsensusToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector,
-                                                   RobotIdStrToInt(), listMapFVsToRobotIds,
-                                                   listFVsSensed, listConsensusInfoOnRobotIds, b_CRM_Run); // only send CRM results if they are valid
+                                                   RobotId, listMapFVsToRobotIds, listFVsSensed, listConsensusInfoOnRobotIds, b_CRM_Run); // only send CRM results if they are valid
 #else
             Real m_fVoteCompilationStartTime = (Real)(((unsigned)m_fInternalRobotTimer)/
-                                                 ((unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second))) *
-                                          (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second);
+                                                      ((unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second))) *
+                                               (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second);
 
 
             if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) > 0.9f)
@@ -192,7 +318,7 @@ void tmp(unsigned m_uRobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
                     }
                 }
                 SendCRMResultsAndConsensusToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector,
-                                                       RobotIdStrToInt(), listMapFVsToRobotIds,
+                                                       RobotId, listMapFVsToRobotIds,
                                                        listFVsSensed, listConsensusInfoOnRobotIds, b_CRM_Run); // only send CRM results if they are valid
             }
 #endif

@@ -17,6 +17,12 @@
 /* Definition of the range and bearing sensor */
 #include <argos3/plugins/robots/generic/control_interface/ci_range_and_bearing_sensor.h>
 
+/* Definition of the differential steering actuator */
+#include <argos3/plugins/robots/generic/control_interface/ci_differential_steering_actuator.h>
+
+/* Definition of the differential steering wheel encoder */
+#include <argos3/plugins/robots/generic/control_interface/ci_differential_steering_sensor.h>
+
 /* Definitions for random number generation */
 #include <argos3/core/utility/math/rng.h>
 
@@ -37,6 +43,12 @@
 
 /****************************************/
 /****************************************/
+
+#include "crminrobotagent_optimised.h"
+
+/****************************************/
+/****************************************/
+
 
 #define DATA_BYTE_BOUND 240.0f
 #define BEACON_SIGNAL 241
@@ -97,8 +109,29 @@
 using namespace argos;
 
 
+/*
+ *
+ */
+void Sense(Real m_fProbForget,
+           unsigned RobotId, CCI_RangeAndBearingActuator*  m_pcRABA,
+           Real m_fInternalRobotTimer, CCI_RangeAndBearingSensor::TReadings &rabsensor_readings,
+           t_listMapFVsToRobotIds& listMapFVsToRobotIds, t_listMapFVsToRobotIds& listMapFVsToRobotIds_relay, t_listFVsSensed& listFVsSensed,
+           t_listVoteInformationRobots&  listVoteInformationRobots, t_listConsensusInfoOnRobotIds& listConsensusInfoOnRobotIds,
+           CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector, CObservedFeatureVector &m_cObservationFeatureVector,
+           CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector, CRandom::CRNG* m_pcRNG_FVs);
 
-void tmp(unsigned RobotId, CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector, CObservedFeatureVector &m_cObservationFeatureVector, CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector);
+
+/*
+ *
+ */
+void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pcRABA, CCI_DifferentialSteeringSensor* m_pcWheelsEncoder,
+         Real m_fInternalRobotTimer, CCI_RangeAndBearingSensor::TReadings &rabsensor_readings,
+         t_listMapFVsToRobotIds& MapFVsToRobotIds, t_listMapFVsToRobotIds& MapFVsToRobotIds_Relay, t_listFVsSensed& CRMResultsOnFVDist,
+         t_listVoteInformationRobots&  VoteInformationRobots, t_listConsensusInfoOnRobotIds& ConsensusLst,
+         CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector,
+         CObservedFeatureVector &m_cObservationFeatureVector, CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector,
+         bool b_CRM_Run, Real m_fCRM_RUN_TIMESTAMP, CRMinRobotAgentOptimised* crminAgent, CRandom::CRNG* m_pcRNG_FVs, unsigned& m_uRobotFV);
+
 
 /*
  *

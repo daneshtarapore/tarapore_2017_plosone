@@ -312,7 +312,7 @@ public:
     * This function is called once every time step.
     * It listens for feature-vectors at the current time-step and then assimilates them into the robot's internal feature-vector distribution.
     */
-    virtual void Sense(Real m_fProbForget);
+    //virtual void Sense(Real m_fProbForget);
 
     /*
      *
