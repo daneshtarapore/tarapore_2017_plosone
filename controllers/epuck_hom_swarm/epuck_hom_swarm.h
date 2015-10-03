@@ -387,6 +387,11 @@ public:
         return m_cObservationFeatureVector;
     }
 
+    inline unsigned SetNumEPuckRobotsInSwarm(unsigned num_epucks)
+    {
+        u_num_epucks = num_epucks;
+    }
+
 
     t_listFVsSensed&             GetListFVsSensed()         {return listFVsSensed;}
     t_listMapFVsToRobotIds&      GetMapFVsSensed()          {return listMapFVsToRobotIds;}
@@ -647,6 +652,8 @@ private:
     SWheelTurningParams m_sWheelTurningParams;
 
     unsigned m_uRobotId, m_uRobotFV;
+
+    unsigned u_num_epucks; // number of epucks in swarm
 };
 
 #endif

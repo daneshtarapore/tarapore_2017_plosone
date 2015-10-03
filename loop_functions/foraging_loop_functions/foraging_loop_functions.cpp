@@ -48,6 +48,23 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
    }
    catch(CARGoSException& ex)
       THROW_ARGOSEXCEPTION_NESTED("Error parsing foraging loop function.", ex);
+
+
+    // counting the number of robots in the swarm
+    u_num_epucks = 0u;
+    CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
+    for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
+    {
+        u_num_epucks++;
+    }
+
+    for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
+    {
+        /* Get handle to e-puck entity and controller */
+        CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
+        CEPuckForaging& cController = dynamic_cast<CEPuckForaging&>(cEPuck.GetControllableEntity().GetController());
+        cController.SetNumEPuckRobotsInSwarm(u_num_epucks);
+    }
 }
 
 /****************************************/
@@ -238,13 +255,13 @@ void CForagingLoopFunctions::PostStep()
         m_cOutput << "Consensus_Tolerators: ";
         for (std::list<unsigned>::iterator it_tolcon = list_Consensus_Tolerators.begin(); it_tolcon != list_Consensus_Tolerators.end(); ++it_tolcon)
             m_cOutput << (*it_tolcon) << " ";
-        for (int i = 0; i < 20 - list_Consensus_Tolerators.size(); ++i)
+        for (int i = 0; i < u_num_epucks - list_Consensus_Tolerators.size(); ++i)
             m_cOutput << " -1 ";
 
         m_cOutput <<  "\t" << "Consensus_Attackers: ";
         for (std::list<unsigned>::iterator it_atkcon = list_Consensus_Attackers.begin(); it_atkcon != list_Consensus_Attackers.end(); ++it_atkcon)
             m_cOutput << (*it_atkcon) << " ";
-        for (int i = 0; i < 20 - list_Consensus_Attackers.size(); ++i)
+        for (int i = 0; i < u_num_epucks - list_Consensus_Attackers.size(); ++i)
             m_cOutput << " -1 ";
         m_cOutput << std::endl;
     }

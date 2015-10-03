@@ -31,6 +31,7 @@ private:
    std::string m_strOutput;
    std::ofstream m_cOutput;
 
+   unsigned u_num_epucks;
 
 
 //   unsigned int     m_unCoordCurrQueueIndex, CurrentStepNumber;

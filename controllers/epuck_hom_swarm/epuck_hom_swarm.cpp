@@ -1153,6 +1153,12 @@ void CEPuckHomSwarm::Reset()
 unsigned CEPuckHomSwarm::RobotIdStrToInt()
 {
     std::string id = GetId();
+    id.erase(0, 2); // remove the first two characters
+
+    std::string::size_type sz;   // alias of size_t
+    unsigned u_id = std::stoi(id, &sz);
+    return u_id;
+
 
     if(id.compare("ep0")==0)
         return 0;
