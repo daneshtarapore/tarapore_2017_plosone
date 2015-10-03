@@ -94,7 +94,7 @@ CEPuckHomSwarm::ExperimentToRun::ExperimentToRun() :
 {
     robot_ids_behav1.clear(); robot_ids_behav2.clear();
 
-    for(unsigned id = 0; id < 20; ++id)
+    for(unsigned id = 0; id < u_num_epucks; ++id)
         robot_ids_behav1.push_back(id);
 }
 
