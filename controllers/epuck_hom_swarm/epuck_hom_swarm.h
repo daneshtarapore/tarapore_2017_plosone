@@ -115,7 +115,7 @@ public:
 
         enum SwarmBehavior SBehavior_Trans, SBehavior_Current; Real time_between_robots_trans_behav;
         std::list <unsigned> robot_ids_behav1; std::list <unsigned> robot_ids_behav2;
-
+        unsigned u_num_epucks; // number of epucks in swarm
 
         /* The possible faults on robot */
         enum FaultBehavior
@@ -155,6 +155,13 @@ public:
 
         ExperimentToRun();
         void Init(TConfigurationNode& t_node);
+
+        inline unsigned SetNumEPuckRobotsInSwarm(unsigned num_epucks)
+        {
+            u_num_epucks = num_epucks;
+        }
+
+
     };
 
     /*
@@ -385,11 +392,6 @@ public:
     virtual CObservedFeatureVector& GetObservedFeatureVectors()
     {
         return m_cObservationFeatureVector;
-    }
-
-    inline unsigned SetNumEPuckRobotsInSwarm(unsigned num_epucks)
-    {
-        u_num_epucks = num_epucks;
     }
 
 
@@ -653,7 +655,6 @@ private:
 
     unsigned m_uRobotId, m_uRobotFV;
 
-    unsigned u_num_epucks; // number of epucks in swarm
 };
 
 #endif

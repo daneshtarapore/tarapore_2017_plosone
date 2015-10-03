@@ -55,7 +55,7 @@ void CHomSwarmLoopFunctions::Init(TConfigurationNode& t_node)
         /* Get handle to e-puck entity and controller */
         CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
         CEPuckHomSwarm& cController = dynamic_cast<CEPuckHomSwarm&>(cEPuck.GetControllableEntity().GetController());
-        cController.SetNumEPuckRobotsInSwarm(u_num_epucks);
+        cController.GetExperimentType().SetNumEPuckRobotsInSwarm(u_num_epucks);
     }
 }
 

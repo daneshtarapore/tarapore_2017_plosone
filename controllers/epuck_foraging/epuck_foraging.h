@@ -151,8 +151,15 @@ public:
 
         std::string id_FaultyRobotInSwarm;
 
+        unsigned u_num_epucks; // number of epucks in swarm
+
         ExperimentToRun();
         void Init(TConfigurationNode& t_node);
+
+        inline unsigned SetNumEPuckRobotsInSwarm(unsigned num_epucks)
+        {
+            u_num_epucks = num_epucks;
+        }
     };
 
 
@@ -485,11 +492,6 @@ public:
         return m_sExpRun;
     }
 
-    inline unsigned SetNumEPuckRobotsInSwarm(unsigned num_epucks)
-    {
-        u_num_epucks = num_epucks;
-    }
-
     virtual CObservedFeatureVector& GetObservedFeatureVectors()
     {
         return m_cObservationFeatureVector;
@@ -804,8 +806,6 @@ private:
     SFoodData m_sFoodData;
 
     unsigned m_uRobotId, m_uRobotFV;
-
-    unsigned u_num_epucks; // number of epucks in swarm
 };
 
 #endif

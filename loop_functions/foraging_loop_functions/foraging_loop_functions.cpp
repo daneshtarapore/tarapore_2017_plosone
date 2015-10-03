@@ -63,7 +63,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
         /* Get handle to e-puck entity and controller */
         CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
         CEPuckForaging& cController = dynamic_cast<CEPuckForaging&>(cEPuck.GetControllableEntity().GetController());
-        cController.SetNumEPuckRobotsInSwarm(u_num_epucks);
+        cController.GetExperimentType().SetNumEPuckRobotsInSwarm(u_num_epucks);
     }
 }
 
