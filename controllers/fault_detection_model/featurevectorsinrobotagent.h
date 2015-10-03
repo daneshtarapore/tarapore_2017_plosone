@@ -19,11 +19,12 @@
 /******************************************************************************/
 
 //#define ConsensusOnMapOfIDtoFV
-//#define ConsensusOnMapOfIDtoFV_SupraOneThreshold 0.5f //0.35f seems to work better. think of way to automate threshold, giving probabilistic weights to feature set
+//#define ConsensusOnMapOfIDtoFV_Threshold 0.75 // threshold which determines the strength of the consensus. a behavior feature value requires more than 75% votes for that value for consensus to be established.
 
-#define FILTER_BEFORE_VOTE // 90% decision making 10% voting and consensus
 
-//#define VOTESONROBOTID // not fv
+//#define FILTER_BEFORE_VOTE // 90% decision making 10% voting and consensus
+
+#define VOTESONROBOTID // not fv
 
 /******************************************************************************/
 /******************************************************************************/
@@ -43,7 +44,7 @@ struct StructFVsSensed
                                    // 2:  Tolerate
 
     // proportion of the past time-steps when the FV would have been deemed as abnormal
-    //double fSuspicious; //we are now going to use a history of previously sensed feature vectors
+    // double fSuspicious; //we are now going to use a history of previously sensed feature vectors
 
     StructFVsSensed(unsigned int fv, double density)
     {
@@ -105,21 +106,51 @@ struct DetailedInformationFVsSensed
     }
 
 #ifdef ConsensusOnMapOfIDtoFV
-    void SelectBestFVFromAllObservedFVs(unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs)
+    void SelectBestFVFromAllObservedFVs(unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs, unsigned uSelfRobotId)
     {
         std::vector <Real> vec_countfeatures_one(u_NumFeatures, 0);
         std::vector <Real> vec_countfeatures_zero(u_NumFeatures, 0);
+        std::vector <Real> vec_countfeatures_maxvotes(u_NumFeatures, 0);
+
 
         for (size_t fv_index = 0; fv_index < vec_ObservedRobotFVs.size(); ++fv_index)
             for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
+            {
                 ((vec_ObservedRobotFVs[fv_index] >> feature_index) & 0x1) ? vec_countfeatures_one[feature_index] += 1.0f : vec_countfeatures_zero[feature_index] += 1.0f;
+                vec_countfeatures_maxvotes[feature_index] = std::max(vec_countfeatures_one[feature_index], vec_countfeatures_zero[feature_index]) /
+                                                                    (vec_countfeatures_one[feature_index] + vec_countfeatures_zero[feature_index]);
+            }
 
-
-        uFV = 0u;
+        bool strengthofconsensus(true);
         for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
+            if(vec_countfeatures_maxvotes[feature_index] < ConsensusOnMapOfIDtoFV_Threshold)
+                strengthofconsensus = false;
+
+
+        if(strengthofconsensus)
         {
-            if((vec_countfeatures_one[feature_index] / (vec_countfeatures_one[feature_index] + vec_countfeatures_zero[feature_index]))  >= ConsensusOnMapOfIDtoFV_SupraOneThreshold)
-                uFV += (1 << feature_index);
+            uFV = 0u;
+            for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
+            {
+                if((vec_countfeatures_one[feature_index] / (vec_countfeatures_one[feature_index] + vec_countfeatures_zero[feature_index]))  >= 0.5)
+                    uFV += (1 << feature_index);
+            }
+        }
+        else
+        {
+            bool selfobservationmade(false);
+            for (size_t fv_index = 0; fv_index < vec_ObservedRobotFVs.size(); ++fv_index)
+            {
+                 if(vec_ObserverRobotIds[fv_index] == uSelfRobotId)
+                 {
+                     uFV = vec_ObservedRobotFVs[fv_index];
+                     selfobservationmade = true;
+                     break;
+                 }
+            }
+
+            if(selfobservationmade == false)
+                uFV = 999u;
         }
     }
 #endif
@@ -261,7 +292,7 @@ void PrintConsensusRegistry(unsigned u_ConsensusRegistryOfRobotId, t_listConsens
 /*
  * Select the best feature value for each feature from all the observered feature-vectors for each map entry.
  */
-void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listDetailedInformationFVsSensed, unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs);
+void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listDetailedInformationFVsSensed, unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs, unsigned uSelfRobotId);
 
 /******************************************************************************/
 /******************************************************************************/

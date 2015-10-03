@@ -495,8 +495,6 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                                        std::min(number_featureobservations_2, number_featureobservations_3)),
                                               std::min(number_featureobservations_4, number_featureobservations_5));
 
-
-
     max_posterior_variance = std::max(sensclosePrior_Gaussian_variance / (FEATURE_RANGE - 0.0f), sensfarPrior_Gaussian_variance / (FEATURE_RANGE - FEATURE_RANGE/2.0f));
 
     /* for porportion time nbr there in last 10s

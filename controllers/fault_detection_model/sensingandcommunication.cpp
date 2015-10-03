@@ -88,7 +88,7 @@ void Sense(Real m_fProbForget,
     TrimFvToRobotIdMap(listMapFVsToRobotIds, m_fInternalRobotTimer, CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second * CRM_RESULTS_VALIDFOR_SECONDS);
 
 #ifdef ConsensusOnMapOfIDtoFV
-    SelectBestFVFromAllObservedFVs(listMapFVsToRobotIds, CProprioceptiveFeatureVector::NUMBER_OF_FEATURES, m_pcRNG_FVs);
+    SelectBestFVFromAllObservedFVs(listMapFVsToRobotIds, CProprioceptiveFeatureVector::NUMBER_OF_FEATURES, m_pcRNG_FVs, RobotId);
 #endif
 
 
@@ -635,7 +635,7 @@ void WriteToCommunicationChannel(CCI_RangeAndBearingActuator*  m_pcRABA, CPropri
             break;
         }
 #else
-        for (t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
+        for (t_listMapFVsToRobotIds::iterator it_map = MapFVsToRobotIds.begin(); it_map != MapFVsToRobotIds.end(); ++it_map)
         {
             if(it_map->uFV ==  it_fvdist->uFV)
             {

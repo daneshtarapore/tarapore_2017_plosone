@@ -31,9 +31,13 @@ void UpdaterFvDistribution(t_listFVsSensed &listFVsSensed, t_listMapFVsToRobotId
     t_listFVsSensed tmp_list = t_listFVsSensed(listFVsSensed.begin(), listFVsSensed.end());
 
     listFVsSensed.clear();
+
     // updated listFVsSensed distribution with the most recent number of robots for different FVs.
     for(t_listMapFVsToRobotIds::iterator it_map = listMapFVsToRobotIds.begin(); it_map != listMapFVsToRobotIds.end(); ++it_map)
     {
+        if(it_map->uFV == 999u) // a stron enough consensus has not been reached to determine the one or more value of features of this feature vector.
+            continue;
+
         double increment = 1.0f;
 
         bool b_EntryInserted(false);
@@ -178,8 +182,8 @@ void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
         }
     }
 
-    if(!robot_present) // if the list is empty or the robot with given id is not present in the list
-        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(ObserverRobotId, ObservedRobotId, timesensed, fv));
+    if(!robot_present) // if the list is empty or the robot with given id is not present in the list. we set the fv to 999u, a value that will never be reached. so if consensus is not reached on the fv, we know about it from this value.
+        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(ObserverRobotId, ObservedRobotId, timesensed, 999u));
 }
 
 /******************************************************************************/
@@ -277,12 +281,12 @@ void PrintFvToRobotIdMap(unsigned u_MapOfRobotId, t_listMapFVsToRobotIds &listMa
 /******************************************************************************/
 #ifdef ConsensusOnMapOfIDtoFV
 
-void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listMapFVsToRobotIds, unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs)
+void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listMapFVsToRobotIds, unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs, unsigned uSelfRobotId)
 {
     t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
     while(itd != listMapFVsToRobotIds.end())
     {
-        itd->SelectBestFVFromAllObservedFVs(u_NumFeatures, m_pcRNG_FVs);
+        itd->SelectBestFVFromAllObservedFVs(u_NumFeatures, m_pcRNG_FVs, uSelfRobotId);
         ++itd;
     }
 }
