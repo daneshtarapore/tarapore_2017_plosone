@@ -8,8 +8,6 @@
 /****************************************/
 
 CForagingLoopFunctions::CForagingLoopFunctions() :
-   m_cForagingArenaSideX(1.0f, 1.2f),
-   m_cForagingArenaSideY(-1.2f, 1.2f),
    m_pcFloor(NULL),
    m_pcRNG(NULL),
    m_unCollectedFood(0)
@@ -31,14 +29,20 @@ void CForagingLoopFunctions::Init(TConfigurationNode& t_node)
       GetNodeAttribute(tForaging, "items", unFoodItems);
       /* Get the number of food items we want to be scattered from XML */
       GetNodeAttribute(tForaging, "radius", m_fFoodSquareRadius);
+
+      GetNodeAttribute(tForaging, "arenalength", fArenaLength);
+      m_cForagingArenaSideX = CRange<Real>((1.0f / 3.0f) * fArenaLength, (fArenaLength / 2.0f) - 0.3f);
+      m_cForagingArenaSideY = CRange<Real>(-((fArenaLength / 2.0f) - 0.3f), (fArenaLength / 2.0f) - 0.3f);
+
+      m_fFoodSquareRadius *= (fArenaLength / 3.0f); // normalise resource patch to arena length
       m_fFoodSquareRadius *= m_fFoodSquareRadius;
+
       /* Create a new RNG */
       m_pcRNG = CRandom::CreateRNG("argos");
       /* Distribute uniformly the items in the environment */
       for(UInt32 i = 0; i < unFoodItems; ++i)
-         m_cFoodPos.push_back(
-            CVector2(m_pcRNG->Uniform(m_cForagingArenaSideX),
-                     m_pcRNG->Uniform(m_cForagingArenaSideY)));
+         m_cFoodPos.push_back(CVector2(m_pcRNG->Uniform(m_cForagingArenaSideX),
+                                       m_pcRNG->Uniform(m_cForagingArenaSideY)));
 
       /* Get the output file name from XML */
       GetNodeAttribute(tForaging, "output", m_strOutput);
@@ -172,7 +176,7 @@ void CForagingLoopFunctions::Destroy()
 
 CColor CForagingLoopFunctions::GetFloorColor(const CVector2& c_position_on_plane) // used to paint the floor by the floor entity
 {
-   if(c_position_on_plane.GetX() < -1.0f)
+   if(c_position_on_plane.GetX() < -((1.0f / 3.0f) * fArenaLength))
       return CColor::GRAY50;
 
    for(UInt32 i = 0; i < m_cFoodPos.size(); ++i)

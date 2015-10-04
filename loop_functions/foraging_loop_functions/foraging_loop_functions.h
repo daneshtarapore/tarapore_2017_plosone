@@ -41,6 +41,7 @@ private:
 //   UInt32 m_unEnergyPerWalkingRobot;
 
    unsigned u_num_epucks;
+   Real fArenaLength;
 };
 
 #endif

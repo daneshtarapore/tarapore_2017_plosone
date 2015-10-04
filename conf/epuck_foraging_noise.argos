@@ -59,6 +59,7 @@
                   label="foraging_loop_functions">
     <foraging items="1"
               radius="0.1"
+	      arenalength="3.0"
               output="nohup.txt" />
   </loop_functions>
 
