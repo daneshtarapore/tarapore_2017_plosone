@@ -144,7 +144,7 @@ public:
         }
 
         void ComputeFeatureValues();
-        Real CountNeighbors(Real lb_sensor_range, Real hb_sensor_range, Real &dist_nearest_nbr, Real &CoM_nbrs);
+        Real CountNeighbors(Real lb_sensor_range, Real hb_sensor_range, Real &dist_nearest_nbr, Real &CoM_nbrs, Real* Range_ObserverToObserved=NULL);
         void EstimateOdometry();
         Real TrackRobotDisplacement(Real step, Real observed_range, CRadians observed_bearing, CRadians self_delta_orientation, std::vector<RobotRelativePosData>& displacement_vector, bool b_DataAvailable);
         bool GetObservedRobotRangeBearing(Real& observedRobotId_1_Range, CRadians& observedRobotId_1_Bearing, Real &observedRobotId_1_SelfBearingORAngularAcceleration);
@@ -158,14 +158,14 @@ public:
 
 
             /* Sensor motor interactions. Motor reactions in the presence of sensor input from nbrs, and in the absence of sensor input from nbrs. Associated with the belief  */
-            sensmotPrior_Beta_a = 1u;   sensmotPrior_Beta_b = 1u;
-            nosensmotPrior_Beta_a = 1u; nosensmotPrior_Beta_b = 1u;
+            sensmotPrior_Beta_a = 1u;   sensmotPrior_Beta_b = 19u; //1u
+            nosensmotPrior_Beta_a = 1u; nosensmotPrior_Beta_b = 19u; //1u
 
 
             /* prior pertaining to actuation - i.e. distance travelled by robot in past 10s. Associated to the belief, is the robot moving large distances? */
             motPrior_Gaussian_mu = 25.0f; motPrior_Gaussian_variance = 50.0f; // robot moves 0.5 cm /tick, so in 100  ticks the max distance covered is 50cm.
             /* prior pertaining to motor reactions irrespective of sensor input. How does the robot react in a general sense */
-            irrespsensmotPrior_Beta_a = 1u; irrespsensmotPrior_Beta_b = 1u;
+            irrespsensmotPrior_Beta_a = 1u; irrespsensmotPrior_Beta_b = 19u; //1u
 
 
             /* prior pertaining to sensing - i.e. number of neighbours in close and far proximity. Associated to the belief, is the robot part of a small aggregate?, and is the robot part of a large aggregate?  */
@@ -277,7 +277,7 @@ public:
 
     virtual unsigned SimulationStep();
 
-    virtual unsigned GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index);
+    virtual unsigned GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index, unsigned *range = NULL);
     virtual float    GetAnguAccelerFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index, unsigned observerd_robot_id);
 
 
@@ -287,7 +287,9 @@ public:
     typedef std::list <BayesInference_ObservedRobots_FeatureVector> t_ListObservedRobots;
     t_ListObservedRobots m_pcListObservedRobots;
 
-    std::vector<unsigned> ObservedRobotIDs, ObservedRobotFVs, ObservedRobotFVs_Min_Number_Featureobservations;
+    std::vector<unsigned> ObservedRobotIDs; std::vector<Real> ObservedRobotIDs_range;
+    std::vector<unsigned> ObservedRobotFVs, ObservedRobotFVs_Min_Number_Featureobservations;
+    std::vector<unsigned> ObservedRobotFVs_Number_Featureobservations_SM, ObservedRobotFVs_Number_Featureobservations_nSM, ObservedRobotFVs_Number_Featureobservations_M;
 
 
 

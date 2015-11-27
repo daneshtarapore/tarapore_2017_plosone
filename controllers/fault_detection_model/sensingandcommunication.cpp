@@ -63,21 +63,50 @@ void Sense(Real m_fProbForget,
 #endif
 
 #if FV_MODE == BAYESIANINFERENCE_MODE
-
     listMapFVsToRobotIds_relay.clear();
     for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
     {
         unsigned robotId = m_cBayesianInferredFeatureVector.ObservedRobotIDs[i];
         unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
-        unsigned num_observations = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Min_Number_Featureobservations[i];
 
-        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv));
 
+        unsigned num_obs_sm  = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Number_Featureobservations_SM[i];
+        unsigned num_obs_nsm = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Number_Featureobservations_nSM[i];
+        unsigned num_obs_m   = m_cBayesianInferredFeatureVector.ObservedRobotFVs_Number_Featureobservations_M[i];
+
+//        if(((int)(((Real)num_obs_sm) / 20.0f - 1.0f) > (int)DATA_BYTE_BOUND))
+//            num_obs_sm = (unsigned)DATA_BYTE_BOUND;
+//        else if(((int)(((Real)num_obs_sm) / 20.0f - 1.0f) < 0))
+//            num_obs_sm = 0;
+//        else
+//            num_obs_sm = (unsigned)(((Real)num_obs_sm) / 20.0f - 1.0f);
+
+//        if(((int)(((Real)num_obs_nsm) / 20.0f - 1.0f) > (int)DATA_BYTE_BOUND))
+//            num_obs_nsm = (unsigned)DATA_BYTE_BOUND;
+//        else if(((int)(((Real)num_obs_nsm) / 20.0f - 1.0f) < 0))
+//            num_obs_nsm = 0;
+//        else
+//            num_obs_nsm = (unsigned)(((Real)num_obs_nsm) / 20.0f - 1.0f);
+
+//        if(((int)(((Real)num_obs_m) / 20.0f - 1.0f) > (int)DATA_BYTE_BOUND))
+//            num_obs_m = (unsigned)DATA_BYTE_BOUND;
+//        else if(((int)(((Real)num_obs_m) / 20.0f - 1.0f) < 0))
+//            num_obs_m = 0;
+//        else
+//            num_obs_m = (unsigned)(((Real)num_obs_m) / 20.0f - 1.0f);
+
+        listMapFVsToRobotIds_relay.push_back(DetailedInformationFVsSensed(robotId, m_fInternalRobotTimer, fv,
+                                                                          m_cBayesianInferredFeatureVector.ObservedRobotIDs_range[i],
+                                                                          num_obs_sm, num_obs_nsm, num_obs_m));
 
 #ifndef ConsensusOnMapOfIDtoFV
-        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer);
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer,
+                             m_cBayesianInferredFeatureVector.ObservedRobotIDs_range[i],
+                             num_obs_sm, num_obs_nsm, num_obs_m);
 #else
-        UpdateFvToRobotIdMap(listMapFVsToRobotIds, RobotId, fv, robotId, m_fInternalRobotTimer);
+        UpdateFvToRobotIdMap(listMapFVsToRobotIds, RobotId, fv, robotId, m_fInternalRobotTimer,
+                             m_cBayesianInferredFeatureVector.ObservedRobotIDs_range[i],
+                             num_obs_sm, num_obs_nsm, num_obs_m);
 #endif
     }
 
@@ -225,6 +254,9 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
 #endif
     /****************************************/
 
+
+    /****************************************/
+
     if(((unsigned)m_fInternalRobotTimer % (unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) == 0u)
         // to avoid consensus already in the medium to establish itself in the next step. when the robot clocks are not in sync, this period would have to be longer than just 2 iterations
     {
@@ -244,8 +276,7 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
     if (b_CRM_Run && (TimeSinceCRM > CRM_RESULTS_VALIDFOR_SECONDS)) /* the results of the CRM are no longer valid */
         b_CRM_Run = false;
 
-    if((m_fInternalRobotTimer > MODELSTARTTIME) && (listFVsSensed.size() > 0))
-        // the robot has atleast had one FV entry in its distribution. if not the CRM will crash.
+    if((m_fInternalRobotTimer > MODELSTARTTIME) && (listFVsSensed.size() > 0))    // the robot has atleast had one FV entry in its distribution. if not the CRM will crash.
     {
         crminAgent->SimulationStepUpdatePosition(m_fInternalRobotTimer, &listFVsSensed);
         b_CRM_Run = true;
@@ -335,6 +366,15 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
     if((RobotIdStrToInt() == 0) && ((m_fInternalRobotTimer == 1701.0f || m_fInternalRobotTimer == 1702.0f)  || (m_fInternalRobotTimer == 1801.0f || m_fInternalRobotTimer == 1802.0f)  || (m_fInternalRobotTimer == 1901.0f || m_fInternalRobotTimer == 1902.0f)))
     {
         crminAgent->PrintFeatureVectorDistribution(0);
+    }*/
+
+    /*if(RobotId == 15 && (m_fInternalRobotTimer >= 801 && m_fInternalRobotTimer <= 805))
+    {
+        PrintFvToRobotIdMap(15, listMapFVsToRobotIds);
+
+        PrintVoterRegistry(15, listVoteInformationRobots);
+
+        PrintConsensusRegistry(15, listConsensusInfoOnRobotIds);
     }*/
 }
 
@@ -452,6 +492,21 @@ void WriteToCommunicationChannel(CCI_RangeAndBearingActuator*  m_pcRABA,  CPropr
     {
         m_pcRABA->SetData(databyte_index++, it->uRobotId);
         m_pcRABA->SetData(databyte_index++, it->uFV);
+
+        // additional information on quality of information uRange, uNumobs_sm, uNumobs_nsm, uNumobs_m;
+        m_pcRABA->SetData(databyte_index++, (it->uRange > 100)?100:it->uRange);
+
+        m_pcRABA->SetData(databyte_index++, it->uNumobs_sm  > (unsigned)DATA_BYTE_BOUND?(unsigned)DATA_BYTE_BOUND:it->uNumobs_sm);
+        m_pcRABA->SetData(databyte_index++, it->uNumobs_nsm > (unsigned)DATA_BYTE_BOUND?(unsigned)DATA_BYTE_BOUND:it->uNumobs_nsm);
+        m_pcRABA->SetData(databyte_index++, it->uNumobs_m   > (unsigned)DATA_BYTE_BOUND?(unsigned)DATA_BYTE_BOUND:it->uNumobs_m);
+
+    }
+
+
+    if(databyte_index >= m_pcRABA->GetSize()-1)
+    {
+        std::cerr << " buffer_full " << " WriteToCommunicationChannel(CCI_RangeAndBearingActuator*  m_pcRABA,  CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector,        CObservedFeatureVector &m_cObservationFeatureVector, CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector,unsigned SelfId, const CCI_RangeAndBearingSensor::TReadings& tPackets, t_listMapFVsToRobotIds &IdToFVsMap_torelay) ";
+        exit(-1);
     }
     m_pcRABA->SetData(databyte_index, RELAY_FVS_PACKET_FOOTER);
 }
@@ -751,6 +806,7 @@ bool ReadFromCommunicationChannel_RelayedFv(Real m_fInternalRobotTimer, t_listMa
     for(size_t i = 0; i < tPackets.size(); ++i)
     {
         size_t byte_index = 0;  unsigned robotId, fv, observerId = 999u;
+        unsigned range = DATA_BYTE_BOUND+1, numobs_sm = DATA_BYTE_BOUND+1, numobs_nsm = DATA_BYTE_BOUND+1, numobs_m = DATA_BYTE_BOUND+1;
 
         bool SELF_INFO_PACKET_FOUND(false);
         for(byte_index = 0; byte_index < tPackets[i].Data.Size(); ++byte_index)
@@ -782,7 +838,8 @@ bool ReadFromCommunicationChannel_RelayedFv(Real m_fInternalRobotTimer, t_listMa
             continue;
 
 
-        for(unsigned byteindex1 = byte_index; byteindex1 < tPackets[i].Data.Size(); byteindex1+=2)
+        //for(unsigned byteindex1 = byte_index; byteindex1 < tPackets[i].Data.Size(); byteindex1+=2)
+        for(unsigned byteindex1 = byte_index; byteindex1 < tPackets[i].Data.Size(); byteindex1+=6)
         {
             if (tPackets[i].Data[byteindex1] == RELAY_FVS_PACKET_FOOTER)
                 break;
@@ -792,7 +849,30 @@ bool ReadFromCommunicationChannel_RelayedFv(Real m_fInternalRobotTimer, t_listMa
             if (tPackets[i].Data[byteindex1+1] == RELAY_FVS_PACKET_FOOTER)
                 break;
 
-            fv      = tPackets[i].Data[byteindex1+1];
+            fv           = tPackets[i].Data[byteindex1+1];
+
+            if (tPackets[i].Data[byteindex1+2] == RELAY_FVS_PACKET_FOOTER)
+                break;
+
+            range        = tPackets[i].Data[byteindex1+2];
+
+            if (tPackets[i].Data[byteindex1+3] == RELAY_FVS_PACKET_FOOTER)
+                break;
+
+            numobs_sm    = tPackets[i].Data[byteindex1+3];
+
+
+            if (tPackets[i].Data[byteindex1+4] == RELAY_FVS_PACKET_FOOTER)
+                break;
+
+            numobs_nsm   = tPackets[i].Data[byteindex1+4];
+
+
+            if (tPackets[i].Data[byteindex1+5] == RELAY_FVS_PACKET_FOOTER)
+                break;
+
+            numobs_m     = tPackets[i].Data[byteindex1+5];
+
 
 
             /*if(m_uRobotId == robotId)
@@ -800,28 +880,27 @@ bool ReadFromCommunicationChannel_RelayedFv(Real m_fInternalRobotTimer, t_listMa
                 std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }*/
 
-            if(robotId == 14)
+            /*if(robotId == 15 && observerId == 93 && ((m_fInternalRobotTimer > 780 && m_fInternalRobotTimer < 790)))
             {
-                    //std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
-            }
-            else
-            {
-                    //std::cout << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
-            }
+                    std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
+            }*/
+
 
 
             read_successful = true;
 
 
 #ifndef ConsensusOnMapOfIDtoFV
-            UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1); // old information
+            //if(listMapFVsToRobotIds.size() < 10) /* restrict number of entries to 10 */
+            UpdateFvToRobotIdMap(listMapFVsToRobotIds, fv, robotId, m_fInternalRobotTimer-1, range, numobs_sm, numobs_nsm, numobs_m); // old information
 #else
             if(observerId == 999u)
             {
                 printf("\n observerId was not in packet");
                 exit(-1);
             }
-            UpdateFvToRobotIdMap(listMapFVsToRobotIds, observerId, fv, robotId, m_fInternalRobotTimer-1);
+
+            UpdateFvToRobotIdMap(listMapFVsToRobotIds, observerId, fv, robotId, m_fInternalRobotTimer-1, range, numobs_sm, numobs_nsm, numobs_m);
 #endif
         }
     }

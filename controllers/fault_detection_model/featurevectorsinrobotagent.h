@@ -18,13 +18,13 @@
 /******************************************************************************/
 /******************************************************************************/
 
-//#define ConsensusOnMapOfIDtoFV
-//#define ConsensusOnMapOfIDtoFV_Threshold 0.75 // threshold which determines the strength of the consensus. a behavior feature value requires more than 75% votes for that value for consensus to be established.
+#define ConsensusOnMapOfIDtoFV
+#define ConsensusOnMapOfIDtoFV_Threshold 0.5 // threshold which determines the strength of the consensus. a behavior feature value requires more than 75% votes for that value for consensus to be established.
 
 
-//#define FILTER_BEFORE_VOTE // 90% decision making 10% voting and consensus
+#define FILTER_BEFORE_VOTE // 90% decision making 10% voting and consensus
 
-#define VOTESONROBOTID // not fv
+//#define VOTESONROBOTID // not fv
 
 /******************************************************************************/
 /******************************************************************************/
@@ -40,8 +40,8 @@ struct StructFVsSensed
     unsigned int uFV;
     double fRobots;
     unsigned int uMostWantedState; // 0:  Dont know - no T-cells to make decision or E approx. equal to R (should not occur as T-cells are seeded for APCs where affinity=1)
-                                   // 1:  Attack
-                                   // 2:  Tolerate
+    // 1:  Attack
+    // 2:  Tolerate
 
     // proportion of the past time-steps when the FV would have been deemed as abnormal
     // double fSuspicious; //we are now going to use a history of previously sensed feature vectors
@@ -71,6 +71,8 @@ struct DetailedInformationFVsSensed
     unsigned int uFV;
     double       fTimeSensed;
 
+    unsigned int uRange, uNumobs_sm, uNumobs_nsm, uNumobs_m;
+
     double       f_TimesAttacked, f_TimesTolerated; //! we count the number of times the fv uFV is attacked / tolerated according to the CRM. During the last X time-steps, we only send out the vote near the end of the vote compilation period.
 
     DetailedInformationFVsSensed(unsigned int robotid, double timesensed, unsigned int fv)
@@ -78,6 +80,19 @@ struct DetailedInformationFVsSensed
         uFV         = fv;
         uRobotId    = robotid;
         fTimeSensed = timesensed;
+
+        uRange = 0u; uNumobs_sm = 0u; uNumobs_nsm = 0u; uNumobs_m = 0u;
+
+        f_TimesAttacked = 0.0f; f_TimesTolerated = 0.0f;
+    }
+
+    DetailedInformationFVsSensed(unsigned int robotid, double timesensed, unsigned int fv, unsigned int range, unsigned int numobs_sm, unsigned int numobs_nsm, unsigned int numobs_m)
+    {
+        uFV         = fv;
+        uRobotId    = robotid;
+        fTimeSensed = timesensed;
+
+        uRange = range; uNumobs_sm = numobs_sm; uNumobs_nsm = numobs_nsm; uNumobs_m = numobs_m;
 
         f_TimesAttacked = 0.0f; f_TimesTolerated = 0.0f;
     }
@@ -87,6 +102,12 @@ struct DetailedInformationFVsSensed
     std::vector<unsigned> vec_ObserverRobotIds;
     std::vector<unsigned> vec_ObservedRobotFVs;
     std::vector<Real>     vec_TimeObserved;
+
+    std::vector<unsigned> vec_ObserverRobotRange;
+    std::vector<unsigned> vec_ObserverRobotNumObservations_SM;
+    std::vector<unsigned> vec_ObserverRobotNumObservations_nSM;
+    std::vector<unsigned> vec_ObserverRobotNumObservations_M;
+
 
     DetailedInformationFVsSensed(unsigned int ObserverRobotId, unsigned int ObservedRobotId, double timesensed, unsigned int fv)
     {
@@ -98,12 +119,44 @@ struct DetailedInformationFVsSensed
         vec_ObservedRobotFVs.push_back(fv);
     }
 
-    void AddNewInformationFVsSensed(unsigned int ObserverRobotId, double timesensed, unsigned int fv)
+    DetailedInformationFVsSensed(unsigned int ObserverRobotId, unsigned int ObservedRobotId, double timesensed, unsigned int fv,
+                                 unsigned int range, unsigned int numobs_sm, unsigned int numobs_nsm, unsigned int numobs_m)
+    {
+        vec_ObserverRobotIds.clear(); vec_ObservedRobotFVs.clear(); vec_TimeObserved.clear();
+        vec_ObserverRobotRange.clear(); vec_ObserverRobotNumObservations_SM.clear(); vec_ObserverRobotNumObservations_nSM.clear();
+        vec_ObserverRobotNumObservations_M.clear();
+
+        uRobotId = ObservedRobotId;
+        vec_ObserverRobotIds.push_back(ObserverRobotId);
+        vec_TimeObserved.push_back(timesensed);
+        vec_ObservedRobotFVs.push_back(fv);
+
+        vec_ObserverRobotRange.push_back(range);
+        vec_ObserverRobotNumObservations_SM.push_back(numobs_sm);
+        vec_ObserverRobotNumObservations_nSM.push_back(numobs_nsm);
+        vec_ObserverRobotNumObservations_M.push_back(numobs_m);
+    }
+
+    //    void AddNewInformationFVsSensed(unsigned int ObserverRobotId, double timesensed, unsigned int fv)
+    //    {
+    //        vec_ObserverRobotIds.push_back(ObserverRobotId);
+    //        vec_TimeObserved.push_back(timesensed);
+    //        vec_ObservedRobotFVs.push_back(fv);
+    //    }
+
+    void AddNewInformationFVsSensed(unsigned int ObserverRobotId, double timesensed, unsigned int fv,
+                                    unsigned int range, unsigned int numobs_sm, unsigned int numobs_nsm, unsigned int numobs_m)
     {
         vec_ObserverRobotIds.push_back(ObserverRobotId);
         vec_TimeObserved.push_back(timesensed);
         vec_ObservedRobotFVs.push_back(fv);
+
+        vec_ObserverRobotRange.push_back(range);
+        vec_ObserverRobotNumObservations_SM.push_back(numobs_sm);
+        vec_ObserverRobotNumObservations_nSM.push_back(numobs_nsm);
+        vec_ObserverRobotNumObservations_M.push_back(numobs_m);
     }
+
 
 #ifdef ConsensusOnMapOfIDtoFV
     void SelectBestFVFromAllObservedFVs(unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs, unsigned uSelfRobotId)
@@ -112,18 +165,73 @@ struct DetailedInformationFVsSensed
         std::vector <Real> vec_countfeatures_zero(u_NumFeatures, 0);
         std::vector <Real> vec_countfeatures_maxvotes(u_NumFeatures, 0);
 
+        //        std::vector <Real> vec_qualitymetric(u_NumFeatures, 0);
+        //        for (size_t fv_index = 0; fv_index < vec_ObservedRobotFVs.size(); ++fv_index)
+        //        {
+        //            for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
+        //            {
+        //                Real f_quality_metric = 0.0f;
+        //                if (feature_index == 0 || feature_index == 1 || feature_index == 5) // atleast one neighbour in the majority of past 10s in close/far range; observed distance moved in last 10s;
+        //                {
+        //                    // if range is more than 100cm, truncate it to 100cm
+        //                    f_quality_metric = -0.01f * ((((Real)vec_ObserverRobotRange[fv_index]) > 100.0f)?100.0f:((Real)vec_ObserverRobotRange[fv_index])) + 1.0f;
+        //                }
+        //                else if (feature_index == 2)
+        //                {
+        //                    // DATA_BYTE_BOUND is 240f;
+        //                    if((Real)this->vec_ObserverRobotNumObservations_SM[fv_index] > 240.0f)
+        //                        f_quality_metric = 1.0f;
+        //                    else
+        //                        f_quality_metric = 1.0f / 240.0f * ((Real)this->vec_ObserverRobotNumObservations_SM[fv_index]);
+        //                }
+        //                else if (feature_index == 3)
+        //                {
+        //                    // DATA_BYTE_BOUND is 240f;
+        //                    if((Real)this->vec_ObserverRobotNumObservations_nSM[fv_index] > 240.0f)
+        //                        f_quality_metric = 1.0f;
+        //                    else
+        //                        f_quality_metric = 1.0f / 240.0f * ((Real)this->vec_ObserverRobotNumObservations_nSM[fv_index]);
+        //                }
+        //                else if (feature_index == 4)
+        //                {
+        //                    // DATA_BYTE_BOUND is 240f;
+        //                    if((Real)this->vec_ObserverRobotNumObservations_M[fv_index] > 240.0f)
+        //                        f_quality_metric = 1.0f;
+        //                    else
+        //                        f_quality_metric = 1.0f / 240.0f * ((Real)this->vec_ObserverRobotNumObservations_M[fv_index]);
+        //                }
+        //                else
+        //                {
+        //                    printf("\n Not enough features");
+        //                    exit(-1);
+        //                }
+
+        //                vec_qualitymetric[feature_index] += f_quality_metric;
+
+
+        //                if((vec_ObservedRobotFVs[fv_index] >> feature_index) & 0x1)
+        //                {
+        //                    vec_countfeatures_one[feature_index] += 1.0f*f_quality_metric;
+        //                }
+        //                else
+        //                {
+        //                    vec_countfeatures_zero[feature_index] += 1.0f*f_quality_metric;
+        //                }
+        //            }
+        //        }
+
 
         for (size_t fv_index = 0; fv_index < vec_ObservedRobotFVs.size(); ++fv_index)
             for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
             {
                 ((vec_ObservedRobotFVs[fv_index] >> feature_index) & 0x1) ? vec_countfeatures_one[feature_index] += 1.0f : vec_countfeatures_zero[feature_index] += 1.0f;
                 vec_countfeatures_maxvotes[feature_index] = std::max(vec_countfeatures_one[feature_index], vec_countfeatures_zero[feature_index]) /
-                                                                    (vec_countfeatures_one[feature_index] + vec_countfeatures_zero[feature_index]);
+                        (vec_countfeatures_one[feature_index] + vec_countfeatures_zero[feature_index]);
             }
 
         bool strengthofconsensus(true);
         for(size_t feature_index = 0; feature_index < u_NumFeatures; ++feature_index)
-            if(vec_countfeatures_maxvotes[feature_index] < ConsensusOnMapOfIDtoFV_Threshold)
+            if(vec_countfeatures_maxvotes[feature_index] <= ConsensusOnMapOfIDtoFV_Threshold)
                 strengthofconsensus = false;
 
 
@@ -141,12 +249,12 @@ struct DetailedInformationFVsSensed
             bool selfobservationmade(false);
             for (size_t fv_index = 0; fv_index < vec_ObservedRobotFVs.size(); ++fv_index)
             {
-                 if(vec_ObserverRobotIds[fv_index] == uSelfRobotId)
-                 {
-                     uFV = vec_ObservedRobotFVs[fv_index];
-                     selfobservationmade = true;
-                     break;
-                 }
+                if(vec_ObserverRobotIds[fv_index] == uSelfRobotId)
+                {
+                    uFV = vec_ObservedRobotFVs[fv_index];
+                    selfobservationmade = true;
+                    break;
+                }
             }
 
             if(selfobservationmade == false)
@@ -220,17 +328,25 @@ void UpdaterFvDistribution(t_listFVsSensed &listFVsSensed, t_listMapFVsToRobotId
  *
  */
 void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listDetailedInformationFVsSensed,
-                     unsigned int fv, unsigned robotId, double timesensed);
+                          unsigned int fv, unsigned robotId, double timesensed,
+                          unsigned int range=0, unsigned int numobs_sm=0, unsigned int numobs_nsm=0, unsigned int numobs_m=0);
 
 
 /*
  *
  *
  */
-void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listDetailedInformationFVsSensed,
-                     unsigned int ObserverRobotId, unsigned int fv, unsigned ObservedRobotId, double timesensed);
+//void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listDetailedInformationFVsSensed,
+//                     unsigned int ObserverRobotId, unsigned int fv, unsigned ObservedRobotId, double timesensed);
 
 
+/*
+ *
+ *
+ */
+void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
+                          unsigned int ObserverRobotId, unsigned int fv, unsigned ObservedRobotId, double timesensed,
+                          unsigned int range, unsigned int numobs_sm, unsigned int numobs_nsm, unsigned int numobs_m);
 
 /*
  *
@@ -269,6 +385,10 @@ void UpdateVoterRegistry(t_listVoteInformationRobots   &listVoteInformationRobot
  */
 void TrimFvToRobotIdMap(t_listMapFVsToRobotIds &listDetailedInformationFVsSensed, Real f_CurrentRobotTime, Real f_FvToId_MaintenanceTime);
 
+/*
+ *
+ */
+void PrintFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds);
 
 /*
  *

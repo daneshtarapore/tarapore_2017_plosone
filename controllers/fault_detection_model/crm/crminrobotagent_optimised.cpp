@@ -108,10 +108,12 @@ CRMinRobotAgentOptimised::~CRMinRobotAgentOptimised()
 /******************************************************************************/
 
 void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobotTimer, t_listFVsSensed* FVsSensed)
-{
+{    
     m_fInternalRobotTimer = InternalRobotTimer;
     ptr_listFVsSensed = FVsSensed;
 
+
+    //return;
 
     /*double proxmity_threshold = 1.4f; //2.0f; // CRM threshold around between 1.32919 and 1.65839
     for (t_listFVsSensed::iterator it_listfvs = ptr_listFVsSensed->begin(); it_listfvs != ptr_listFVsSensed->end(); ++it_listfvs)
@@ -143,7 +145,7 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 
 
 
-    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 3470)
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 801)
     {
         PrintCRMDetails(GetIdentification());
         printf("----------at start-----------\n\n");
@@ -220,11 +222,11 @@ void CRMinRobotAgentOptimised::SimulationStepUpdatePosition(double InternalRobot
 
     UpdateState();
 
-//    if(GetIdentification() == 4 && m_fInternalRobotTimer > 3500)
-//    {
-//        PrintCRMDetails(GetIdentification());
-//        printf("----------at start-----------\n\n");
-//    }
+    /*if(GetIdentification() == 15 && m_fInternalRobotTimer == 801)
+    {
+        PrintCRMDetails(GetIdentification());
+        printf("----------at start-----------\n\n");
+    }*/
 }
 
 /******************************************************************************/
@@ -375,7 +377,7 @@ void CRMinRobotAgentOptimised::DiffuseTcells()
 
 // Numerical integration to compute lisTcells  members fE and fR to reflect listApcs member fAPC
 void CRMinRobotAgentOptimised::TcellNumericalIntegration_RK2()
-{
+{    
     double convergence_errormax = -1.0, perc_convergence_errormax;
     double integration_t = 0.0;
     double step_h = 1.0;
@@ -1732,6 +1734,7 @@ double CRMinRobotAgentOptimised::NegExpDistAffinity(unsigned int v1, unsigned in
 
 
     return 1.0 * exp(-(1.0f/k) * ((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES));
+
 
     //for smaller samples of FV distribution
     if((((double)hammingdistance) / ((double) CProprioceptiveFeatureVector::NUMBER_OF_FEATURES)) <= (1.0f/6.0f))

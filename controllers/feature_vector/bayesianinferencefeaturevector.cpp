@@ -107,14 +107,21 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
     }
 
 
-    ObservedRobotIDs.clear(); ObservedRobotFVs.clear(); ObservedRobotFVs_Min_Number_Featureobservations.clear();
+    unsigned count = 0;
+    ObservedRobotIDs.clear(); ObservedRobotIDs_range.clear();
+    ObservedRobotFVs.clear(); ObservedRobotFVs_Min_Number_Featureobservations.clear();
+    ObservedRobotFVs_Number_Featureobservations_SM.clear(); ObservedRobotFVs_Number_Featureobservations_nSM.clear(); ObservedRobotFVs_Number_Featureobservations_M.clear();
+
     for (it_listobrob = m_pcListObservedRobots.begin(); it_listobrob != m_pcListObservedRobots.end(); ++it_listobrob)
     {
+        /*if(count > 10u)
+            break;*/
 
         // Only update the posterior distribution for robots you have new observations for
         for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
         {
-            unsigned u_ObservedRobotId = GetIdFromRABPacket(m_sSensoryData.m_RABSensorData, i);
+            unsigned range = 99u;
+            unsigned u_ObservedRobotId = GetIdFromRABPacket(m_sSensoryData.m_RABSensorData, i, &range);
             if(u_ObservedRobotId == (it_listobrob->m_unRobotId))
             {
 
@@ -131,10 +138,18 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
                 // if((m_sSensoryData.m_rTime - it_listobrob->m_fTimeFirstObserved) >= MODELSTARTTIME)
                 //if(it_listobrob->max_posterior_variance < 0.2f) //  && it_listobrob->min_number_featureobservations > 25.0f //  the variance of the Beta distribution is already very low even when no observations have been made on sensor-motor interactions so we also add the condition that min_number_featureobservations > some threshold.
                  // since we not have a default value used if no sensor-motor observations are made, we can remove this condition
+                //if(it_listobrob->number_featureobservations_2 > 25u && it_listobrob->number_featureobservations_3 > 25u && it_listobrob->number_featureobservations_4 > 25u )
                 {
                     ObservedRobotIDs.push_back(it_listobrob->m_unRobotId);
                     ObservedRobotFVs.push_back(it_listobrob->GetValue());
                     ObservedRobotFVs_Min_Number_Featureobservations.push_back((unsigned) (it_listobrob->min_number_featureobservations));
+
+                    ObservedRobotIDs_range.push_back(range);
+                    ObservedRobotFVs_Number_Featureobservations_SM.push_back((unsigned)  (it_listobrob->number_featureobservations_2));
+                    ObservedRobotFVs_Number_Featureobservations_nSM.push_back((unsigned) (it_listobrob->number_featureobservations_3));
+                    ObservedRobotFVs_Number_Featureobservations_M.push_back((unsigned)   (it_listobrob->number_featureobservations_4));
+
+                    count++;
                 }
             }
         }
@@ -144,17 +159,21 @@ unsigned CBayesianInferenceFeatureVector::SimulationStep()
 /******************************************************************************/
 /******************************************************************************/
 
-unsigned CBayesianInferenceFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index)
+unsigned CBayesianInferenceFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings& rab_packet, size_t rab_packet_index, unsigned *range)
 {
     if ((rab_packet[rab_packet_index].Data[0] == m_sRobotData.BEACON_SIGNAL_MARKER) ||
         (rab_packet[rab_packet_index].Data[0] == m_sRobotData.NEST_BEACON_SIGNAL_MARKER))
     {
         if (rab_packet[rab_packet_index].Data[1] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[1] == m_sRobotData.SELF_INFO_PACKET_MARKER)
         {
+            if(range != NULL)
+               *range = (unsigned)(rab_packet[rab_packet_index].Range);
             return rab_packet[rab_packet_index].Data[2];
         }
         else
         {
+            if(range != NULL)
+               *range = 0u;
             return ROBOTID_NOT_IN_SIGNAL;
         }
     }
@@ -162,10 +181,14 @@ unsigned CBayesianInferenceFeatureVector::GetIdFromRABPacket(CCI_RangeAndBearing
     {
         if (rab_packet[rab_packet_index].Data[0] == m_sRobotData.VOTER_PACKET_MARKER || rab_packet[rab_packet_index].Data[0] == m_sRobotData.SELF_INFO_PACKET_MARKER)
         {
+            if(range != NULL)
+               *range = (unsigned)(rab_packet[rab_packet_index].Range);
             return rab_packet[rab_packet_index].Data[1];
         }
         else
         {
+            if(range != NULL)
+               *range = 0u;
             return ROBOTID_NOT_IN_SIGNAL;
         }
     }
@@ -319,9 +342,6 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
         Real newobservation_nearnbrs, newobservation_farnbrs;
 
-        /*newobservation_nearnbrs = CoM_closerangenbrs;
-        newobservation_farnbrs  = CoM_farrangenbrs;*/
-
         newobservation_nearnbrs = std::accumulate(list_NbrsInCloseProxm.begin(), list_NbrsInCloseProxm.end(), 0.0f) / list_NbrsInCloseProxm.size();
         newobservation_farnbrs  = std::accumulate(list_NbrsInFarProxm.begin(), list_NbrsInFarProxm.end(), 0.0f) / list_NbrsInFarProxm.size();
 
@@ -330,71 +350,8 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
         m_pfFeatureValues[1] = newobservation_farnbrs  >= 0.5f ? 1.0f : 0.0f;
 
 
-
-        /*Update priors*/
-
-        /* presence of neighbours in close range - is the robot part of a small aggregate */
-        //CoM_closerangenbrs /= (FEATURE_RANGE/2.0f); // normalise to [0, 1]
-        /*sensclosePrior_Gaussian_mu = ((sensclosePrior_Gaussian_mu / sensclosePrior_Gaussian_variance) + (CoM_closerangenbrs / f_likelihood_variance)) /
-                                      (1.0f/sensclosePrior_Gaussian_variance + 1.0f/f_likelihood_variance);
-        sensclosePrior_Gaussian_variance = 1.0f / (1.0f/sensclosePrior_Gaussian_variance + 1.0f/f_likelihood_variance);*/
-
-
         assert((owner.m_sSensoryData.m_rTime - (Real)(u_TimeSinceLastObserved)) >= 0.0f); /*time since the robot was last observed */
-
-        //if(list_NbrsInCloseProxm.size() == m_iLongTimeWindowLength) for porportion time nbr there in last 10s
-        {
-            Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed; // was 1.0f / m_iLongTimeWindowLength for proportion time nbr in last 10 s
-            Real f_MeasurementNoiseVariance = FEATURE_RANGE/2.0f - 0.0f; // was 1.0f for proportion time nbr in last 10 s
-
-            /* Prediction */
-            Real sensclosePredicted_Gaussian_mu       = sensclosePrior_Gaussian_mu;
-            Real sensclosePredicted_Gaussian_variance = sensclosePrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved)) *
-                                                        f_ProcessNoiseVariance_TemporalConstant;
-
-            /* Correction */
-            sensclosePrior_Gaussian_mu = ((sensclosePredicted_Gaussian_mu / sensclosePredicted_Gaussian_variance) + (newobservation_nearnbrs / f_MeasurementNoiseVariance)) /
-                                          (1.0f/sensclosePredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
-            sensclosePrior_Gaussian_variance = 1.0f / (1.0f/sensclosePredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
-
-            number_featureobservations_0 += 1.0f;
-        }
-
-
-
-        /* presence of neighbours in long range - is the robot part of a large aggregate */
-        //CoM_farrangenbrs /= (FEATURE_RANGE); // normalise to [0, 1]
-        /* sensfarPrior_Gaussian_mu = ((sensfarPrior_Gaussian_mu / sensfarPrior_Gaussian_variance) + (CoM_farrangenbrs / f_likelihood_variance)) /
-                                    (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
-        sensfarPrior_Gaussian_variance = 1.0f / (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance); */
-
-
-        //if(list_NbrsInFarProxm.size() == m_iLongTimeWindowLength) for porportion time nbr there in last 10s
-        {
-            Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed; // was 1.0f / m_iLongTimeWindowLength for porportion time nbr there in last 10s
-            Real f_MeasurementNoiseVariance = (FEATURE_RANGE - FEATURE_RANGE/2.0f); //was 1 for porportion time nbr there in last 10s
-
-            assert(f_MeasurementNoiseVariance == (FEATURE_RANGE - FEATURE_RANGE/2.0f)); // used for CoM observation
-
-
-            /* Prediction */
-            Real sensfarPredicted_Gaussian_mu       = sensfarPrior_Gaussian_mu;
-            Real sensfarPredicted_Gaussian_variance = sensfarPrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved)) *
-                                                        f_ProcessNoiseVariance_TemporalConstant;
-
-            /* Correction */
-            sensfarPrior_Gaussian_mu = ((sensfarPredicted_Gaussian_mu / sensfarPredicted_Gaussian_variance) + (newobservation_farnbrs / f_MeasurementNoiseVariance)) /
-                                          (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
-            sensfarPrior_Gaussian_variance = 1.0f / (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
-
-
-            number_featureobservations_1 += 1.0f;
-        }
-
-        /*For the Kalman filter - distance to neighbours (CoM) */
-        u_TimeSinceLastObserved = owner.m_sSensoryData.m_rTime;
     }
-
 
 
     /* we need to be able to observe the robot to make any inference */
@@ -405,55 +362,17 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
         if(list_Dist_LongRangeTimeWindow.size() >= 100u)
             list_Dist_LongRangeTimeWindow.pop_front();
 
-
-        Real meandist_longtimewindow   = std::accumulate(list_Dist_LongRangeTimeWindow.begin(), list_Dist_LongRangeTimeWindow.end(), 0.0) / list_Dist_LongRangeTimeWindow.size();
-
-        /*m_pfFeatureValues[5] = meandist_longtimewindow >= (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed)) ? 1.0f : 0.0f;*/
         m_pfFeatureValues[5] = m_fEstimated_Dist_LongTimeWindow >= (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed)) ? 1.0f : 0.0f; // using noisy measurements
 
-
-        /*printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
-                                                                            m_fEstimated_Dist_MediumTimeWindow,
-                                                                            m_fEstimated_Dist_LongTimeWindow, meandist_longtimewindow);*/
-
-
-        /*Update priors*/
-        /* distance moved by robot in past 10s. is the robot moving a lot */
         assert((owner.m_sSensoryData.m_rTime - (Real)u_TimeSinceLastObserved_DistMeasure) >= 0.0f); /*time since the robot was last observed */
 
-
-        //m_fEstimated_Dist_LongTimeWindow /=  (m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed); // normalise to [0, 1]
-        /*motPrior_Gaussian_mu = ((motPrior_Gaussian_mu / motPrior_Gaussian_variance) + (m_fEstimated_Dist_LongTimeWindow / f_likelihood_variance)) /
-                                (1.0f / motPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
-        motPrior_Gaussian_variance = 1.0f / (1.0f / motPrior_Gaussian_variance + 1.0f / f_likelihood_variance);*/
-
-
-
-        Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed;
-        Real f_MeasurementNoiseVariance = m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed;
-
-        /* Prediction */
-        Real motPredicted_Gaussian_mu       = motPrior_Gaussian_mu;
-        Real motPredicted_Gaussian_variance = motPrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved_DistMeasure)) *
-                                              f_ProcessNoiseVariance_TemporalConstant;
-
-        /* Correction */
-        motPrior_Gaussian_mu = ((motPredicted_Gaussian_mu / motPredicted_Gaussian_variance) + (m_fEstimated_Dist_LongTimeWindow / f_MeasurementNoiseVariance)) /
-                                      (1.0f/motPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
-        motPrior_Gaussian_variance = 1.0f / (1.0f/motPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
-
-
-
-        /*For the Kalman filter - distance moved */
         u_TimeSinceLastObserved_DistMeasure = owner.m_sSensoryData.m_rTime;
-
-        number_featureobservations_5 += 1.0f;
     }
 
 
 
-    Real COM_nbrs_tmp;
-    bool neighbours_present = (CountNeighbors(0.0, FEATURE_RANGE, DistToNearestNbr, COM_nbrs_tmp) > 0.0f) ? true : false;
+    Real COM_nbrs_tmp; Real Range_ObserverToObserved;
+    bool neighbours_present = (CountNeighbors(0.0, FEATURE_RANGE, DistToNearestNbr, COM_nbrs_tmp, &Range_ObserverToObserved) > 0.0f) ? true : false;
 
     /* we need to have motor observations to make an inference */
     if(average_angularacceleration != ROBOTSELFACCELERATION_NOT_IN_SIGNAL && m_fEstimated_Dist_MediumTimeWindow != -1.0f)
@@ -469,7 +388,6 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
         {
             sensmotPrior_Beta_a = sensmotPrior_Beta_a + un_MotorOutput;
             sensmotPrior_Beta_b = sensmotPrior_Beta_b + 1u - un_MotorOutput;
-
 
             number_featureobservations_2 += 1.0f;
         }
@@ -491,18 +409,11 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
 
     /* used to establish consensus on FVs. if choice between many fv for robot id, use the fv with the highest min_number_featureobservations */
-    min_number_featureobservations = std::min(std::min(std::min(number_featureobservations_0, number_featureobservations_1),
-                                                       std::min(number_featureobservations_2, number_featureobservations_3)),
-                                              std::min(number_featureobservations_4, number_featureobservations_5));
+    min_number_featureobservations = std::min(std::min(number_featureobservations_2, number_featureobservations_3),
+                                              number_featureobservations_4);
 
-    max_posterior_variance = std::max(sensclosePrior_Gaussian_variance / (FEATURE_RANGE - 0.0f), sensfarPrior_Gaussian_variance / (FEATURE_RANGE - FEATURE_RANGE/2.0f));
 
-    /* for porportion time nbr there in last 10s
-     * max_posterior_variance = std::max(sensclosePrior_Gaussian_variance, sensfarPrior_Gaussian_variance); // variance already in range [0, 1]*/
-    max_posterior_variance = std::max(max_posterior_variance, motPrior_Gaussian_variance / (m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed));
-
-    /*the normalised max_posterior variance [0, 1] is going to be very much larger than the variance of the Beta distribution, */
-    max_posterior_variance = std::max(max_posterior_variance,
+    max_posterior_variance = std::max((Real)-1.0,
                                        ((Real)(sensmotPrior_Beta_a * sensmotPrior_Beta_b)) /
                                        ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
                                        (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
@@ -522,33 +433,21 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
                                        (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
                                        (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) );
 
-    /*if(CurrentStepNumber > m_iLongTimeWindowLength)
-    printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
-                                                                        m_fEstimated_Dist_MediumTimeWindow,
-                                                                        m_fEstimated_Dist_LongTimeWindow, average_angularacceleration,DistToNearestNbr); */
-
-
-    /*m_pfFeatureValues[0] = sensclosePrior_Gaussian_mu >= 7.50f ? 1.0f : 0.0f; // //was 0.5f for porportion time nbr there in last 10s
-    assert(FEATURE_RANGE/2.0f == 15.0f);
-    m_pfFeatureValues[1] = sensfarPrior_Gaussian_mu  >= 15.0f ? 1.0f : 0.0f; // was 0.50f ? 1.0f : 0.0f; for porportion time nbr there in last 10s*/
-
 
     if(number_featureobservations_2 == 0)
-        m_pfFeatureValues[2] = 0.0f; // default value as you can have the case of observing the robot, but never with any nearby nbrs present. Alternatively the priors could be set to a have a value expecte value
+        m_pfFeatureValues[2] = 0.0f; // default value if robot not observed because of no neighbours in close proximity, or no proprioceptively computed angular acceleration received, or distance moved by robot in last 5s could not be computed (because robot not observed 5s back)
     else
         m_pfFeatureValues[2] = (((Real)sensmotPrior_Beta_a)       / ((Real)(sensmotPrior_Beta_a       + sensmotPrior_Beta_b)))       > 0.05f ? 1.0f : 0.0f;
 
     if(number_featureobservations_3 == 0)
-        m_pfFeatureValues[3] = 0.0f;  // default value , but never with no nearby nbrs present. Alternatively the priors could be set to a have a value expecte value
+        m_pfFeatureValues[3] = 0.0f;  // default value if robot not observed because always neighbours in close proximity, or no proprioceptively computed angular acceleration received, or distance moved by robot in last 5s could not be computed (because robot not observed 5s back)
     else
         m_pfFeatureValues[3] = (((Real)nosensmotPrior_Beta_a)     / ((Real)(nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b)))     > 0.05f ? 1.0f : 0.0f;
 
-
-    m_pfFeatureValues[4] = (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b))) > 0.05f ? 1.0f : 0.0f;
-
-    /*m_pfFeatureValues[5] = motPrior_Gaussian_mu >= (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed)) ? 1.0f : 0.0f;*/
-
-
+    if (number_featureobservations_4 == 0)
+        m_pfFeatureValues[4] = 0.0f;  //default value if no proprioceptively computed angular acceleration received, or distance moved by robot in last 5s could not be computed (because robot not observed 5s back)
+    else
+        m_pfFeatureValues[4] = (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b))) > 0.05f ? 1.0f : 0.0f;
 
     assert(CBayesianInferenceFeatureVector::NUMBER_OF_FEATURES == 6);
 
@@ -556,55 +455,357 @@ void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
     for (unsigned int i = 0; i < CBayesianInferenceFeatureVector::NUMBER_OF_FEATURES; i++)
         m_unValue += (unsigned)m_pfFeatureValues[i] * (1 << i);
 
-    if(m_unRobotId == 8)
+    /*if(m_unRobotId == 15  && (owner.m_sSensoryData.m_rTime > 450))
     {
-        //if(max_posterior_variance < 0.2f)
-            /*std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  sensclosePrior_Gaussian_mu  << " with min_number_featureobservations " << number_featureobservations_0 << " and posterior variance " << sensclosePrior_Gaussian_variance <<  std::endl;*/
+        printf("%f\t\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d\n",owner.m_sSensoryData.m_rTime , Range_ObserverToObserved,
+               number_featureobservations_2, (((Real)sensmotPrior_Beta_a)       / ((Real)(sensmotPrior_Beta_a       + sensmotPrior_Beta_b))),
+               number_featureobservations_3, (((Real)nosensmotPrior_Beta_a)     / ((Real)(nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b))),
+               number_featureobservations_4, (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b))),
+               m_fEstimated_Dist_LongTimeWindow, owner.m_sSensoryData.m_unRobotId);
+    }*/
 
-        /*std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance <<  std::endl;*/
-
-        /*std::cout << "F2 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)sensmotPrior_Beta_a)       / ((Real)(sensmotPrior_Beta_a       + sensmotPrior_Beta_b)))   << " with number_featureobservations " << number_featureobservations_2 << " and posterior variance " << ((Real)(sensmotPrior_Beta_a * sensmotPrior_Beta_b)) /
-                     ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
-                     (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
-                     (sensmotPrior_Beta_a + sensmotPrior_Beta_b + 1u)))  << std::endl;
-
-        std::cout << "F3 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)nosensmotPrior_Beta_a)     / ((Real)(nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b)))   << " with number_featureobservations " << number_featureobservations_3 << " and posterior variance " << ((Real)(nosensmotPrior_Beta_a * nosensmotPrior_Beta_b)) /
-                     ((Real)((nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
-                      (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
-                      (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b + 1u)))  << std::endl;
-
-        std::cerr << "F4 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)))  << " with number_featureobservations " << number_featureobservations_4 << " and posterior variance " << ((Real)(irrespsensmotPrior_Beta_a * irrespsensmotPrior_Beta_b)) /
-                     ((Real)((irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
-                      (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
-                      (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) << std::endl;*/
-
-
-    }
-    else
+    /*if((m_unRobotId == 36 && owner.m_sSensoryData.m_unRobotId == 72 && (owner.m_sSensoryData.m_rTime > 720 && owner.m_sSensoryData.m_rTime < 790)) ||
+       (m_unRobotId == 15 && owner.m_sSensoryData.m_unRobotId == 93 && (owner.m_sSensoryData.m_rTime > 720 && owner.m_sSensoryData.m_rTime < 790)))
     {
-       /* if(max_posterior_variance < 0.2f)
-                    std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance <<  std::endl;*/
-        /*std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  sensclosePrior_Gaussian_mu  << " with min_number_featureobservations " << number_featureobservations_0 << " and posterior variance " << sensclosePrior_Gaussian_variance <<  std::endl;*/
-    }
+         std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with num s-m obs " << number_featureobservations_2 << "  with num s-nm obs " << number_featureobservations_3 <<  "  with num m obs " << number_featureobservations_4 <<  std::endl;
+         std::cerr << "sensmotPrior_Beta_a " << sensmotPrior_Beta_a << " sensmotPrior_Beta_b " << sensmotPrior_Beta_b << " nosensmotPrior_Beta_a " <<nosensmotPrior_Beta_a << " nosensmotPrior_Beta_b " << nosensmotPrior_Beta_b << " irrespsensmotPrior_Beta_a " << irrespsensmotPrior_Beta_a << " irrespsensmotPrior_Beta_b " << irrespsensmotPrior_Beta_b <<  std::endl;
 
-    /*if(m_unRobotId == 7 && owner.m_sSensoryData.m_unRobotId == 0)
-    {
-        std::cout << std::endl;
+         std::cerr << "Esm "  << (Real)sensmotPrior_Beta_a/(Real)(sensmotPrior_Beta_a + sensmotPrior_Beta_b)  << " Ensm "  << (Real)nosensmotPrior_Beta_a/(Real)(nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)  << " Em "  << (Real)irrespsensmotPrior_Beta_a/(Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)<<  std::endl;;
     }*/
 
 }
 
+
+
+//void CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::ComputeFeatureValues()
+//{
+//    // We are updating the priors now. Increment the time since we last refreshed the priors.
+//    u_TimeSinceLastRefresh++;
+
+
+//    FEATURE_RANGE = 30.0f; // cm
+//    Real DistToNearestNbr, CoM_closerangenbrs = 0.0f, CoM_farrangenbrs = 0.0f;
+
+//    /*
+//     * Remember that CountNeighbors returns -1 if the robot was not observed at the current time-step
+//    */
+
+//    Real  f_unCloseRangeNbrCount = CountNeighbors(0.0, FEATURE_RANGE/2.0f, DistToNearestNbr, CoM_closerangenbrs);
+//    Real  f_unFarRangeNbrCount   = CountNeighbors(FEATURE_RANGE/2.0f, FEATURE_RANGE, DistToNearestNbr, CoM_farrangenbrs);
+
+
+//    /* we need to be able to observe the robot to make any inference */
+//    if (f_unCloseRangeNbrCount == -1.0f)
+//    {
+//        assert(f_unFarRangeNbrCount == -1.0f); // just to be sure that the neighbour was observed. if this assertion fails there is a bug in the code
+//        list_NbrsInCloseProxm.clear();
+//        list_NbrsInFarProxm.clear();
+//    }
+
+
+//    if (f_unCloseRangeNbrCount != -1.0f)
+//    {
+//        assert(f_unFarRangeNbrCount != -1.0f); // just to be sure that the neighbour was observed. if this assertion fails there is a bug in the code
+
+//        list_NbrsInCloseProxm.push_back((f_unCloseRangeNbrCount >= 1.0f ? 1.0f: 0.0f));
+//        if(list_NbrsInCloseProxm.size() > m_iLongTimeWindowLength)
+//            list_NbrsInCloseProxm.pop_front();
+
+//        list_NbrsInFarProxm.push_back((f_unFarRangeNbrCount >= 1.0f ? 1.0f: 0.0f));
+//        if(list_NbrsInFarProxm.size() > m_iLongTimeWindowLength)
+//            list_NbrsInFarProxm.pop_front();
+
+
+//        Real newobservation_nearnbrs, newobservation_farnbrs;
+
+//        /*newobservation_nearnbrs = CoM_closerangenbrs;
+//        newobservation_farnbrs  = CoM_farrangenbrs;*/
+
+//        newobservation_nearnbrs = std::accumulate(list_NbrsInCloseProxm.begin(), list_NbrsInCloseProxm.end(), 0.0f) / list_NbrsInCloseProxm.size();
+//        newobservation_farnbrs  = std::accumulate(list_NbrsInFarProxm.begin(), list_NbrsInFarProxm.end(), 0.0f) / list_NbrsInFarProxm.size();
+
+//        m_pfFeatureValues[0] = newobservation_nearnbrs >= 0.5f ? 1.0f : 0.0f;
+//        assert(FEATURE_RANGE/2.0f == 15.0f);
+//        m_pfFeatureValues[1] = newobservation_farnbrs  >= 0.5f ? 1.0f : 0.0f;
+
+
+
+//        /*Update priors*/
+
+//        /* presence of neighbours in close range - is the robot part of a small aggregate */
+//        //CoM_closerangenbrs /= (FEATURE_RANGE/2.0f); // normalise to [0, 1]
+//        /*sensclosePrior_Gaussian_mu = ((sensclosePrior_Gaussian_mu / sensclosePrior_Gaussian_variance) + (CoM_closerangenbrs / f_likelihood_variance)) /
+//                                      (1.0f/sensclosePrior_Gaussian_variance + 1.0f/f_likelihood_variance);
+//        sensclosePrior_Gaussian_variance = 1.0f / (1.0f/sensclosePrior_Gaussian_variance + 1.0f/f_likelihood_variance);*/
+
+
+//        assert((owner.m_sSensoryData.m_rTime - (Real)(u_TimeSinceLastObserved)) >= 0.0f); /*time since the robot was last observed */
+
+//        //if(list_NbrsInCloseProxm.size() == m_iLongTimeWindowLength) for porportion time nbr there in last 10s
+//        {
+//            Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed; // was 1.0f / m_iLongTimeWindowLength for proportion time nbr in last 10 s
+//            Real f_MeasurementNoiseVariance = FEATURE_RANGE/2.0f - 0.0f; // was 1.0f for proportion time nbr in last 10 s
+
+//            /* Prediction */
+//            Real sensclosePredicted_Gaussian_mu       = sensclosePrior_Gaussian_mu;
+//            Real sensclosePredicted_Gaussian_variance = sensclosePrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved)) *
+//                                                        f_ProcessNoiseVariance_TemporalConstant;
+
+//            /* Correction */
+//            sensclosePrior_Gaussian_mu = ((sensclosePredicted_Gaussian_mu / sensclosePredicted_Gaussian_variance) + (newobservation_nearnbrs / f_MeasurementNoiseVariance)) /
+//                                          (1.0f/sensclosePredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+//            sensclosePrior_Gaussian_variance = 1.0f / (1.0f/sensclosePredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+
+//            number_featureobservations_0 += 1.0f;
+//        }
+
+
+
+//        /* presence of neighbours in long range - is the robot part of a large aggregate */
+//        //CoM_farrangenbrs /= (FEATURE_RANGE); // normalise to [0, 1]
+//        /* sensfarPrior_Gaussian_mu = ((sensfarPrior_Gaussian_mu / sensfarPrior_Gaussian_variance) + (CoM_farrangenbrs / f_likelihood_variance)) /
+//                                    (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
+//        sensfarPrior_Gaussian_variance = 1.0f / (1.0f / sensfarPrior_Gaussian_variance + 1.0f / f_likelihood_variance); */
+
+
+//        //if(list_NbrsInFarProxm.size() == m_iLongTimeWindowLength) for porportion time nbr there in last 10s
+//        {
+//            Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed; // was 1.0f / m_iLongTimeWindowLength for porportion time nbr there in last 10s
+//            Real f_MeasurementNoiseVariance = (FEATURE_RANGE - FEATURE_RANGE/2.0f); //was 1 for porportion time nbr there in last 10s
+
+//            assert(f_MeasurementNoiseVariance == (FEATURE_RANGE - FEATURE_RANGE/2.0f)); // used for CoM observation
+
+
+//            /* Prediction */
+//            Real sensfarPredicted_Gaussian_mu       = sensfarPrior_Gaussian_mu;
+//            Real sensfarPredicted_Gaussian_variance = sensfarPrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved)) *
+//                                                        f_ProcessNoiseVariance_TemporalConstant;
+
+//            /* Correction */
+//            sensfarPrior_Gaussian_mu = ((sensfarPredicted_Gaussian_mu / sensfarPredicted_Gaussian_variance) + (newobservation_farnbrs / f_MeasurementNoiseVariance)) /
+//                                          (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+//            sensfarPrior_Gaussian_variance = 1.0f / (1.0f/sensfarPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+
+
+//            number_featureobservations_1 += 1.0f;
+//        }
+
+//        /*For the Kalman filter - distance to neighbours (CoM) */
+//        u_TimeSinceLastObserved = owner.m_sSensoryData.m_rTime;
+//    }
+
+
+
+//    /* we need to be able to observe the robot to make any inference */
+
+//    if (m_fEstimated_Dist_LongTimeWindow != -1.0f)
+//    {
+//        list_Dist_LongRangeTimeWindow.push_back(m_fEstimated_Dist_LongTimeWindow);
+//        if(list_Dist_LongRangeTimeWindow.size() >= 100u)
+//            list_Dist_LongRangeTimeWindow.pop_front();
+
+
+//        Real meandist_longtimewindow   = std::accumulate(list_Dist_LongRangeTimeWindow.begin(), list_Dist_LongRangeTimeWindow.end(), 0.0) / list_Dist_LongRangeTimeWindow.size();
+
+//        /*m_pfFeatureValues[5] = meandist_longtimewindow >= (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed)) ? 1.0f : 0.0f;*/
+//        m_pfFeatureValues[5] = m_fEstimated_Dist_LongTimeWindow >= (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed)) ? 1.0f : 0.0f; // using noisy measurements
+
+
+//        /*printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
+//                                                                            m_fEstimated_Dist_MediumTimeWindow,
+//                                                                            m_fEstimated_Dist_LongTimeWindow, meandist_longtimewindow);*/
+
+
+//        /*Update priors*/
+//        /* distance moved by robot in past 10s. is the robot moving a lot */
+//        assert((owner.m_sSensoryData.m_rTime - (Real)u_TimeSinceLastObserved_DistMeasure) >= 0.0f); /*time since the robot was last observed */
+
+
+//        //m_fEstimated_Dist_LongTimeWindow /=  (m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed); // normalise to [0, 1]
+//        /*motPrior_Gaussian_mu = ((motPrior_Gaussian_mu / motPrior_Gaussian_variance) + (m_fEstimated_Dist_LongTimeWindow / f_likelihood_variance)) /
+//                                (1.0f / motPrior_Gaussian_variance + 1.0f / f_likelihood_variance);
+//        motPrior_Gaussian_variance = 1.0f / (1.0f / motPrior_Gaussian_variance + 1.0f / f_likelihood_variance);*/
+
+
+
+//        Real f_ProcessNoiseVariance_TemporalConstant = m_sRobotData.MaxLinearSpeed;
+//        Real f_MeasurementNoiseVariance = m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed;
+
+//        /* Prediction */
+//        Real motPredicted_Gaussian_mu       = motPrior_Gaussian_mu;
+//        Real motPredicted_Gaussian_variance = motPrior_Gaussian_variance + (owner.m_sSensoryData.m_rTime - ((Real) u_TimeSinceLastObserved_DistMeasure)) *
+//                                              f_ProcessNoiseVariance_TemporalConstant;
+
+//        /* Correction */
+//        motPrior_Gaussian_mu = ((motPredicted_Gaussian_mu / motPredicted_Gaussian_variance) + (m_fEstimated_Dist_LongTimeWindow / f_MeasurementNoiseVariance)) /
+//                                      (1.0f/motPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+//        motPrior_Gaussian_variance = 1.0f / (1.0f/motPredicted_Gaussian_variance + 1.0f/f_MeasurementNoiseVariance);
+
+
+
+//        /*For the Kalman filter - distance moved */
+//        u_TimeSinceLastObserved_DistMeasure = owner.m_sSensoryData.m_rTime;
+
+//        number_featureobservations_5 += 1.0f;
+//    }
+
+
+
+//    Real COM_nbrs_tmp;
+//    bool neighbours_present = (CountNeighbors(0.0, FEATURE_RANGE, DistToNearestNbr, COM_nbrs_tmp) > 0.0f) ? true : false;
+
+//    /* we need to have motor observations to make an inference */
+//    if(average_angularacceleration != ROBOTSELFACCELERATION_NOT_IN_SIGNAL && m_fEstimated_Dist_MediumTimeWindow != -1.0f)
+//    {
+//        Real f_MotorOutput      = fabs(average_angularacceleration) * (m_fEstimated_Dist_MediumTimeWindow / (m_iMediumTimeWindowLength * m_sRobotData.MaxLinearSpeed));
+
+//        /* we need to discretise the data. we assume that a motor interaction occurs if f_MotorOutput exceeds 10% of max motor output */
+//        unsigned un_MotorOutput = (f_MotorOutput >= 0.10f)? 1u : 0u;
+
+//        /*Update priors*/
+//        /* Motor interactions in the presence of sensors */
+//        if (neighbours_present)
+//        {
+//            sensmotPrior_Beta_a = sensmotPrior_Beta_a + un_MotorOutput;
+//            sensmotPrior_Beta_b = sensmotPrior_Beta_b + 1u - un_MotorOutput;
+
+
+//            number_featureobservations_2 += 1.0f;
+//        }
+
+//        /* Motor interactions in the absence of sensors */
+//        if (!neighbours_present)
+//        {
+//            nosensmotPrior_Beta_a = nosensmotPrior_Beta_a + un_MotorOutput;
+//            nosensmotPrior_Beta_b = nosensmotPrior_Beta_b + 1u - un_MotorOutput;
+
+//            number_featureobservations_3 += 1.0f;
+//        }
+
+//        irrespsensmotPrior_Beta_a = irrespsensmotPrior_Beta_a + un_MotorOutput;
+//        irrespsensmotPrior_Beta_b = irrespsensmotPrior_Beta_b + 1u - un_MotorOutput;
+
+//        number_featureobservations_4 += 1.0f;
+//    }
+
+
+//    /* used to establish consensus on FVs. if choice between many fv for robot id, use the fv with the highest min_number_featureobservations */
+//    min_number_featureobservations = std::min(std::min(std::min(number_featureobservations_0, number_featureobservations_1),
+//                                                       std::min(number_featureobservations_2, number_featureobservations_3)),
+//                                              std::min(number_featureobservations_4, number_featureobservations_5));
+
+//    max_posterior_variance = std::max(sensclosePrior_Gaussian_variance / (FEATURE_RANGE - 0.0f), sensfarPrior_Gaussian_variance / (FEATURE_RANGE - FEATURE_RANGE/2.0f));
+
+//    /* for porportion time nbr there in last 10s
+//     * max_posterior_variance = std::max(sensclosePrior_Gaussian_variance, sensfarPrior_Gaussian_variance); // variance already in range [0, 1]*/
+//    max_posterior_variance = std::max(max_posterior_variance, motPrior_Gaussian_variance / (m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed));
+
+//    /*the normalised max_posterior variance [0, 1] is going to be very much larger than the variance of the Beta distribution, */
+//    max_posterior_variance = std::max(max_posterior_variance,
+//                                       ((Real)(sensmotPrior_Beta_a * sensmotPrior_Beta_b)) /
+//                                       ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+//                                       (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+//                                       (sensmotPrior_Beta_a + sensmotPrior_Beta_b + 1u))) );
+
+//    /*the normalised max_posterior variance [0, 1] is going to be very much larger than the variance of the Beta distribution, */
+//    max_posterior_variance = std::max(max_posterior_variance,
+//                                      ((Real)(nosensmotPrior_Beta_a * nosensmotPrior_Beta_b)) /
+//                                      ((Real)((nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+//                                       (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+//                                       (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b + 1u))) );
+
+//    /*the normalised max_posterior variance [0, 1] is going to be very much larger than the variance of the Beta distribution, */
+//    max_posterior_variance = std::max(max_posterior_variance,
+//                                      ((Real)(irrespsensmotPrior_Beta_a * irrespsensmotPrior_Beta_b)) /
+//                                      ((Real)((irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+//                                       (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+//                                       (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) );
+
+//    /*if(CurrentStepNumber > m_iLongTimeWindowLength)
+//    printf("\n%f\t%d\t%d\t%f\t%f\t%f\t%f\t%f \n", owner.m_sSensoryData.m_rTime, m_unRobotId, owner.m_sSensoryData.m_unRobotId, m_fEstimated_Dist_ShortTimeWindow,
+//                                                                        m_fEstimated_Dist_MediumTimeWindow,
+//                                                                        m_fEstimated_Dist_LongTimeWindow, average_angularacceleration,DistToNearestNbr); */
+
+
+//    /*m_pfFeatureValues[0] = sensclosePrior_Gaussian_mu >= 7.50f ? 1.0f : 0.0f; // //was 0.5f for porportion time nbr there in last 10s
+//    assert(FEATURE_RANGE/2.0f == 15.0f);
+//    m_pfFeatureValues[1] = sensfarPrior_Gaussian_mu  >= 15.0f ? 1.0f : 0.0f; // was 0.50f ? 1.0f : 0.0f; for porportion time nbr there in last 10s*/
+
+
+//    if(number_featureobservations_2 == 0)
+//        m_pfFeatureValues[2] = 0.0f; // default value as you can have the case of observing the robot, but never with any nearby nbrs present. Alternatively the priors could be set to a have a value expecte value
+//    else
+//        m_pfFeatureValues[2] = (((Real)sensmotPrior_Beta_a)       / ((Real)(sensmotPrior_Beta_a       + sensmotPrior_Beta_b)))       > 0.05f ? 1.0f : 0.0f;
+
+//    if(number_featureobservations_3 == 0)
+//        m_pfFeatureValues[3] = 0.0f;  // default value , but never with no nearby nbrs present. Alternatively the priors could be set to a have a value expecte value
+//    else
+//        m_pfFeatureValues[3] = (((Real)nosensmotPrior_Beta_a)     / ((Real)(nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b)))     > 0.05f ? 1.0f : 0.0f;
+
+
+//    m_pfFeatureValues[4] = (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b))) > 0.05f ? 1.0f : 0.0f;
+
+//    /*m_pfFeatureValues[5] = motPrior_Gaussian_mu >= (0.15f*(m_iLongTimeWindowLength * m_sRobotData.MaxLinearSpeed)) ? 1.0f : 0.0f;*/
+
+
+
+//    assert(CBayesianInferenceFeatureVector::NUMBER_OF_FEATURES == 6);
+
+//    m_unValue = 0;
+//    for (unsigned int i = 0; i < CBayesianInferenceFeatureVector::NUMBER_OF_FEATURES; i++)
+//        m_unValue += (unsigned)m_pfFeatureValues[i] * (1 << i);
+
+//    if(m_unRobotId == 8)
+//    {
+//        //if(max_posterior_variance < 0.2f)
+//            /*std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  sensclosePrior_Gaussian_mu  << " with min_number_featureobservations " << number_featureobservations_0 << " and posterior variance " << sensclosePrior_Gaussian_variance <<  std::endl;*/
+
+//        /*std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance <<  std::endl;*/
+
+//        /*std::cout << "F2 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)sensmotPrior_Beta_a)       / ((Real)(sensmotPrior_Beta_a       + sensmotPrior_Beta_b)))   << " with number_featureobservations " << number_featureobservations_2 << " and posterior variance " << ((Real)(sensmotPrior_Beta_a * sensmotPrior_Beta_b)) /
+//                     ((Real)((sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+//                     (sensmotPrior_Beta_a + sensmotPrior_Beta_b)*
+//                     (sensmotPrior_Beta_a + sensmotPrior_Beta_b + 1u)))  << std::endl;
+
+//        std::cout << "F3 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)nosensmotPrior_Beta_a)     / ((Real)(nosensmotPrior_Beta_a     + nosensmotPrior_Beta_b)))   << " with number_featureobservations " << number_featureobservations_3 << " and posterior variance " << ((Real)(nosensmotPrior_Beta_a * nosensmotPrior_Beta_b)) /
+//                     ((Real)((nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+//                      (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b)*
+//                      (nosensmotPrior_Beta_a + nosensmotPrior_Beta_b + 1u)))  << std::endl;
+
+//        std::cerr << "F4 of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is " <<  (((Real)irrespsensmotPrior_Beta_a) / ((Real)(irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)))  << " with number_featureobservations " << number_featureobservations_4 << " and posterior variance " << ((Real)(irrespsensmotPrior_Beta_a * irrespsensmotPrior_Beta_b)) /
+//                     ((Real)((irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+//                      (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b)*
+//                      (irrespsensmotPrior_Beta_a + irrespsensmotPrior_Beta_b + 1u))) << std::endl;*/
+
+
+//    }
+//    else
+//    {
+//       /* if(max_posterior_variance < 0.2f)
+//                    std::cout << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with min_number_featureobservations " << min_number_featureobservations << " and posterior variance " << max_posterior_variance <<  std::endl;*/
+//        /*std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  sensclosePrior_Gaussian_mu  << " with min_number_featureobservations " << number_featureobservations_0 << " and posterior variance " << sensclosePrior_Gaussian_variance <<  std::endl;*/
+//    }
+
+//    /*if(m_unRobotId == 7 && owner.m_sSensoryData.m_unRobotId == 0)
+//    {
+//        std::cout << std::endl;
+//    }*/
+
+
+//if(m_unRobotId == 15 && owner.m_sSensoryData.m_unRobotId == 93 && (owner.m_sSensoryData.m_rTime > 780 && owner.m_sSensoryData.m_rTime < 790))
+//    std::cerr << "FV of " << m_unRobotId << " as observed by"  << owner.m_sSensoryData.m_unRobotId << " is "  <<  m_unValue  << " with num s-m obs " << number_featureobservations_2 << "  with num s-nm obs " << number_featureobservations_3 <<  "  with num m obs " << number_featureobservations_4 <<  std::endl;
+
+//}
+
 /******************************************************************************/
 /******************************************************************************/
 
-Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::CountNeighbors(Real lb_sensor_range, Real hb_sensor_range, Real& dist_nearest_nbr, Real& CoM_nbrs)
+Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVector::CountNeighbors(Real lb_sensor_range, Real hb_sensor_range, Real& dist_nearest_nbr, Real& CoM_nbrs, Real *Range_ObserverToObserved)
 {
     Real count_nbrs = 0.0f; // Use Real instead of unsigned so that we can return -1 if the robot is not observed at the current time-step.
     CoM_nbrs   = 0.0f;
 
     dist_nearest_nbr = 1000000u;
-
-
 
     /*
      * counting the number of neighbours to observedRobotId_1
@@ -661,6 +862,10 @@ Real CBayesianInferenceFeatureVector::BayesInference_ObservedRobots_FeatureVecto
 
     if (count_nbrs > 0.0f)
         CoM_nbrs = CoM_nbrs / count_nbrs;
+
+
+    if(Range_ObserverToObserved !=NULL)
+        *Range_ObserverToObserved = observedRobotId_1_Range;
 
     return count_nbrs;
 }

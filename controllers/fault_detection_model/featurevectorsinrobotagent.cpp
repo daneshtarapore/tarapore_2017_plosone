@@ -103,7 +103,8 @@ void UpdaterFvDistribution(t_listFVsSensed &listFVsSensed, t_listMapFVsToRobotId
 /******************************************************************************/
 
 void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
-                     unsigned int fv, unsigned robotId, double timesensed)
+                          unsigned int fv, unsigned robotId, double timesensed,
+                          unsigned int range, unsigned int numobs_sm, unsigned int numobs_nsm, unsigned int numobs_m)
 {
     t_listMapFVsToRobotIds::iterator itd;
 
@@ -124,20 +125,79 @@ void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
                 (*itd).fTimeSensed = timesensed;
                 (*itd).uRobotId = robotId;
                 (*itd).uFV = fv;
+
+                (*itd).uRange = range;
+                (*itd).uNumobs_sm = numobs_sm;
+                (*itd).uNumobs_nsm = numobs_nsm;
+                (*itd).uNumobs_m = numobs_m;
             }
             return;
         }
     }
 
     if(!robot_present) // if the list is empty or the robot with given id is not present in the list
-        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(robotId, timesensed, fv));
+        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(robotId, timesensed, fv, range, numobs_sm, numobs_nsm, numobs_m));
 }
 
 /******************************************************************************/
 /******************************************************************************/
 
+//void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
+//                          unsigned int ObserverRobotId, unsigned int fv, unsigned ObservedRobotId, double timesensed)
+//{
+//    t_listMapFVsToRobotIds::iterator itd;
+
+//    // check if ObservedRobotId is in listMapFVsToRobotIds
+//    /*
+//     * if so, then check if ObserverRobotId is part of the entry.
+//     *        if so,  than update its fv if timesensed is more recent.
+//     *        if not, than add the ObserverRobotId, timesensed and fv to the entry
+//     *
+//     *  if not, then add ObservedRobotId, and also add ObserverRobotId, timesensed and fv to the entry
+//     */
+
+//    bool robot_present(false);
+//    for (itd = listMapFVsToRobotIds.begin(); itd != listMapFVsToRobotIds.end(); ++itd)
+//    {
+//        if((*itd).uRobotId == ObservedRobotId)
+//        {
+//            robot_present = true;
+
+//            bool observer_robot_present(false);
+//            //for(std::vector<unsigned>::iterator itd1 = (*itd).vec_ObserverRobotIds.begin(); itd1 != (*itd).vec_ObserverRobotIds.end(); ++itd1)
+//            for(size_t vec_index = 0; vec_index < (*itd).vec_ObserverRobotIds.size(); ++vec_index)
+//            {
+//                if (ObserverRobotId == (*itd).vec_ObserverRobotIds[vec_index])
+//                {
+//                    observer_robot_present = true;
+
+//                    if(timesensed > (*itd).vec_TimeObserved[vec_index])
+//                    {
+//                        (*itd).vec_TimeObserved[vec_index]     = timesensed;
+//                        (*itd).vec_ObservedRobotFVs[vec_index] = fv;
+//                    }
+//                    return;
+//                }
+//            }
+
+//            if(!observer_robot_present)
+//            {
+//                (*itd).AddNewInformationFVsSensed(ObserverRobotId, timesensed, fv);
+//                return;
+//            }
+//        }
+//    }
+
+//    if(!robot_present) // if the list is empty or the robot with given id is not present in the list. we set the fv to 999u, a value that will never be reached. so if consensus is not reached on the fv, we know about it from this value.
+//        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(ObserverRobotId, ObservedRobotId, timesensed, 999u));
+//}
+
+/******************************************************************************/
+/******************************************************************************/
+
 void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
-                          unsigned int ObserverRobotId, unsigned int fv, unsigned ObservedRobotId, double timesensed)
+                          unsigned int ObserverRobotId, unsigned int fv, unsigned ObservedRobotId, double timesensed,
+                          unsigned int range, unsigned int numobs_sm, unsigned int numobs_nsm, unsigned int numobs_m)
 {
     t_listMapFVsToRobotIds::iterator itd;
 
@@ -169,6 +229,11 @@ void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
                     {
                         (*itd).vec_TimeObserved[vec_index]     = timesensed;
                         (*itd).vec_ObservedRobotFVs[vec_index] = fv;
+
+                        (*itd).vec_ObserverRobotRange[vec_index] = range;
+                        (*itd).vec_ObserverRobotNumObservations_SM[vec_index] = numobs_sm;
+                        (*itd).vec_ObserverRobotNumObservations_nSM[vec_index] = numobs_nsm;
+                        (*itd).vec_ObserverRobotNumObservations_M[vec_index] = numobs_m;
                     }
                     return;
                 }
@@ -176,14 +241,14 @@ void UpdateFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds,
 
             if(!observer_robot_present)
             {
-                (*itd).AddNewInformationFVsSensed(ObserverRobotId, timesensed, fv);
+                (*itd).AddNewInformationFVsSensed(ObserverRobotId, timesensed, fv, range, numobs_sm, numobs_nsm, numobs_m);
                 return;
             }
         }
     }
 
     if(!robot_present) // if the list is empty or the robot with given id is not present in the list. we set the fv to 999u, a value that will never be reached. so if consensus is not reached on the fv, we know about it from this value.
-        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(ObserverRobotId, ObservedRobotId, timesensed, 999u));
+        listMapFVsToRobotIds.push_back(DetailedInformationFVsSensed(ObserverRobotId, ObservedRobotId, timesensed, 999u, range, numobs_sm, numobs_nsm, numobs_m));
 }
 
 /******************************************************************************/
@@ -219,6 +284,13 @@ void TrimFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds, Real f_Cur
         std::vector<Real>::iterator     it_timeobserved = itd->vec_TimeObserved.begin();
         std::vector<unsigned>::iterator it_observerdfv  = itd->vec_ObservedRobotFVs.begin();
 
+        std::vector<unsigned>::iterator it_observer_range       = itd->vec_ObserverRobotRange.begin();
+        std::vector<unsigned>::iterator it_observer_numobs_sm   = itd->vec_ObserverRobotNumObservations_SM.begin();
+        std::vector<unsigned>::iterator it_observer_numobs_nsm  = itd->vec_ObserverRobotNumObservations_nSM.begin();
+        std::vector<unsigned>::iterator it_observer_numobs_m    = itd->vec_ObserverRobotNumObservations_M.begin();
+
+
+
         while(it_timeobserved != itd->vec_TimeObserved.end())
         {
             if ((*it_timeobserved) < (f_CurrentRobotTime - f_FvToId_MaintenanceTime))
@@ -226,23 +298,54 @@ void TrimFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds, Real f_Cur
                 it_observer     = itd->vec_ObserverRobotIds.erase(it_observer);
                 it_timeobserved = itd->vec_TimeObserved.erase(it_timeobserved);
                 it_observerdfv  = itd->vec_ObservedRobotFVs.erase(it_observerdfv);
+
+                it_observer_range       = itd->vec_ObserverRobotRange.erase(it_observer_range);
+                it_observer_numobs_sm   = itd->vec_ObserverRobotNumObservations_SM.erase(it_observer_numobs_sm);
+                it_observer_numobs_nsm  = itd->vec_ObserverRobotNumObservations_nSM.erase(it_observer_numobs_nsm);
+                it_observer_numobs_m    = itd->vec_ObserverRobotNumObservations_M.erase(it_observer_numobs_m);
+
                 continue;
             }
             ++it_observer; ++it_timeobserved; ++it_observerdfv;
+            ++it_observer_range; ++it_observer_numobs_sm; ++it_observer_numobs_nsm; ++it_observer_numobs_m;
         }
 
 
-         if (itd->vec_ObserverRobotIds.size() == 0u)
-         {
-             assert(itd->vec_TimeObserved.size()     == 0u);
-             assert(itd->vec_ObservedRobotFVs.size() == 0u);
-             itd = listMapFVsToRobotIds.erase(itd);
-             continue;
-         }
+        if (itd->vec_ObserverRobotIds.size() == 0u)
+        {
+            assert(itd->vec_TimeObserved.size()     == 0u);
+            assert(itd->vec_ObservedRobotFVs.size() == 0u);
+
+            assert(itd->vec_ObserverRobotRange.size() == 0u);
+            assert(itd->vec_ObserverRobotNumObservations_SM.size() == 0u);
+            assert(itd->vec_ObserverRobotNumObservations_nSM.size() == 0u);
+            assert(itd->vec_ObserverRobotNumObservations_M.size() == 0u);
+
+            itd = listMapFVsToRobotIds.erase(itd);
+            continue;
+        }
 
          ++itd;
     }
 #endif
+}
+
+/******************************************************************************/
+/******************************************************************************/
+
+void PrintFvToRobotIdMap(t_listMapFVsToRobotIds &listMapFVsToRobotIds)
+{
+    std::cout << "Number of entries in detailed map is " << listMapFVsToRobotIds.size() << std::endl;
+
+    t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
+    while(itd != listMapFVsToRobotIds.end())
+    {
+        std::cout << "Observed robot id " << itd->uRobotId << " has fv " << itd->uFV << ", first time sensed is " << itd->fTimeSensed
+                  << "range " << itd->uRange << " num s-m obs " << itd->uNumobs_sm << ", num s-nm obs " << itd->uNumobs_nsm
+                  << ", num m obs " << itd->uNumobs_m
+                  << std::endl;
+        ++itd;
+    }
 }
 
 /******************************************************************************/
@@ -255,7 +358,8 @@ void PrintFvToRobotIdMap(unsigned u_MapOfRobotId, t_listMapFVsToRobotIds &listMa
     t_listMapFVsToRobotIds::iterator itd = listMapFVsToRobotIds.begin();
     while(itd != listMapFVsToRobotIds.end())
     {
-        if(itd->uRobotId != 99999u && itd->uRobotId != u_ObservedRobotId)
+        if(u_ObservedRobotId != 99999u && itd->uRobotId != u_ObservedRobotId)
+        //if(itd->uRobotId != 99999u && itd->uRobotId != u_ObservedRobotId)
         {
             ++itd;
             continue;
@@ -267,7 +371,11 @@ void PrintFvToRobotIdMap(unsigned u_MapOfRobotId, t_listMapFVsToRobotIds &listMa
         {
             std::cout << "   Sub-entry " << index <<
                          " ObserverId " << itd->vec_ObserverRobotIds[index] <<
-                         " ObservedFV " << itd->vec_ObservedRobotFVs[index] << " ObservedFV " << itd->vec_TimeObserved[index] << std::endl;
+                         " ObservedFV " << itd->vec_ObservedRobotFVs[index] << " Time observed " << itd->vec_TimeObserved[index]
+                         << "range " << itd->vec_ObserverRobotRange[index] << " num s-m obs " << itd->vec_ObserverRobotNumObservations_SM[index]
+                         << ", num s-nm obs " << itd->vec_ObserverRobotNumObservations_nSM[index]
+                         << ", num m obs " << itd->vec_ObserverRobotNumObservations_M[index]
+                         << std::endl;
 
         }
 
@@ -276,9 +384,9 @@ void PrintFvToRobotIdMap(unsigned u_MapOfRobotId, t_listMapFVsToRobotIds &listMa
     }
 }
 
+/******************************************************************************/
+/******************************************************************************/
 
-/******************************************************************************/
-/******************************************************************************/
 #ifdef ConsensusOnMapOfIDtoFV
 
 void SelectBestFVFromAllObservedFVs(t_listMapFVsToRobotIds &listMapFVsToRobotIds, unsigned u_NumFeatures, CRandom::CRNG* m_pcRNG_FVs, unsigned uSelfRobotId)
@@ -500,7 +608,8 @@ void PrintVoterRegistry(unsigned u_VoterRegistryOfRobotId, t_listVoteInformation
     t_listVoteInformationRobots::iterator itd = listVoteInformationRobots.begin();
     while(itd != listVoteInformationRobots.end())
     {
-        if(itd->uRobotId != 99999u && itd->uRobotId != u_VotedOnRobotId)
+        if(u_VotedOnRobotId != 99999u && itd->uRobotId != u_VotedOnRobotId)
+        //if(itd->uRobotId != 99999u && itd->uRobotId != u_VotedOnRobotId)
         {
             ++itd;
             continue;
@@ -531,7 +640,7 @@ void PrintConsensusRegistry(unsigned u_ConsensusRegistryOfRobotId, t_listConsens
     t_listConsensusInfoOnRobotIds::iterator itd = listConsensusInfoOnRobotIds.begin();
     while(itd != listConsensusInfoOnRobotIds.end())
     {
-        if(itd->uRobotId != 99999u && itd->uRobotId != u_ConsensusOnRobotId)
+        if(u_ConsensusOnRobotId != 99999u && itd->uRobotId != u_ConsensusOnRobotId)
         {
             ++itd;
             continue;

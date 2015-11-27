@@ -92,10 +92,7 @@ CEPuckHomSwarm::ExperimentToRun::ExperimentToRun() :
     id_FaultyRobotInSwarm("-1"),
     time_between_robots_trans_behav(-1.0f)
 {
-    robot_ids_behav1.clear(); robot_ids_behav2.clear();
-
-    for(unsigned id = 0; id < u_num_epucks; ++id)
-        robot_ids_behav1.push_back(id);
+    robot_ids_behav1.clear(); robot_ids_behav2.clear();    
 }
 
 
@@ -418,6 +415,15 @@ unsigned CEPuckHomSwarm::SumFVDist(t_listFVsSensed& FVsSensed)
 
 void CEPuckHomSwarm::ControlStep()
 {
+    if(m_fInternalRobotTimer == 0.0f)
+    {
+        /*init function of loopfunction object (used to count number of e-pucks) is called after calling init of individual robot objects, and not before; so the u_num_epucks is used here*/
+        assert(m_sExpRun.u_num_epucks <= 100u);
+        for(unsigned id = 0; id < m_sExpRun.u_num_epucks; ++id)
+            m_sExpRun.robot_ids_behav1.push_back(id);
+    }
+
+
     m_pcRABA->ClearData(); // clear the channel at the start of each control cycle
 
     m_fInternalRobotTimer+=1.0f;
