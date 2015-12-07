@@ -14,7 +14,7 @@
  <!-- length in seconds -->
   <framework>
     <system threads="0" />
-    <experiment length="500"
+    <experiment length="600"
                 ticks_per_second="10"
                 random_seed="111" /> 
   </framework>

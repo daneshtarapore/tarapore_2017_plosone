@@ -14,9 +14,9 @@
  <!-- length in seconds -->
   <framework>
     <system threads="0" />
-    <experiment length="500"
+    <experiment length="600"
                 ticks_per_second="10"
-                random_seed="555" /> 
+                random_seed="111" /> 
   </framework>
 
   <!-- *************** -->
@@ -117,7 +117,7 @@
     <distribute>
       <position method="uniform" min="-1.5,-1.5,0" max="1.5,1.5,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
-      <entity quantity="20" max_trials="1">
+      <entity quantity="20" max_trials="5">
         <e-puck id="ep" rab_data_size="1000" rab_range="1">    <!-- using a high bandwidth of 1000 bytes for now -->
           <controller config="ehs" />
         </e-puck>

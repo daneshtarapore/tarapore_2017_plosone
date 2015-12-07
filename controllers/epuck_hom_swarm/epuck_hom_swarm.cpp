@@ -228,6 +228,7 @@ CEPuckHomSwarm::CEPuckHomSwarm() :
     b_damagedrobot(false),
     u_num_consequtivecollisions(0)
 {
+    m_fRobotTimerAtStart =
     m_fInternalRobotTimer=0.0f;
     listFVsSensed.clear();
     listMapFVsToRobotIds.clear();
