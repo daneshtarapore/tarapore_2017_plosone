@@ -266,9 +266,16 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
     else if(m_fInternalRobotTimer > MODELSTARTTIME)
         /* else because you don't want to receive consensus already in the medium from before the buffer was cleared*/
     {
-        /* Listen for voting packets and consensus packets from neighbours*/
-        ReceiveVotesAndConsensus(listVoteInformationRobots, listMapFVsToRobotIds, listConsensusInfoOnRobotIds, rabsensor_readings);
-        EstablishConsensus(m_fInternalRobotTimer, listVoteInformationRobots, listConsensusInfoOnRobotIds);
+        Real m_fVoteCompilationStartTime = (Real)(((unsigned)m_fInternalRobotTimer)/
+                                             ((unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second))) *
+                                      (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second);
+
+        if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) > 0.9f)
+        {
+            /* Listen for voting packets and consensus packets from neighbours*/
+            ReceiveVotesAndConsensus(listVoteInformationRobots, listMapFVsToRobotIds, listConsensusInfoOnRobotIds, rabsensor_readings);
+            EstablishConsensus(m_fInternalRobotTimer, listVoteInformationRobots, listConsensusInfoOnRobotIds);
+        }
     }
 
 

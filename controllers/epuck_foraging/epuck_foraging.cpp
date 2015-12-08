@@ -229,15 +229,18 @@ CEPuckForaging::CEPuckForaging() :
     b_damagedrobot(false),
     u_num_consequtivecollisions(0)
 {
-    //m_fRobotTimerAtStart = 0.0f;
+#ifndef DESYNC_ROB_CLOCK
+    m_fRobotTimerAtStart = 0.0f;
+#else
     // desync clocks by +/-5 s - Gaussian dist
-    m_fRobotTimerAtStart = m_pcRNG->Gaussian(10.0f, 50.0f); // mean 50 ticsk, std dev. 10 ticks (50 ticks = 5 sec)
+    m_fRobotTimerAtStart = m_pcRNG->Gaussian(25.0f, 50.0f); // mean 50 ticsk, std dev. 10 ticks (50 ticks = 5 sec)
     if(m_fRobotTimerAtStart < 0.0f)
         m_fRobotTimerAtStart = 0.0f;
     else if(m_fRobotTimerAtStart > 100.0f)
         m_fRobotTimerAtStart = 100.0f;
     else
         m_fRobotTimerAtStart = (unsigned) m_fRobotTimerAtStart;
+#endif
 
     m_fInternalRobotTimer = m_fRobotTimerAtStart;
 
