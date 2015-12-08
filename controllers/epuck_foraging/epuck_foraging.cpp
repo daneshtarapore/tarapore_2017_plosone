@@ -224,11 +224,23 @@ CEPuckForaging::CEPuckForaging() :
     m_pcProximity(NULL),
     m_pcLight(NULL),
     m_pcGround(NULL),
-    m_pcRNG(NULL),
-    m_pcRNG_FVs(NULL),
+    m_pcRNG(CRandom::CreateRNG("argos")),
+    m_pcRNG_FVs(CRandom::CreateRNG("argos")),
     b_damagedrobot(false),
     u_num_consequtivecollisions(0)
 {
+    //m_fRobotTimerAtStart = 0.0f;
+    // desync clocks by +/-5 s - Gaussian dist
+    m_fRobotTimerAtStart = m_pcRNG->Gaussian(10.0f, 50.0f); // mean 50 ticsk, std dev. 10 ticks (50 ticks = 5 sec)
+    if(m_fRobotTimerAtStart < 0.0f)
+        m_fRobotTimerAtStart = 0.0f;
+    else if(m_fRobotTimerAtStart > 100.0f)
+        m_fRobotTimerAtStart = 100.0f;
+    else
+        m_fRobotTimerAtStart = (unsigned) m_fRobotTimerAtStart;
+
+    m_fInternalRobotTimer = m_fRobotTimerAtStart;
+
     listFVsSensed.clear();
     listMapFVsToRobotIds.clear();
     listMapFVsToRobotIds_relay.clear();
@@ -276,8 +288,9 @@ void CEPuckForaging::Init(TConfigurationNode& t_node)
     */
     /* Create a random number generator. We use the 'argos' category so
       that creation, reset, seeding and cleanup are managed by ARGoS. */
-    m_pcRNG = CRandom::CreateRNG("argos");
-    m_pcRNG_FVs = CRandom::CreateRNG("argos");
+    // Now initialised at CEPuckForaging() constructor
+    /*m_pcRNG = CRandom::CreateRNG("argos");
+    m_pcRNG_FVs = CRandom::CreateRNG("argos");*/
     Reset();
 
     m_sRobotDetails.SetKinematicDetails(m_sWheelTurningParams.MaxSpeed, m_sWheelTurningParams.MaxSpeed);

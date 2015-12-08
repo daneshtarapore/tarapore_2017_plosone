@@ -501,7 +501,7 @@ public:
     t_listFVsSensed&             GetListFVsSensed()         {return listFVsSensed;}
     t_listMapFVsToRobotIds&      GetMapFVsSensed()          {return listMapFVsToRobotIds;}
 
-    Real m_fInternalRobotTimer;
+    Real m_fInternalRobotTimer, m_fRobotTimerAtStart;
     Real m_fCRM_RUN_TIMESTAMP;
     bool b_CRM_Run;
 
