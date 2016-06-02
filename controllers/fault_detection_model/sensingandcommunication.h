@@ -94,9 +94,11 @@
 #define CRM_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds // assume the robot behaviors have not changed in the last 10s // can we remove this.
 
 /*
- * The vote counts and consensus are valid for atmost 10s before being refreshed
+ * The vote counts and consensus are valid for atmost VOTCON_RESULTS_VALIDFOR_SECONDS before being refreshed
+ * (in seconds)
+ * default value is 10.0f, we tried values of 5.0f 15.0f and 20.0f
  */
-#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f // in seconds //10.0f
+#define VOTCON_RESULTS_VALIDFOR_SECONDS 10.0f
 
 /****************************************/
 /****************************************/
@@ -118,7 +120,7 @@ void Sense(Real m_fProbForget,
            t_listMapFVsToRobotIds& listMapFVsToRobotIds, t_listMapFVsToRobotIds& listMapFVsToRobotIds_relay, t_listFVsSensed& listFVsSensed,
            t_listVoteInformationRobots&  listVoteInformationRobots, t_listConsensusInfoOnRobotIds& listConsensusInfoOnRobotIds,
            CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector, CObservedFeatureVector &m_cObservationFeatureVector,
-           CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector, CRandom::CRNG* m_pcRNG_FVs);
+           CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector, CRandom::CRNG* m_pcRNG_FVs, std::string &swarmbehav, std::vector<int> &beaconrobots_ids);
 
 
 /*
@@ -130,7 +132,7 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
          t_listVoteInformationRobots&  VoteInformationRobots, t_listConsensusInfoOnRobotIds& ConsensusLst,
          CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector,
          CObservedFeatureVector &m_cObservationFeatureVector, CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector,
-         bool b_CRM_Run, Real m_fCRM_RUN_TIMESTAMP, CRMinRobotAgentOptimised* crminAgent, CRandom::CRNG* m_pcRNG_FVs, unsigned& m_uRobotFV);
+         bool b_CRM_Run, Real m_fCRM_RUN_TIMESTAMP, CRMinRobotAgentOptimised* crminAgent, CRandom::CRNG* m_pcRNG_FVs, unsigned& m_uRobotFV, std::string &swarmbehav, std::vector<int> &beaconrobots_ids);
 
 
 /*

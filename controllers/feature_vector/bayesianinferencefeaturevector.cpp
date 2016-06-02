@@ -1,6 +1,7 @@
 #include "bayesianinferencefeaturevector.h"
 #include "assert.h"
 #include <iostream>
+//#include <std.
 
 /******************************************************************************/
 /******************************************************************************/
@@ -44,26 +45,49 @@ CBayesianInferenceFeatureVector::~CBayesianInferenceFeatureVector()
 /******************************************************************************/
 /******************************************************************************/
 
-unsigned CBayesianInferenceFeatureVector::SimulationStep()
+unsigned CBayesianInferenceFeatureVector::SimulationStep(std::string &swarmbehav, std::vector<int> &beaconrobots_ids)
 {
     for(size_t i = 0; i <  m_sSensoryData.m_RABSensorData.size(); ++i)
     {
         /* this loop is quadratic in computational complexity. we can improve on this.*/
 
         bool     b_ObservedRobotFound(false);
+        bool     b_ObservedRobotIsBeacon(false);
         unsigned u_ObservedRobotId = GetIdFromRABPacket(m_sSensoryData.m_RABSensorData, i);
-        for (t_ListObservedRobots::iterator it_listobrob = m_pcListObservedRobots.begin(); it_listobrob != m_pcListObservedRobots.end(); ++it_listobrob)
+
+        /* Ignore the homing beacon in fault detection */
+        if( (swarmbehav.compare("SWARM_HOMING") == 0) && (u_ObservedRobotId == 0u))
+        {
+                b_ObservedRobotIsBeacon = true;
+        }
+
+        /* Ignore the foraging beacon(s) in fault detection */
+        if((swarmbehav.compare("SWARM_FORAGING") == 0) && (std::find(beaconrobots_ids.begin(), beaconrobots_ids.end(), u_ObservedRobotId) != beaconrobots_ids.end()))
+        {
+                b_ObservedRobotIsBeacon = true;
+        }
+
+        //for (t_ListObservedRobots::iterator it_listobrob = m_pcListObservedRobots.begin(); it_listobrob != m_pcListObservedRobots.end(); ++it_listobrob)
+        t_ListObservedRobots::iterator it_listobrob = m_pcListObservedRobots.begin();
+        while(it_listobrob != m_pcListObservedRobots.end())
         {
             if(u_ObservedRobotId == it_listobrob->m_unRobotId)
             {
                 b_ObservedRobotFound = true;
+
+                /* If beacon robot already in m_pcListObservedRobots, it will be removed*/
+                if(b_ObservedRobotIsBeacon)
+                    it_listobrob = m_pcListObservedRobots.erase(it_listobrob);
+
                 break; // each robot id is represented only once in the m_pcListObservedRobots list
             }
+            ++it_listobrob;
         }
 
         /* add the robot u_ObservedRobotId to the list of observed robots*/
-        if (!b_ObservedRobotFound && u_ObservedRobotId != ROBOTID_NOT_IN_SIGNAL)
-            m_pcListObservedRobots.push_back(BayesInference_ObservedRobots_FeatureVector((*this), m_sSensoryData.m_rTime, u_ObservedRobotId));
+        if(!b_ObservedRobotIsBeacon)
+            if (!b_ObservedRobotFound && u_ObservedRobotId != ROBOTID_NOT_IN_SIGNAL)
+                m_pcListObservedRobots.push_back(BayesInference_ObservedRobots_FeatureVector((*this), m_sSensoryData.m_rTime, u_ObservedRobotId));
     }
 
 

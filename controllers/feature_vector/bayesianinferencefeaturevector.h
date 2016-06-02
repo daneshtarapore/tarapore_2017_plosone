@@ -7,6 +7,7 @@
 #include <string>
 #include <list>
 #include <numeric>
+#include <algorithm>
 /******************************************************************************/
 /******************************************************************************/
 #include <argos3/core/utility/math/vector2.h>
@@ -189,19 +190,19 @@ public:
 
 
             /* Sensor motor interactions. Motor reactions in the presence of sensor input from nbrs, and in the absence of sensor input from nbrs. Associated with the belief  */
-            sensmotPrior_Beta_a = 1u;   sensmotPrior_Beta_b = 1u;
-            nosensmotPrior_Beta_a = 1u; nosensmotPrior_Beta_b = 1u;
+            sensmotPrior_Beta_a = 1u;   sensmotPrior_Beta_b = 19u; //1u
+            nosensmotPrior_Beta_a = 1u; nosensmotPrior_Beta_b = 19u; //1u
 
 
             /* prior pertaining to actuation - i.e. distance travelled by robot in past 10s. Associated to the belief, is the robot moving large distances? */
             motPrior_Gaussian_mu = 25.0f; motPrior_Gaussian_variance = 50.0f; // robot moves 0.5 cm /tick, so in 100  ticks the max distance covered is 50cm.
             /* prior pertaining to motor reactions irrespective of sensor input. How does the robot react in a general sense */
-            irrespsensmotPrior_Beta_a = 1u; irrespsensmotPrior_Beta_b = 1u;
+            irrespsensmotPrior_Beta_a = 1u; irrespsensmotPrior_Beta_b = 19u; //1u
 
 
             /* prior pertaining to sensing - i.e. number of neighbours in close and far proximity. Associated to the belief, is the robot part of a small aggregate?, and is the robot part of a large aggregate?  */
-            sensclosePrior_Gaussian_mu = 7.5f; sensclosePrior_Gaussian_variance = 15.0f; // sensed nbrs truly like in 15 cm range [0, 15].
-            sensfarPrior_Gaussian_mu   = 15.0f; sensfarPrior_Gaussian_variance   = 15.0f; // sensed nbrs truly like in 15 cm range [15, 30].
+            sensclosePrior_Gaussian_mu = 0.5f; sensclosePrior_Gaussian_variance = 1.0f; // nbr present (at least one) half the time of past 10 s
+            sensfarPrior_Gaussian_mu   = 0.5f; sensfarPrior_Gaussian_variance   = 1.0f; // nbr present (at least one) half the time of past 10 s
 
 
             /* Only the priors associated with sensor-motor interactions need to be reset. The others use a Kalman filter, thus tracking the changes made */
@@ -275,7 +276,7 @@ public:
     CBayesianInferenceFeatureVector();
     virtual ~CBayesianInferenceFeatureVector();
 
-    virtual unsigned SimulationStep();
+    virtual unsigned SimulationStep(std::string  &swarmbehav, std::vector<int> &beaconrobots_ids);
 
     virtual unsigned GetIdFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index, unsigned *range = NULL);
     virtual float    GetAnguAccelerFromRABPacket(CCI_RangeAndBearingSensor::TReadings &rab_packet, size_t rab_packet_index, unsigned observerd_robot_id);

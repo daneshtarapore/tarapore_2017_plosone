@@ -13,9 +13,9 @@
   <!-- ************************* -->
   <framework>
     <system threads="0" />
-    <experiment length="600"
+    <experiment length="3000"
                 ticks_per_second="10"
-                random_seed="999" />
+                random_seed="111" />
   </framework>
 
   <!-- *************** -->
@@ -39,7 +39,7 @@
       </sensors>
       <params>
         <experiment_run swarm_behavior="SWARM_FORAGING"
-			fault_behavior="FAULT_NONE" 
+			fault_behavior="FAULT_PROXIMITYSENSORS_SETMIN" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
         <state initial_rest_to_explore_prob="0.1"
@@ -93,10 +93,10 @@
            medium="leds" />
 
     <distribute>
-      <position method="uniform" min="-1.5,-1.5,0" max="-1.5,1.5,0" />
+      <position method="uniform" min="-1.5,-1.5,0" max="-1.0,1.5,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
       <entity quantity="20" max_trials="5">
-	<e-puck id="ep" rab_data_size="200" rab_range="1">    <!-- using a high bandwidth of 100 bytes for now -->
+	<e-puck id="ep" rab_data_size="1000" rab_range="1">    <!-- using a high bandwidth of 100 bytes for now -->
           <controller config="efc" />
         </e-puck>
       </entity>

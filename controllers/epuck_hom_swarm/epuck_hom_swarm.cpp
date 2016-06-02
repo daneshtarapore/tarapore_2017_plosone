@@ -98,7 +98,7 @@ CEPuckHomSwarm::ExperimentToRun::ExperimentToRun() :
 
 void CEPuckHomSwarm::ExperimentToRun::Init(TConfigurationNode& t_node)
 {
-    std::string swarmbehav, errorbehav;
+    std::string errorbehav;
     std::string swarmbehav_trans, time_between_robots_trans_behav__str;
 
     try
@@ -429,7 +429,7 @@ unsigned CEPuckHomSwarm::SumFVDist(t_listFVsSensed& FVsSensed)
 
 void CEPuckHomSwarm::ControlStep()
 {
-    std::cout << RobotIdStrToInt() << " " << m_fInternalRobotTimer << std::endl;
+  //std::cout << RobotIdStrToInt() << " " << m_fInternalRobotTimer << std::endl;
 
     if(m_fInternalRobotTimer == m_fRobotTimerAtStart)
     {
@@ -466,7 +466,7 @@ void CEPuckHomSwarm::ControlStep()
         CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
     else
     {
-        m_pcLEDs->SetAllColors(CColor::RED);
+        //m_pcLEDs->SetAllColors(CColor::RED);
 
         if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETMIN)
             CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
@@ -602,7 +602,7 @@ void CEPuckHomSwarm::ControlStep()
                            m_fInternalRobotTimer, rabsensor_readings,
                            listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed, listVoteInformationRobots, listConsensusInfoOnRobotIds,
                            m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector,
-                           b_CRM_Run, m_fCRM_RUN_TIMESTAMP, crminAgent, m_pcRNG_FVs, m_uRobotFV);
+                           b_CRM_Run, m_fCRM_RUN_TIMESTAMP, crminAgent, m_pcRNG_FVs, m_uRobotFV, m_sExpRun.swarmbehav, beaconrobots_ids);
 
 
 //    /****************************************/
@@ -1101,7 +1101,7 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
         CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
 
-        m_pcLEDs->SetAllColors(CColor::GREEN);
+        //m_pcLEDs->SetAllColors(CColor::GREEN);
     }
 
     //else if((RobotIdStrToInt()==0 && m_fInternalRobotTimer > 2500.0f))
@@ -1113,7 +1113,7 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
         CRandomWalkBehavior* pcRandomWalkBehavior = new CRandomWalkBehavior(0.0017f); //0.05f
         m_vecBehaviors.push_back(pcRandomWalkBehavior);
 
-        m_pcLEDs->SetAllColors(CColor::RED);
+        //m_pcLEDs->SetAllColors(CColor::RED);
     }
 
     else if(m_sExpRun.SBehavior_Current == ExperimentToRun::SWARM_FLOCKING)
@@ -1136,7 +1136,7 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
             // BEACON_SIGNAL is way above the DATA_BYTE_BOUND
 
             m_pcRABA->SetData(0, BEACON_SIGNAL);
-            m_pcLEDs->SetAllColors(CColor::YELLOW);
+            //m_pcLEDs->SetAllColors(CColor::YELLOW);
         }
         else
         {
@@ -1165,7 +1165,7 @@ void CEPuckHomSwarm::RunHomogeneousSwarmExperiment()
 void CEPuckHomSwarm::Reset()
 {
     /* Set LED color */
-    m_pcLEDs->SetAllColors(CColor::WHITE);
+    //m_pcLEDs->SetAllColors(CColor::WHITE);
     m_pcRABA->ClearData();
 }
 

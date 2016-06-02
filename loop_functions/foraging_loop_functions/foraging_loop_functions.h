@@ -8,6 +8,8 @@
 
 using namespace argos;
 
+#define RESOURCE_POSITION_CHANGED // POSITION OF RESOURCE CHANGED DURING THE EXPERIMENT
+
 class CForagingLoopFunctions : public CLoopFunctions {
 
 public:

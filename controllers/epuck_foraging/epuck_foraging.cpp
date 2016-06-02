@@ -81,7 +81,7 @@ CEPuckForaging::ExperimentToRun::ExperimentToRun() :
 
 void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
 {
-    std::string swarmbehav, errorbehav;
+    std::string errorbehav;
 
     try
     {
@@ -146,7 +146,6 @@ void CEPuckForaging::ExperimentToRun::Init(TConfigurationNode& t_node)
         std::cerr << "invalid fault behavior";
         assert(-1);
     }
-
 }
 
 /****************************************/
@@ -253,6 +252,16 @@ CEPuckForaging::CEPuckForaging() :
     b_CRM_Run = false;
     m_fCRM_RUN_TIMESTAMP = 0.0f;
     m_uRobotFV = 9999; // for debugging urposes
+
+
+    TIME_STATE_RESTING = 0u; TIME_STATE_EXPLORING = 0u; TIME_STATE_BEACON = 0u;
+    TIME_STATE_RESTING_AT_FOOD = 0u;  TIME_STATE_RETURN_TO_NEST = 0u;
+
+    TIME_STATE_RESTING1 = 0u; TIME_STATE_EXPLORING1 = 0u; TIME_STATE_BEACON1 = 0u;
+    TIME_STATE_RESTING_AT_FOOD1 = 0u;  TIME_STATE_RETURN_TO_NEST1 = 0u;
+
+    TIME_STATE_RESTING2 = 0u; TIME_STATE_EXPLORING2 = 0u; TIME_STATE_BEACON2 = 0u;
+    TIME_STATE_RESTING_AT_FOOD2 = 0u;  TIME_STATE_RETURN_TO_NEST2 = 0u;
 }
 
 /****************************************/
@@ -420,6 +429,29 @@ void CEPuckForaging::ControlStep()
 
     m_fInternalRobotTimer += 1.0f;
 
+    if(m_fInternalRobotTimer == 10000.0f)
+    {
+        TIME_STATE_RESTING1         = TIME_STATE_RESTING;
+        TIME_STATE_EXPLORING1       = TIME_STATE_EXPLORING;
+        TIME_STATE_BEACON1          = TIME_STATE_BEACON;
+        TIME_STATE_RESTING_AT_FOOD1 = TIME_STATE_RESTING_AT_FOOD;
+        TIME_STATE_RETURN_TO_NEST1  = TIME_STATE_RETURN_TO_NEST;
+
+        TIME_STATE_RESTING = 0u; TIME_STATE_EXPLORING = 0u; TIME_STATE_BEACON = 0u;
+        TIME_STATE_RESTING_AT_FOOD = 0u;  TIME_STATE_RETURN_TO_NEST = 0u;
+    }
+    else if(m_fInternalRobotTimer == 20000.0f)
+    {
+        TIME_STATE_RESTING2         = TIME_STATE_RESTING;
+        TIME_STATE_EXPLORING2       = TIME_STATE_EXPLORING;
+        TIME_STATE_BEACON2          = TIME_STATE_BEACON;
+        TIME_STATE_RESTING_AT_FOOD2 = TIME_STATE_RESTING_AT_FOOD;
+        TIME_STATE_RETURN_TO_NEST2  = TIME_STATE_RETURN_TO_NEST;
+
+        TIME_STATE_RESTING = 0u; TIME_STATE_EXPLORING = 0u; TIME_STATE_BEACON = 0u;
+        TIME_STATE_RESTING_AT_FOOD = 0u;  TIME_STATE_RETURN_TO_NEST = 0u;
+    }
+
     bool b_RunningGeneralFaults(false);
     if(b_damagedrobot && (m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE ||
                           m_sExpRun.FBehavior == ExperimentToRun::FAULT_RANDOMWALK ||
@@ -439,7 +471,7 @@ void CEPuckForaging::ControlStep()
         CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), m_pcLight->GetReadings(), m_pcGround->GetReadings(), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
     else
     {
-        m_pcLEDs->SetAllColors(CColor::RED);
+        //m_pcLEDs->SetAllColors(CColor::RED);
 
         if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_PROXIMITYSENSORS_SETMIN)
             CBehavior::m_sSensoryData.SetSensoryData(m_pcRNG, m_fInternalRobotTimer, GetIRSensorReadings(b_damagedrobot, m_sExpRun.FBehavior), m_pcLight->GetReadings(), m_pcGround->GetReadings(), GetRABSensorReadings(b_damagedrobot, m_sExpRun.FBehavior));
@@ -543,7 +575,7 @@ void CEPuckForaging::ControlStep()
                            m_fInternalRobotTimer, rabsensor_readings,
                            listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed, listVoteInformationRobots, listConsensusInfoOnRobotIds,
                            m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector,
-                           b_CRM_Run, m_fCRM_RUN_TIMESTAMP, crminAgent, m_pcRNG_FVs, m_uRobotFV);
+                           b_CRM_Run, m_fCRM_RUN_TIMESTAMP, crminAgent, m_pcRNG_FVs, m_uRobotFV, m_sExpRun.swarmbehav, beaconrobots_ids);
 
 
 
@@ -941,7 +973,7 @@ void CEPuckForaging::ControlStep()
 
 void CEPuckForaging::RunGeneralFaults()
 {
-    m_pcLEDs->SetAllColors(CColor::RED);
+    //m_pcLEDs->SetAllColors(CColor::RED);
 
     m_vecBehaviors.clear();
     if(m_sExpRun.FBehavior == ExperimentToRun::FAULT_STRAIGHTLINE)
@@ -975,7 +1007,7 @@ void CEPuckForaging::Reset()
     /* Reset food data */
     m_sFoodData.Reset();
     /* Set LED color */
-    m_pcLEDs->SetAllColors(CColor::RED);
+    //m_pcLEDs->SetAllColors(CColor::RED);
     /* Clear up the last exploration result */
     m_eLastExplorationResult = LAST_EXPLORATION_NONE;
     m_pcRABA->ClearData();
@@ -1028,30 +1060,35 @@ void CEPuckForaging::RunForagingExperiment()
     {
         //std::cout << "SStateData::STATE_RESTING " << std::endl;
         RestAtNest();
+        TIME_STATE_RESTING++;
         break;
     }
     case SStateData::STATE_EXPLORING:
     {
         //std::cout << "SStateData::STATE_EXPLORING " << std::endl;
         Explore(); // have we transitioned from explore?
+        TIME_STATE_EXPLORING++;
         break;
     }
     case SStateData::STATE_BEACON:
     {
         //std::cout << "SStateData::STATE_BEACON " << std::endl;
         BecomeABeacon();
+        TIME_STATE_BEACON++;
         break;
     }
     case SStateData::STATE_RESTING_AT_FOOD:
     {
         //std::cout << "SStateData::STATE_RESTING_AT_FOOD " << std::endl;
         RestAtFood();
+        TIME_STATE_RESTING_AT_FOOD++;
         break;
     }
     case SStateData::STATE_RETURN_TO_NEST:
     {
         //std::cout << "SStateData::STATE_RETURN_TO_NEST " << std::endl;
         ReturnToNest();
+        TIME_STATE_RETURN_TO_NEST++;
         break;
     }
     default:
@@ -1098,8 +1135,8 @@ void CEPuckForaging::RunForagingExperiment()
 
         //! Oscillation of take control between CPhototaxisBehavior and Disperse can cause robots to remain stuck at food source in RETURN_TO_NEST STATE.
         //! But this happends very rarely
-        /*CPhototaxisBehavior* pCPhototaxisBehavior = new CPhototaxisBehavior();
-        m_vecBehaviors.push_back(pCPhototaxisBehavior);*/
+        //CPhototaxisBehavior* pCPhototaxisBehavior = new CPhototaxisBehavior();
+        //m_vecBehaviors.push_back(pCPhototaxisBehavior);
 
 
         /*Real MAX_BEACON_SIGNAL_RANGE = 1.0f; //1m
@@ -1123,7 +1160,7 @@ void CEPuckForaging::RestAtNest()
     if(m_sStateData.TimeRested > m_sStateData.MinimumRestingTime &&
             m_pcRNG->Uniform(m_sStateData.ProbRange) < m_sStateData.InitialRestToExploreProb)
     {
-        m_pcLEDs->SetAllColors(CColor::GREEN);
+        //m_pcLEDs->SetAllColors(CColor::GREEN);
         m_sStateData.State = SStateData::STATE_EXPLORING;
         m_sStateData.TimeRested = 0;
     }
@@ -1146,7 +1183,7 @@ void CEPuckForaging::RestAtFood()
     if(m_sStateData.TimeRested > m_sStateData.MinimumRestingTime &&
             m_pcRNG->Uniform(m_sStateData.ProbRange) < m_sStateData.InitialRestToExploreProb) //InitialRestToExploreProb used here as well.
     {
-        m_pcLEDs->SetAllColors(CColor::BLUE);
+        //m_pcLEDs->SetAllColors(CColor::BLUE);
         m_sStateData.State = SStateData::STATE_RETURN_TO_NEST;
         m_sStateData.TimeRested = 0;
     }
@@ -1161,8 +1198,15 @@ void CEPuckForaging::RestAtFood()
 
 void CEPuckForaging::BecomeABeacon()
 {
-    /* Send out data with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
-    m_pcRABA->SetData(0, BEACON_SIGNAL);
+    UpdateState();
+
+    if(m_sStateData.OnFood)
+    {
+        /* Send out data with RABS that you are a beacon. Neighbouring robots will use this data to home in on your position */
+        m_pcRABA->SetData(0, BEACON_SIGNAL);
+    }
+    else
+        m_sStateData.State = SStateData::STATE_EXPLORING;
 }
 
 /****************************************/
@@ -1242,7 +1286,7 @@ void CEPuckForaging::Explore()
         /* Yes, we do! */
         m_sStateData.TimeExploringUnsuccessfully = 0;
         m_sStateData.TimeSearchingForPlaceInNest = 0;
-        m_pcLEDs->SetAllColors(CColor::BLUE);
+        //m_pcLEDs->SetAllColors(CColor::BLUE);
         m_sStateData.State = SStateData::STATE_RETURN_TO_NEST;
     }
     else if(bBecomeBeacon) /*Do we become a beacon */
@@ -1250,7 +1294,7 @@ void CEPuckForaging::Explore()
         /* Yes, we do! */
         m_sStateData.TimeExploringUnsuccessfully = 0;
         m_sStateData.TimeSearchingForPlaceInNest = 0;
-        m_pcLEDs->SetAllColors(CColor::YELLOW);
+        //m_pcLEDs->SetAllColors(CColor::YELLOW);
         m_sStateData.State = SStateData::STATE_BEACON;
     }
     else if(bRestAtFood) /* So, do we rest at the food source  */
@@ -1258,7 +1302,7 @@ void CEPuckForaging::Explore()
         /* Yes, we do! */
         m_sStateData.TimeExploringUnsuccessfully = 0;
         m_sStateData.TimeSearchingForPlaceInNest = 0;
-        m_pcLEDs->SetAllColors(CColor::BLACK);
+        //m_pcLEDs->SetAllColors(CColor::BLACK);
         m_sStateData.State = SStateData::STATE_RESTING_AT_FOOD;
     }
     else
@@ -1291,7 +1335,7 @@ void CEPuckForaging::ReturnToNest()
             // m_pcLEDs->SetAllColors(CColor::YELLOW); if the robot became a nest beacon
 
             /* switch to state 'resting' */
-            m_pcLEDs->SetAllColors(CColor::RED);
+            //m_pcLEDs->SetAllColors(CColor::RED);
             m_sStateData.State = SStateData::STATE_RESTING;
             m_sStateData.TimeSearchingForPlaceInNest = 0;
             m_eLastExplorationResult = LAST_EXPLORATION_NONE;

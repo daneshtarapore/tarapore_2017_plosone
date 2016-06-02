@@ -33,6 +33,8 @@ private:
 
    unsigned u_num_epucks;
 
+   Real fArenaLength;
+
 
 //   unsigned int     m_unCoordCurrQueueIndex, CurrentStepNumber;
 //    int              m_iDistTravelledTimeWindow;

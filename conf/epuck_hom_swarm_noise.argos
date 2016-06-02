@@ -16,7 +16,7 @@
     <system threads="0" />
     <experiment length="600"
                 ticks_per_second="10"
-                random_seed="111" /> 
+                random_seed="777" /> 
   </framework>
 
   <!-- *************** -->
@@ -34,14 +34,14 @@
       </actuators>
       <sensors>
         <epuck_proximity implementation="default" show_rays="false" noise_level="0.1" />
-        <range_and_bearing implementation="medium" medium="rab" show_rays="true" noise_std_dev="0.01" />
+        <range_and_bearing implementation="medium" medium="rab" show_rays="false" noise_std_dev="0.01" />
         <differential_steering implementation="default" vel_noise_range="-0.1:0.1"  dist_noise_range="-1.0:1.0" />
       </sensors>
       <params>
-        <experiment_run swarm_behavior="SWARM_AGGREGATION"
+        <experiment_run swarm_behavior="SWARM_FLOCKING"
 			swarm_behavior_trans=""
 			time_between_robots_trans_behav="-1.0"
-			fault_behavior="FAULT_NONE" 
+			fault_behavior="FAULT_PROXIMITYSENSORS_SETMAX" 
 	                id_faulty_robot="15" />
         <wheel_turning max_speed="5" />
       </params>
@@ -54,7 +54,9 @@
   <!-- ****************** -->
   <loop_functions library="build/loop_functions/homswarm_loop_functions/libhomswarm_loop_functions.so"
                   label="homswarm_loop_functions">
-    <params  output="nohup.txt" />
+    <params  output="nohup.txt" 
+	     arenalength="3.0"/>
+
   </loop_functions>
 
   <!-- *********************** -->

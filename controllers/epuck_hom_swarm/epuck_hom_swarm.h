@@ -7,7 +7,6 @@
  *    experiments/foraging.argos
  */
 
-//! TODO
 //! TODO: Use the num of observations to select from different relayed FVs Bayesian Inferred FVs
 //! TODO: Refresh the priors perodically
 
@@ -84,6 +83,14 @@
 /****************************************/
 /****************************************/
 
+#ifdef DISABLE_SWARMCOALITION
+//! FOR PHASE C --  Disabled swarm coalition formation on detected abnormal behavior
+#define RECORDSELFVOTESONLY
+#endif
+
+/****************************************/
+/****************************************/
+
 /*
  * All the ARGoS stuff in the 'argos' namespace.
  * With this statement, you save typing argos:: every time.
@@ -151,6 +158,7 @@ public:
         } FBehavior;
 
         std::string id_FaultyRobotInSwarm;
+        std::string swarmbehav;
 
 
         ExperimentToRun();
@@ -266,6 +274,9 @@ public:
     */
     virtual void ControlStep();
 
+
+    CCI_LEDsActuator* GetLEDsPtr() {return m_pcLEDs;}
+
     /*
      *
      *
@@ -373,6 +384,11 @@ public:
         return listConsensusInfoOnRobotIds;
     }
 
+    virtual t_listVoteInformationRobots& GetListVoteInfoOnRobotIds()
+    {
+        return listVoteInformationRobots;
+    }
+
     /*
      * For debugging purposes
      */
@@ -401,6 +417,8 @@ public:
     Real m_fInternalRobotTimer; Real m_fRobotTimerAtStart;
     Real m_fCRM_RUN_TIMESTAMP;
     bool b_CRM_Run;
+
+    std::vector <int> beaconrobots_ids;
 
     //static UInt8 BEACON_SIGNAL, NEST_BEACON_SIGNAL;
 
@@ -497,9 +515,23 @@ private:
             {
                 CVector2 tmp(sensor_readings[i].Range, sensor_readings[i].HorizontalBearing);
                 tmp += CVector2(m_pcRNG->Uniform(CRange<Real>(75.0f, 100.0f)),
-                                 m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI, CRadians::PI)));
+                                m_pcRNG->Uniform(CRange<CRadians>(-CRadians::PI, CRadians::PI)));
+
                 sensor_readings[i].Range             = tmp.Length();
                 sensor_readings[i].HorizontalBearing = tmp.Angle();
+
+/*
+                                tmp += CVector2(m_pcRNG->Uniform(CRange<Real>(-50.0f, +50.0f)),
+
+                 std::cout << "range after " << sensor_readings[i].Range << std::endl;
+
+
+                if(sensor_readings[i].Range > 100.0f)
+                    sensor_readings[i].Range = 100.0f;
+
+
+                if(sensor_readings[i].Range < 0.0f)
+                    sensor_readings[i].Range = 0.0f;*/
 
 
 

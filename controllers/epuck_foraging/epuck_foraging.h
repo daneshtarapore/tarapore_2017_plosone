@@ -91,6 +91,13 @@
 /****************************************/
 /****************************************/
 
+#ifdef DISABLE_SWARMCOALITION
+//! FOR PHASE C --  Disabled swarm coalition formation on detected abnormal behavior
+#define RECORDSELFVOTESONLY
+#endif
+
+/****************************************/
+/****************************************/
 
 /*
  * All the ARGoS stuff in the 'argos' namespace.
@@ -150,6 +157,7 @@ public:
 
 
         std::string id_FaultyRobotInSwarm;
+        std::string swarmbehav;
 
         unsigned u_num_epucks; // number of epucks in swarm
 
@@ -328,6 +336,9 @@ public:
     virtual void ControlStep();
 
 
+    CCI_LEDsActuator* GetLEDsPtr() {return m_pcLEDs;}
+
+
     /*
      *
      *
@@ -436,6 +447,11 @@ public:
         return listConsensusInfoOnRobotIds;
     }
 
+    virtual t_listVoteInformationRobots& GetListVoteInfoOnRobotIds()
+    {
+        return listVoteInformationRobots;
+    }
+
     /*
      * For debugging purposes
      */
@@ -504,6 +520,12 @@ public:
     Real m_fInternalRobotTimer, m_fRobotTimerAtStart;
     Real m_fCRM_RUN_TIMESTAMP;
     bool b_CRM_Run;
+
+    unsigned int TIME_STATE_RESTING, TIME_STATE_EXPLORING, TIME_STATE_BEACON, TIME_STATE_RESTING_AT_FOOD, TIME_STATE_RETURN_TO_NEST;
+    unsigned int TIME_STATE_RESTING1, TIME_STATE_EXPLORING1, TIME_STATE_BEACON1, TIME_STATE_RESTING_AT_FOOD1, TIME_STATE_RETURN_TO_NEST1;
+    unsigned int TIME_STATE_RESTING2, TIME_STATE_EXPLORING2, TIME_STATE_BEACON2, TIME_STATE_RESTING_AT_FOOD2, TIME_STATE_RETURN_TO_NEST2;
+    std::vector <int> beaconrobots_ids;
+
 
     // static UInt8 BEACON_SIGNAL, NEST_BEACON_SIGNAL;
 

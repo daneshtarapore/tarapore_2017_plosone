@@ -18,16 +18,29 @@
 /******************************************************************************/
 /******************************************************************************/
 
+//! FOR PHASE A -- ENABLING A VOTE ON FVs
 #define ConsensusOnMapOfIDtoFV
 #define ConsensusOnMapOfIDtoFV_Threshold 0.5 // threshold which determines the strength of the consensus. a behavior feature value requires more than 75% votes for that value for consensus to be established.
+/******************************************************************************/
 
 
-#define FILTER_BEFORE_VOTE // 90% decision making 10% voting and consensus
+//! FOR PHASE B -- Integrating CRM output over consecutive control-cycles, before making a vote
+
+#define FILTER_BEFORE_VOTE // 1s voting and consensus, the rest decision making
+
+/******************************************************************************/
+
+//! FOR PHASE C --  To disable phase C, i.e., swarm coalition formation on detected abnormal behavior
+
+//#define DISABLE_SWARMCOALITION
+
+/******************************************************************************/
 
 //#define VOTESONROBOTID // not fv
 
+/******************************************************************************/
 
-#define DESYNC_ROB_CLOCK
+//#define DESYNC_ROB_CLOCK
 
 /******************************************************************************/
 /******************************************************************************/

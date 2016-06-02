@@ -12,7 +12,7 @@ void Sense(Real m_fProbForget,
            t_listMapFVsToRobotIds& listMapFVsToRobotIds, t_listMapFVsToRobotIds& listMapFVsToRobotIds_relay, t_listFVsSensed& listFVsSensed,
            t_listVoteInformationRobots&  listVoteInformationRobots, t_listConsensusInfoOnRobotIds& listConsensusInfoOnRobotIds,
            CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector, CObservedFeatureVector &m_cObservationFeatureVector,
-           CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector, CRandom::CRNG* m_pcRNG_FVs)
+           CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector, CRandom::CRNG* m_pcRNG_FVs, std::string &swarmbehav, std::vector<int> &beaconrobots_ids)
 {
 #if FV_MODE == PROPRIOCEPT_MODE
 
@@ -66,6 +66,22 @@ void Sense(Real m_fProbForget,
     listMapFVsToRobotIds_relay.clear();
     for (size_t i = 0; i < m_cBayesianInferredFeatureVector.ObservedRobotIDs.size(); ++i)
     {
+        /* Ignore the homing beacon in fault detection */
+        if(swarmbehav.compare("SWARM_HOMING") == 0)
+            if(m_cBayesianInferredFeatureVector.ObservedRobotIDs[i] == 0u)
+            {
+                continue;
+            }
+
+        /* Ignore the foraging beacon(s) in fault detection */
+        if(swarmbehav.compare("SWARM_FORAGING") == 0)
+            if(std::find(beaconrobots_ids.begin(), beaconrobots_ids.end(), m_cBayesianInferredFeatureVector.ObservedRobotIDs[i]) != beaconrobots_ids.end())
+            {
+                continue;
+            }
+
+
+
         unsigned robotId = m_cBayesianInferredFeatureVector.ObservedRobotIDs[i];
         unsigned fv      = m_cBayesianInferredFeatureVector.ObservedRobotFVs[i];
 
@@ -139,7 +155,7 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
          t_listVoteInformationRobots&  listVoteInformationRobots, t_listConsensusInfoOnRobotIds& listConsensusInfoOnRobotIds,
          CProprioceptiveFeatureVector &m_cProprioceptiveFeatureVector,
          CObservedFeatureVector &m_cObservationFeatureVector, CBayesianInferenceFeatureVector &m_cBayesianInferredFeatureVector,
-         bool b_CRM_Run, Real m_fCRM_RUN_TIMESTAMP, CRMinRobotAgentOptimised* crminAgent, CRandom::CRNG* m_pcRNG_FVs, unsigned& m_uRobotFV)
+         bool b_CRM_Run, Real m_fCRM_RUN_TIMESTAMP, CRMinRobotAgentOptimised* crminAgent, CRandom::CRNG* m_pcRNG_FVs, unsigned& m_uRobotFV, std::string  &swarmbehav, std::vector<int> &beaconrobots_ids)
 {
     unsigned m_uRobotId;
 
@@ -172,7 +188,7 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
           listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed,
           listVoteInformationRobots, listConsensusInfoOnRobotIds,
           m_cProprioceptiveFeatureVector, m_cObservationFeatureVector,
-          m_cBayesianInferredFeatureVector, m_pcRNG_FVs);
+          m_cBayesianInferredFeatureVector, m_pcRNG_FVs, swarmbehav, beaconrobots_ids);
 
 #endif
     /****************************************/
@@ -209,7 +225,7 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
           listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed,
           listVoteInformationRobots, listConsensusInfoOnRobotIds,
           m_cProprioceptiveFeatureVector, m_cObservationFeatureVector,
-          m_cBayesianInferredFeatureVector, m_pcRNG_FVs);
+          m_cBayesianInferredFeatureVector, m_pcRNG_FVs, swarmbehav, beaconrobots_ids);
 
 
     //if ( ((unsigned)m_fInternalRobotTimer%2u == 0) || (m_fInternalRobotTimer <= MODELSTARTTIME))
@@ -240,14 +256,16 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
     /*encoders give you the speed at the previous tick not current tick */
     m_cBayesianInferredFeatureVector.m_sSensoryData.SetSensoryData(RobotId, m_fInternalRobotTimer, rabsensor_readings,
                                                                    m_pcWheelsEncoder->GetReading().VelocityLeftWheel, m_pcWheelsEncoder->GetReading().VelocityRightWheel);
-    m_cBayesianInferredFeatureVector.SimulationStep();
+
+     m_cBayesianInferredFeatureVector.SimulationStep(swarmbehav, beaconrobots_ids);
+
 
     Sense(PROBABILITY_FORGET_FV, RobotId, m_pcRABA,
           m_fInternalRobotTimer, rabsensor_readings,
           listMapFVsToRobotIds, listMapFVsToRobotIds_relay, listFVsSensed,
           listVoteInformationRobots, listConsensusInfoOnRobotIds,
           m_cProprioceptiveFeatureVector, m_cObservationFeatureVector,
-          m_cBayesianInferredFeatureVector, m_pcRNG_FVs);
+          m_cBayesianInferredFeatureVector, m_pcRNG_FVs, swarmbehav, beaconrobots_ids);
 
     SendIdSelfBearingAndObsFVsToNeighbours(m_pcRABA, m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector, RobotId,
                                            rabsensor_readings, listMapFVsToRobotIds_relay);
@@ -268,14 +286,24 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
     {
         Real m_fVoteCompilationStartTime = (Real)(((unsigned)m_fInternalRobotTimer)/
                                              ((unsigned)(VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second))) *
-                                      (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second);
+                                             (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second);
 
-        if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) > 0.9f)
+#ifndef DISABLE_SWARMCOALITION
+#ifndef FILTER_BEFORE_VOTE
+        /* Listen for voting packets and consensus packets from neighbours*/
+        ReceiveVotesAndConsensus(listVoteInformationRobots, listMapFVsToRobotIds, listConsensusInfoOnRobotIds, rabsensor_readings);
+        EstablishConsensus(m_fInternalRobotTimer, listVoteInformationRobots, listConsensusInfoOnRobotIds);
+#else
+
+        if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) >
+           (1.0f - 1.0f/VOTCON_RESULTS_VALIDFOR_SECONDS)) //0.9f)
         {
             /* Listen for voting packets and consensus packets from neighbours*/
             ReceiveVotesAndConsensus(listVoteInformationRobots, listMapFVsToRobotIds, listConsensusInfoOnRobotIds, rabsensor_readings);
             EstablishConsensus(m_fInternalRobotTimer, listVoteInformationRobots, listConsensusInfoOnRobotIds);
         }
+#endif
+#endif
     }
 
 
@@ -306,7 +334,8 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
                                           (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second);
 
 
-            if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) > 0.9f)
+            if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) >
+                    (1.0f - 1.0f/VOTCON_RESULTS_VALIDFOR_SECONDS))//0.9f)
             {
                 UpdateVoterRegistry(listVoteInformationRobots,
                                     listMapFVsToRobotIds,
@@ -335,7 +364,8 @@ void SenseCommunicateDetect(unsigned RobotId, CCI_RangeAndBearingActuator*  m_pc
                                                (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second);
 
 
-            if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) > 0.9f)
+            if(((m_fInternalRobotTimer - m_fVoteCompilationStartTime)/ (VOTCON_RESULTS_VALIDFOR_SECONDS * CProprioceptiveFeatureVector::m_sRobotData.iterations_per_second)) >
+                    (1.0f - 1.0f/VOTCON_RESULTS_VALIDFOR_SECONDS)) //0.9f)
             {
                 for (t_listFVsSensed::iterator it_fvdist = listFVsSensed.begin(); it_fvdist != listFVsSensed.end(); ++it_fvdist)
                 {
@@ -887,7 +917,7 @@ bool ReadFromCommunicationChannel_RelayedFv(Real m_fInternalRobotTimer, t_listMa
                 std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }*/
 
-            /*if(robotId == 15 && observerId == 93 && ((m_fInternalRobotTimer > 780 && m_fInternalRobotTimer < 790)))
+            /*if(robotId == 16) // && observerId == 93 && ((m_fInternalRobotTimer > 780 && m_fInternalRobotTimer < 790)))
             {
                     std::cerr << "Robot " << observerId << " observing " << robotId << " fv " << fv << std::endl;
             }*/

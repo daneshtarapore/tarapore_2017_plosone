@@ -12,7 +12,7 @@
 
 CHomSwarmLoopFunctions::CHomSwarmLoopFunctions() :
    m_pcFloor(NULL),
-   m_pcRNG(NULL)
+   m_pcRNG(CRandom::CreateRNG("argos"))
 {
 //    // keeping track of distance travelled by bot in last 100 time-steps
 //    m_iDistTravelledTimeWindow = 100;
@@ -37,6 +37,9 @@ void CHomSwarmLoopFunctions::Init(TConfigurationNode& t_node)
       /* Open the file, erasing its contents */
       m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
       //m_cOutput << "# clock\trobot_id\trobot_fv\tobserving_robots\tattack\ttolerate\tundecided" << std::endl;
+
+       GetNodeAttribute(tParams, "arenalength", fArenaLength);
+
    }
    catch(CARGoSException& ex)
       THROW_ARGOSEXCEPTION_NESTED("Error parsing homswarm loop function.", ex);
@@ -50,12 +53,29 @@ void CHomSwarmLoopFunctions::Init(TConfigurationNode& t_node)
         u_num_epucks++;
     }
 
+
     for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
     {
         /* Get handle to e-puck entity and controller */
         CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
         CEPuckHomSwarm& cController = dynamic_cast<CEPuckHomSwarm&>(cEPuck.GetControllableEntity().GetController());
         cController.GetExperimentType().SetNumEPuckRobotsInSwarm(u_num_epucks);
+
+        /*if (cController.GetExperimentType().swarmbehav.compare("SWARM_HOMING") == 0)
+        {
+            if (cController.RobotIdStrToInt() == 0)
+            {
+                CVector3 beaconposition; CQuaternion beaconorientation;
+
+                // Position the beacon robot to be not close to the wall
+                CRange <Real>m_cForagingArenaSideX = CRange<Real>(-fArenaLength/4.0 - 0.3f, fArenaLength/4.0  - 0.3f);
+
+                beaconposition.SetX(m_pcRNG->Uniform(m_cForagingArenaSideX));
+                beaconposition.SetY(m_pcRNG->Uniform(m_cForagingArenaSideX));
+
+                cEPuck.GetEmbodiedEntity().MoveTo(beaconposition, beaconorientation);
+            }
+        }*/
     }
 }
 
@@ -235,9 +255,7 @@ void CHomSwarmLoopFunctions::PostStep()
 //    return;
 
 
-
-
-
+#ifndef RECORDSELFVOTESONLY
     CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
     for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
     {
@@ -287,8 +305,77 @@ void CHomSwarmLoopFunctions::PostStep()
         for (int i = 0; i < u_num_epucks - list_Consensus_Attackers.size(); ++i)
             m_cOutput << " -1 ";
         m_cOutput << std::endl;
-    }
 
+        //if (observed_rob_id == 16)
+        {
+            if((list_Consensus_Attackers.size() == list_Consensus_Tolerators.size()) && (list_Consensus_Tolerators.size() == 0))
+            {
+                if (observed_rob_id == 15)
+                    cController.GetLEDsPtr()->SetAllColors(CColor::YELLOW);
+                else
+                    cController.GetLEDsPtr()->SetAllColors(CColor::BLACK);
+            }
+            else if(list_Consensus_Attackers.size() > list_Consensus_Tolerators.size())
+                cController.GetLEDsPtr()->SetAllColors(CColor::RED);
+            else
+                cController.GetLEDsPtr()->SetAllColors(CColor::GREEN);
+        }
+    }
+#else
+    CSpace::TMapPerType& m_cEpucks = GetSpace().GetEntitiesByType("e-puck");
+    for(CSpace::TMapPerType::iterator it = m_cEpucks.begin(); it != m_cEpucks.end(); ++it)
+    {
+        /* Get handle to e-puck entity and controller */
+        CEPuckEntity& cEPuck = *any_cast<CEPuckEntity*>(it->second);
+        CEPuckHomSwarm& cController = dynamic_cast<CEPuckHomSwarm&>(cEPuck.GetControllableEntity().GetController());
+
+        unsigned observed_rob_id = cController.RobotIdStrToInt();
+        unsigned observed_rob_fv = cController.GetRobotFeatureVector();
+
+        std::list<unsigned> list_Voters_Tolerators, list_Voters_Attackers;
+        list_Voters_Tolerators.clear(); list_Voters_Attackers.clear();
+
+
+        for(CSpace::TMapPerType::iterator it_ob = m_cEpucks.begin(); it_ob != m_cEpucks.end(); ++it_ob)
+        {
+            CEPuckEntity& cEPuck_Observers = *any_cast<CEPuckEntity*>(it_ob->second);
+            CEPuckHomSwarm& cController_Observers = dynamic_cast<CEPuckHomSwarm&>(cEPuck_Observers.GetControllableEntity().GetController());
+
+            unsigned observers_rob_id = cController_Observers.RobotIdStrToInt();
+
+            t_listVoteInformationRobots listVoteInformationRobots = cController_Observers.GetListVoteInfoOnRobotIds();
+
+            for (t_listVoteInformationRobots::iterator it_vot = listVoteInformationRobots.begin(); it_vot != listVoteInformationRobots.end(); ++it_vot)
+            {
+                assert(it_vot->uVoterIds.size() == 1u); // only self-vote should be registered
+                assert(it_vot->attackvote_count + it_vot->toleratevote_count == 1u); // only self-vote should be registered
+
+                if(it_vot->uRobotId == observed_rob_id && it_vot->attackvote_count > 0)
+                    list_Voters_Attackers.push_back(observers_rob_id);
+
+                else if(it_vot->uRobotId == observed_rob_id && it_vot->toleratevote_count > 0)
+                    list_Voters_Tolerators.push_back(observers_rob_id);
+            }
+        }
+
+        m_cOutput << "Clock: " << GetSpace().GetSimulationClock() << "\t"
+                  << "Id: " << observed_rob_id << "\t"
+                  << "FV: " << observed_rob_fv << "\t";
+
+        m_cOutput << "Voters_Tolerators: ";
+        for (std::list<unsigned>::iterator it_tolcon = list_Voters_Tolerators.begin(); it_tolcon != list_Voters_Tolerators.end(); ++it_tolcon)
+            m_cOutput << (*it_tolcon) << " ";
+        for (int i = 0; i < u_num_epucks - list_Voters_Tolerators.size(); ++i)
+            m_cOutput << " -1 ";
+
+        m_cOutput <<  "\t" << "Voters_Attackers: ";
+        for (std::list<unsigned>::iterator it_atkcon = list_Voters_Attackers.begin(); it_atkcon != list_Voters_Attackers.end(); ++it_atkcon)
+            m_cOutput << (*it_atkcon) << " ";
+        for (int i = 0; i < u_num_epucks - list_Voters_Attackers.size(); ++i)
+            m_cOutput << " -1 ";
+        m_cOutput << std::endl;
+    }
+#endif
 
 
 
