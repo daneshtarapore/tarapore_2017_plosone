@@ -604,6 +604,16 @@ void CEPuckHomSwarm::ControlStep()
                            m_cProprioceptiveFeatureVector, m_cObservationFeatureVector, m_cBayesianInferredFeatureVector,
                            b_CRM_Run, m_fCRM_RUN_TIMESTAMP, crminAgent, m_pcRNG_FVs, m_uRobotFV, m_sExpRun.swarmbehav, beaconrobots_ids);
 
+//    if(m_uRobotId == 0)
+//        m_pcWheels->SetLinearVelocity(0, 0);
+
+//    CCI_RangeAndBearingSensor::TReadings rab_packet = m_pcRABS->GetReadings();
+//    if(m_uRobotId == 0)
+//        for(size_t i = 0; i < rab_packet.size(); ++i)
+//        {
+//            std::cout << "Range " << rab_packet[i].Range << " Bearing " << rab_packet[i].HorizontalBearing << std::endl;
+//        }
+
 
 //    /****************************************/
 //#if FV_MODE == PROPRIOCEPT_MODE
