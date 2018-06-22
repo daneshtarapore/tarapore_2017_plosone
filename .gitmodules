@@ -1,0 +1,3 @@
+[submodule "faultdetection-epuckswarm"]
+	path = faultdetection-epuckswarm
+	url = https://github.com/daneshtarapore/faultdetection-epuckswarm.git

@@ -1,0 +1,9 @@
+=============================================
+==                                         ==
+== Fault Detection in a E-puck robot swarm ==
+==                                         ==
+=============================================
+
+The fault detection algorithm is part of the study: Tarapore, Danesh, Anders Lyhne Christensen, and Jon Timmis. "Generic, scalable and decentralized fault detection for robot swarms." PloS one 12.8 (2017): e0182058.
+
+Refer to https://github.com/daneshtarapore/faultdetection-epuckswarm for an updated version of the fault detection algorithm tested on ARGoS version 3.0.0-beta49.
