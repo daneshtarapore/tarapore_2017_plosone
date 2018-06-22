@@ -1,8 +1,8 @@
-=============================================
-==                                         ==
-== Fault Detection in a E-puck robot swarm ==
-==                                         ==
-=============================================
+==========================================================================
+==                                                                      ==
+== Generic, scalable and decentralized fault detection for robot swarms ==
+==                                                                      ==
+==========================================================================
 
 The fault detection algorithm is part of the study: Tarapore, Danesh, Anders Lyhne Christensen, and Jon Timmis. "Generic, scalable and decentralized fault detection for robot swarms." PloS one 12.8 (2017): e0182058.
 
